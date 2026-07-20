@@ -26,15 +26,47 @@
       content="Consultora de recursos humanos y adquisición de talento para empresas de tecnología, retail y servicios financieros."
     />
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-    <script src="./assets/js/tailwind.config.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./assets/css/styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script src="./assets/js/index.schema.js"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Nexova",
+        "description": "Consultora de recursos humanos y adquisición de talento",
+        "url": "https://nexova.com",
+        "foundingDate": "2011",
+        "address": [
+          {
+            "@type": "PostalAddress",
+            "addressCountry": "ES",
+            "addressLocality": "Valencia",
+            "addressRegion": "Comunidad Valenciana"
+          },
+          {
+            "@type": "PostalAddress",
+            "addressCountry": "US",
+            "addressLocality": "Miami",
+            "addressRegion": "Florida"
+          }
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+34-960-123-456",
+          "contactType": "customer service",
+          "availableLanguage": ["Spanish", "English"]
+        },
+        "sameAs": [
+          "https://linkedin.com/company/nexova",
+          "https://instagram.com/nexova"
+        ]
+      }
+    </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased">
     <a
