@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { getCandidates } from "@/lib/api";
+import CandidateForm from "@/components/candidate-form";
 import {
   STAGES,
   STATUSES,
@@ -94,6 +95,7 @@ export default function CandidateList() {
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const rawStatus = searchParams.get("status");
   const rawStage = searchParams.get("stage");
@@ -181,6 +183,27 @@ export default function CandidateList() {
             </div>
           </div>
         </header>
+
+        <div className="mb-6 flex justify-end">
+          <button
+            className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            onClick={() => setIsCreateOpen(true)}
+            type="button"
+          >
+            + Nuevo candidato
+          </button>
+        </div>
+
+        {isCreateOpen ? (
+          <CandidateForm
+            mode="create"
+            onClose={() => setIsCreateOpen(false)}
+            onSaved={(savedCandidate) => {
+              setCandidates((current) => [savedCandidate, ...current]);
+              setTotal((current) => current + 1);
+            }}
+          />
+        ) : null}
 
         <section aria-label="Filtros de candidatos" className="mb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
