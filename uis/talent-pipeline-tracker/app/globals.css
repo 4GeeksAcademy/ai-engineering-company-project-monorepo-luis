@@ -121,10 +121,18 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-[#f6f7f2] text-slate-950 antialiased;
+  }
+
+  ::selection {
+    background: rgba(16, 185, 129, 0.2);
+    color: #0f172a;
   }
 }
