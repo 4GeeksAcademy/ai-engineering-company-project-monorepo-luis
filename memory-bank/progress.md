@@ -15,6 +15,8 @@
 
 - Inventario documental y mapa inicial de entregables de la etapa 1.
 - Creación del banco de memoria: `projectbrief.md`, `techContext.md` y este archivo.
+- Etapa 3: creado `AGENTS.md` raíz, reglas de contexto y arquitectura en `.agents/rules/`, y skill de validación en `.agents/skills/validate-application-before-commit/`.
+- Commit del banco de memoria publicado en `feature/agent-memory-bank` (`9a5ac91`). Los archivos de la etapa 3 aún no están confirmados.
 
 ## Decisiones
 
@@ -27,14 +29,13 @@
 
 ## Riesgos y pendientes
 
-- Verificar rama y cambios locales con `git status --short --branch` antes de modificar otros archivos.
+- Rama actual `feature/agent-memory-bank`, sincronizada con `origin/feature/agent-memory-bank` al completar el commit del banco de memoria.
+- Permanece una eliminación local preexistente de `INSTRUCCIONES_AGENTE_HITO_IA.md`; no se incluyó en el commit y no debe descartarse sin autorización.
 - Confirmar durante la implementación que la ruta `/` del sitio público funciona, además de las páginas documentadas en su README.
 - Definir el stack, alcance de datos e integración del nuevo backoffice.
 - Ejecutar y documentar las validaciones disponibles; no marcar como correcto ningún check que no se haya ejecutado.
 
 ## Próximos pasos
 
-1. Crear o actualizar `AGENTS.md` en la raíz con el flujo y límites definidos en `ingenieria-ia.md`.
-2. Añadir reglas con alcance declarado en `.agents/rules/` y una skill de objetivo único en `.agents/skills/`.
-3. Verificar/completar `uis/website` y crear `uis/backoffice/`.
-4. Ejecutar validaciones y actualizar este registro con resultados observados.
+1. Verificar/completar `uis/website` y crear `uis/backoffice/`.
+2. Ejecutar validaciones y actualizar este registro con resultados observados.
