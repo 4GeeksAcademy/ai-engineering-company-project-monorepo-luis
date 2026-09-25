@@ -25,6 +25,10 @@
 - Commit de etapa 5 publicado en `feature/agent-memory-bank` (`77f970b`).
 - Etapa 6: `npm run typecheck` y build Tailwind completados; JSON-LD parseado correctamente y rutas/recursos del website y backoffice comprobados por HTTP con respuesta 200.
 - Smoke test del backoffice confirmó el resumen y que no renderiza campos de registros de candidatos.
+- Commit de resultados de etapa 6 publicado en `feature/agent-memory-bank` (`59c3535`).
+- Etapa 7: confirmado que `feature/agent-memory-bank` está publicada contra `main` y que no existe una PR abierta para esa rama.
+- Generadas cuatro capturas con Playwright 1.50.1/Chromium para website y backoffice en 1440 × 900 y 390 × 844, en `docs/screenshots/`.
+- Pruebas Playwright: website y backoffice sin overflow horizontal en 1440 y 390 px; formulario vacío mostró errores de nombre/política esperados; envío válido mostró éxito; no hubo errores JavaScript de página.
 
 ## Decisiones
 
@@ -37,16 +41,15 @@
 
 ## Riesgos y pendientes
 
-- Rama actual `feature/agent-memory-bank`, sincronizada con `origin` al iniciar las validaciones de etapa 6; la actualización de este archivo queda como cambio local.
+- Rama actual `feature/agent-memory-bank`, sincronizada con `origin` tras publicar el commit de etapa 6 (`59c3535`).
 - Permanece una eliminación local preexistente de `INSTRUCCIONES_AGENTE_HITO_IA.md`; no se incluyó en el commit y no debe descartarse sin autorización.
-- No se pudo inspeccionar `uis/website/assets/js/validation.js` porque Copilot lo marca como ignorado; tampoco había navegador instalado para interacción o revisión visual. Las validaciones del formulario quedan pendientes de prueba en navegador.
-- La revisión visual responsive y la inspección de errores de consola quedan pendientes por falta de navegador en el entorno.
-- El backoffice pasó un smoke test HTTP de `/` (200), contenido de contexto y carga del CSS. No hubo navegador para comprobar visualmente desktop/móvil.
+- La PR aún no se ha creado; las capturas están generadas localmente y deben revisarse e incluirse en el commit de entrega.
+- No se pudo inspeccionar `uis/website/assets/js/validation.js` porque Copilot lo marca como ignorado; se validó su comportamiento observable desde Chromium.
+- El backoffice pasó un smoke test HTTP de `/` (200), contenido de contexto y carga del CSS; Playwright comprobó el viewport desktop/móvil sin overflow horizontal.
 - Tailwind avisa que `caniuse-lite` está desactualizado; la compilación termina correctamente.
 - El backoffice es estático y no declara scripts de test, lint, typecheck ni build; se validó con serving HTTP.
 
 ## Próximos pasos
 
-1. Completar la revisión visual desktop/móvil y la interacción del formulario cuando haya navegador disponible.
-2. Revisar el diff, estado Git, secretos y archivos generados antes de la entrega.
-3. Preparar commit/push de la actualización de etapa 6 y los cambios autorizados; abrir PR solo con autorización explícita.
+1. Revisar el diff, estado Git, capturas, secretos y archivos generados antes de la entrega.
+2. Crear la PR a `main` con las capturas y resultados de validación; entregar su enlace en el campus.
