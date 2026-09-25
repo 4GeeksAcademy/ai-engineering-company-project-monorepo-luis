@@ -16,12 +16,15 @@
 - Inventario documental y mapa inicial de entregables de la etapa 1.
 - Creación del banco de memoria: `projectbrief.md`, `techContext.md` y este archivo.
 - Etapa 3: creado `AGENTS.md` raíz, reglas de contexto y arquitectura en `.agents/rules/`, y skill de validación en `.agents/skills/validate-application-before-commit/`.
-- Commits publicados en `feature/agent-memory-bank`: banco de memoria (`9a5ac91`) y etapa 3 (`c52222b`).
+- Commits publicados en `feature/agent-memory-bank`: banco de memoria (`9a5ac91`), etapa 3 (`c52222b`), etapa 4 (`a699372`) y etapa 5 (`77f970b`).
 - Etapa 4: añadido header/footer web reutilizable, navegación adaptable a móvil y límite HTML de 500 caracteres en comentarios.
 - Corregido el comando de servidor: sin `-s`, el formulario se sirve en `/application`; el modo SPA redirigía a la landing.
 - Corregidos los globs de Tailwind para que, ejecutado desde la raíz como indica el README, genere las utilidades del sitio y del componente compartido.
 - Etapa 5: creado `uis/backoffice/` como vista interna diferenciada, con cifras aproximadas del briefing, líneas de negocio y etapas de talento de `SPEC.md`; no consume ni expone datos personales.
 - Documentados en `uis/backoffice/README.md` el origen de los datos, el carácter no operativo del panel y el comando local.
+- Commit de etapa 5 publicado en `feature/agent-memory-bank` (`77f970b`).
+- Etapa 6: `npm run typecheck` y build Tailwind completados; JSON-LD parseado correctamente y rutas/recursos del website y backoffice comprobados por HTTP con respuesta 200.
+- Smoke test del backoffice confirmó el resumen y que no renderiza campos de registros de candidatos.
 
 ## Decisiones
 
@@ -34,15 +37,16 @@
 
 ## Riesgos y pendientes
 
-- Rama actual `feature/agent-memory-bank`; los cambios de etapa 5 están locales y sin commit.
+- Rama actual `feature/agent-memory-bank`, sincronizada con `origin` al iniciar las validaciones de etapa 6; la actualización de este archivo queda como cambio local.
 - Permanece una eliminación local preexistente de `INSTRUCCIONES_AGENTE_HITO_IA.md`; no se incluyó en el commit y no debe descartarse sin autorización.
 - No se pudo inspeccionar `uis/website/assets/js/validation.js` porque Copilot lo marca como ignorado; tampoco había navegador instalado para interacción o revisión visual. Las validaciones del formulario quedan pendientes de prueba en navegador.
+- La revisión visual responsive y la inspección de errores de consola quedan pendientes por falta de navegador en el entorno.
 - El backoffice pasó un smoke test HTTP de `/` (200), contenido de contexto y carga del CSS. No hubo navegador para comprobar visualmente desktop/móvil.
 - Tailwind avisa que `caniuse-lite` está desactualizado; la compilación termina correctamente.
-- Definir el stack, alcance de datos e integración del nuevo backoffice.
+- El backoffice es estático y no declara scripts de test, lint, typecheck ni build; se validó con serving HTTP.
 
 ## Próximos pasos
 
-1. Ejecutar las validaciones de build y smoke test para las apps modificadas.
-2. Comprobar visualmente website y backoffice en desktop/móvil cuando haya navegador disponible.
-3. Revisar el diff y actualizar este registro con los resultados observados antes de preparar la entrega.
+1. Completar la revisión visual desktop/móvil y la interacción del formulario cuando haya navegador disponible.
+2. Revisar el diff, estado Git, secretos y archivos generados antes de la entrega.
+3. Preparar commit/push de la actualización de etapa 6 y los cambios autorizados; abrir PR solo con autorización explícita.
