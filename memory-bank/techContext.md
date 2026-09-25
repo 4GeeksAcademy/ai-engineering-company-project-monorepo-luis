@@ -11,6 +11,7 @@
 ## Estructura actual relevante
 
 - `uis/website/`: sitio público estático existente, con `index.html`, `application.html` y estilos Tailwind.
+- `uis/backoffice/`: panel interno estático con `index.html` y `styles.css`; presenta contexto de empresa y etapas, sin conectarse a datos de candidatos.
 - `uis/talent-pipeline-tracker/`: aplicación Next.js existente para gestión detallada de candidatos.
 - `uis/backoffice/`: aplicación interna requerida por el hito; pendiente de crear.
 - `services/`: documentación de convenciones; no hay un servicio backend implementado actualmente.
@@ -47,7 +48,12 @@ Tracker, desde `uis/talent-pipeline-tracker/`:
 - `npm run start`
 - No declara scripts propios para tests ni typecheck.
 
-Los comandos están documentados, pero aún no se han ejecutado como parte de esta auditoría. Añadir aquí los comandos del backoffice cuando se seleccione e implemente su stack.
+Backoffice estático, desde la raíz:
+
+- Servir: `npx --yes serve uis/backoffice -l 5502`.
+- No tiene scripts propios de test, lint, typecheck o build.
+
+Los comandos de compilación y serving del website se ejecutaron. El backoffice se validó sirviéndolo y con smoke test HTTP; los checks del tracker y de raíz no se ejecutaron en esta etapa.
 
 ## Restricciones técnicas y de datos
 
