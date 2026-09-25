@@ -5,9 +5,9 @@
 ## Estado inicial observado
 
 - Revisión documental de la etapa 1 completada para `ingenieria-ia.md`, `CONTEXT.md`, `SPEC.md` y README relevantes.
-- Existe `uis/website` con landing y formulario; falta verificarla en ejecución contra todos los criterios del hito.
+- Existe `uis/website` con landing y formulario; las rutas `/` y `/application` y sus recursos principales ya pasaron smoke test HTTP.
 - Existe `uis/talent-pipeline-tracker` con especificación funcional propia.
-- Pendientes al iniciar: `uis/backoffice/`, `AGENTS.md` raíz, `.agents/rules/` y `.agents/skills/`.
+- Pendiente: crear `uis/backoffice/`.
 - `services/` contiene documentación de convenciones, pero no un backend implementado.
 - Se ejecutó `git pull` con código de salida 0 según el contexto de la sesión; la rama y el estado actual del working tree no están verificados.
 
@@ -16,7 +16,10 @@
 - Inventario documental y mapa inicial de entregables de la etapa 1.
 - Creación del banco de memoria: `projectbrief.md`, `techContext.md` y este archivo.
 - Etapa 3: creado `AGENTS.md` raíz, reglas de contexto y arquitectura en `.agents/rules/`, y skill de validación en `.agents/skills/validate-application-before-commit/`.
-- Commit del banco de memoria publicado en `feature/agent-memory-bank` (`9a5ac91`). Los archivos de la etapa 3 aún no están confirmados.
+- Commits publicados en `feature/agent-memory-bank`: banco de memoria (`9a5ac91`) y etapa 3 (`c52222b`).
+- Etapa 4: añadido header/footer web reutilizable, navegación adaptable a móvil y límite HTML de 500 caracteres en comentarios.
+- Corregido el comando de servidor: sin `-s`, el formulario se sirve en `/application`; el modo SPA redirigía a la landing.
+- Corregidos los globs de Tailwind para que, ejecutado desde la raíz como indica el README, genere las utilidades del sitio y del componente compartido.
 
 ## Decisiones
 
@@ -29,13 +32,14 @@
 
 ## Riesgos y pendientes
 
-- Rama actual `feature/agent-memory-bank`, sincronizada con `origin/feature/agent-memory-bank` al completar el commit del banco de memoria.
+- Rama actual `feature/agent-memory-bank`; los cambios de etapa 4 están locales y sin commit.
 - Permanece una eliminación local preexistente de `INSTRUCCIONES_AGENTE_HITO_IA.md`; no se incluyó en el commit y no debe descartarse sin autorización.
-- Confirmar durante la implementación que la ruta `/` del sitio público funciona, además de las páginas documentadas en su README.
+- No se pudo inspeccionar `uis/website/assets/js/validation.js` porque Copilot lo marca como ignorado; tampoco había navegador instalado para interacción o revisión visual. Las validaciones del formulario quedan pendientes de prueba en navegador.
+- Tailwind avisa que `caniuse-lite` está desactualizado; la compilación termina correctamente.
 - Definir el stack, alcance de datos e integración del nuevo backoffice.
-- Ejecutar y documentar las validaciones disponibles; no marcar como correcto ningún check que no se haya ejecutado.
 
 ## Próximos pasos
 
-1. Verificar/completar `uis/website` y crear `uis/backoffice/`.
-2. Ejecutar validaciones y actualizar este registro con resultados observados.
+1. Crear `uis/backoffice/` y documentar su stack/comandos.
+2. Ejecutar validaciones de ambas aplicaciones e interactuar con el formulario cuando haya navegador disponible.
+3. Actualizar este registro con los resultados observados.

@@ -19,7 +19,7 @@ Esto genera el archivo estático:
 Desde la raíz del repositorio ejecuta:
 
 ```bash
-npx --yes serve uis/website -l 5500 -s
+npx --yes serve uis/website -l 5500
 ```
 
 Luego abre en el navegador:
@@ -29,11 +29,11 @@ Luego abre en el navegador:
 Si el puerto 5500 está ocupado, usa otro puerto:
 
 ```bash
-npx --yes serve uis/website -l 5501 -s
+npx --yes serve uis/website -l 5501
 ```
 
 ## Verificación rápida
 
-- La landing carga en `/index.html`.
-- El formulario carga en `/application.html`.
+- La landing carga en `/` (también disponible en `/index.html`).
+- El formulario carga en `/application` (también disponible en `/application.html`).
 - El enlace de la landing hacia la aplicación funciona correctamente.

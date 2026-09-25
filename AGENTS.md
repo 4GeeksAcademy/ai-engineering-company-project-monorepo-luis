@@ -35,7 +35,7 @@ Ejecutar solo las comprobaciones disponibles y pertinentes a los archivos modifi
 Comandos actualmente documentados:
 
 - Raíz: `npm run typecheck` y `npm run demo`.
-- Website: compilar Tailwind según `uis/website/README.es.md`; ejecutar `npx --yes serve uis/website -l 5500 -s` (usar otro puerto si está ocupado) y comprobar `/`, `/index.html` y `/application.html`.
+- Website: compilar Tailwind según `uis/website/README.es.md`; ejecutar `npx --yes serve uis/website -l 5500` (usar otro puerto si está ocupado) y comprobar `/`, `/index.html`, `/application` y `/application.html`. No usar el modo SPA `-s`: hace que `/application` devuelva la landing.
 - Tracker: desde `uis/talent-pipeline-tracker/`, ejecutar `npm run lint` y `npm run build`. Consultar esa carpeta para las instrucciones específicas de Next.js.
 - Backoffice: seguir su README y scripts una vez que se cree; documentar cualquier check no disponible.
 

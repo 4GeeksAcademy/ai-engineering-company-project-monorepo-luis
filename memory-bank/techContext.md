@@ -20,7 +20,7 @@
 
 ## Stack y datos
 
-- Sitio público: HTML estático y Tailwind CSS 3.4.17.
+- Sitio público: HTML estático, Tailwind CSS 3.4.17 y componentes web nativos compartidos para header/footer en `uis/website/shared-components.js`.
 - Tracker de candidatos: Next.js App Router, React, TypeScript y Tailwind CSS 4.
 - El tracker consume `https://playground.4geeks.com/tracker/api/v1`; revisar `SPEC.md` para rutas, modelos y comportamiento.
 - La tecnología e integración de datos del nuevo backoffice quedan por decidir al implementarlo. Reutilizar la API del tracker solo si cubre los requisitos del backoffice.
@@ -36,8 +36,8 @@ Desde la raíz:
 Sitio público, desde la raíz:
 
 - Compilar Tailwind: `npx --yes tailwindcss@3.4.17 -c uis/website/tailwind.config.cjs -i uis/website/assets/css/input.css -o uis/website/assets/css/styles.css --minify`
-- Servir: `npx --yes serve uis/website -l 5500 -s` (usar otro puerto si 5500 está ocupado).
-- El README verifica `/index.html` y `/application.html`; la ruta `/` debe comprobarse porque también es requisito del hito.
+- Servir: `npx --yes serve uis/website -l 5500` (usar otro puerto si 5500 está ocupado). Ejecutar desde la raíz; no usar `-s`, porque el fallback SPA sirve la landing para `/application`.
+- Verificar `/`, `/index.html`, `/application` y `/application.html`; `serve` redirige las páginas `.html` a sus rutas limpias.
 
 Tracker, desde `uis/talent-pipeline-tracker/`:
 

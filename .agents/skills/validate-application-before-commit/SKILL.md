@@ -45,7 +45,7 @@ Si alguno falta, deducirlo del diff y de `ingenieria-ia.md`; si el objetivo o el
 Ejecutar únicamente los que apliquen a los archivos modificados:
 
 - Raíz: `npm run typecheck`.
-- `uis/website`: compilar Tailwind con el comando de `uis/website/README.es.md`; servir con `npx --yes serve uis/website -l 5500 -s` (o un puerto disponible) y probar `/`, `/index.html` y `/application.html`.
+- `uis/website`: compilar Tailwind con el comando de `uis/website/README.es.md`; servir con `npx --yes serve uis/website -l 5500` (o un puerto disponible), sin modo SPA `-s`, y probar `/`, `/index.html`, `/application` y `/application.html`.
 - `uis/talent-pipeline-tracker`: desde su carpeta, `npm run lint` y `npm run build`. No hay scripts propios de test ni typecheck declarados.
 - `uis/backoffice` u otros servicios: consultar primero el README y `package.json` correspondientes; si aún no existen, documentar que no aplica.
 

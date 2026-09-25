@@ -27,6 +27,7 @@
     />
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./assets/css/styles.css" />
+    <script src="./shared-components.js" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -48,25 +49,7 @@
         class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(52,88,214,0.3),_transparent_48%),radial-gradient(circle_at_bottom_left,_rgba(148,163,184,0.2),_transparent_45%)]"
       ></div>
 
-      <header class="relative z-10 border-b border-white/10">
-        <div class="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <a
-            href="./index.html"
-            class="text-xl font-extrabold tracking-tight text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            aria-label="Nexova, volver al inicio"
-          >
-            Nexova
-          </a>
-          <nav aria-label="Navegación de página de talento">
-            <a
-              href="./index.html"
-              class="rounded-md px-3 py-2 text-sm font-medium text-slate-200 transition hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-            >
-              Volver al inicio
-            </a>
-          </nav>
-        </div>
-      </header>
+      <nexova-header class="block" page="talent"></nexova-header>
 
       <main id="registro-talento" class="relative z-10 mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
         <section class="max-w-3xl">
@@ -250,6 +233,7 @@
                 id="comentarios"
                 name="comentarios"
                 rows="5"
+                maxlength="500"
                 class="w-full rounded-xl border border-white/20 bg-slate-900/70 px-4 py-3 text-slate-100 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
                 placeholder="Cuéntanos brevemente sobre tu perfil e intereses"
                 aria-describedby="comentarios-ayuda comentarios-contador error-comentarios"
@@ -293,6 +277,8 @@
           </div>
         </section>
       </main>
+
+      <nexova-footer class="block"></nexova-footer>
 
     <script src="./assets/js/validation.js"></script>
   </body>
