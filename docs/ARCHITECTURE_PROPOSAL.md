@@ -216,7 +216,7 @@ El tracker actual documentado en `SPEC.md` apunta a `playground.4geeks.com/track
 
 - Requisitos del entregable: [4Geeks — Propuesta de Arquitectura de Backend (español)](https://github.com/4GeeksAcademy/ai-engineering-syllabus/blob/main/content/projects/ai-eng-architectural-proposal/README.es.md).
 - Contexto de negocio: [`CONTEXT.md`](../CONTEXT.md).
-- Convenciones del monorepo: [`services/README.es.md`](../services/README.es.md), [`SPEC.md`](../SPEC.md), [`memory-bank/techContext.md`](../memory-bank/techContext.md).
+- Convenciones del monorepo: [`services/README.es.md`](../services/README.es.md), [`SPEC.md`](../SPEC.md).
 - FastAPI, estructura de aplicaciones grandes: [Bigger Applications — Multiple Files](https://fastapi.tiangolo.com/tutorial/bigger-applications/).
 - FastAPI, configuración: [Settings and Environment Variables](https://fastapi.tiangolo.com/advanced/settings/).
 - FastAPI, solicitudes cross-origin: [CORS](https://fastapi.tiangolo.com/tutorial/cors/).
