@@ -1,5 +1,9 @@
 module.exports = {
-  content: ["./index.html", "./application.html"],
+  content: [
+    "./uis/website/index.html",
+    "./uis/website/application.html",
+    "./uis/website/shared-components.js"
+  ],
   safelist: ["border-rose-400", "focus-visible:ring-rose-300"],
   theme: {
     extend: {

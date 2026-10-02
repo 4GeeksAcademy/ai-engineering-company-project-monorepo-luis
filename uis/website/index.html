@@ -27,6 +27,7 @@
     />
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./assets/css/styles.css" />
+    <script src="./shared-components.js" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -82,55 +83,7 @@
         class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(52,88,214,0.35),_transparent_48%),radial-gradient(circle_at_bottom_left,_rgba(148,163,184,0.2),_transparent_45%)]"
       ></div>
 
-      <header class="relative z-10 border-b border-white/10">
-        <div class="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <a
-            href="./index.html"
-            class="text-xl font-extrabold tracking-tight text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            aria-label="Nexova, volver al inicio"
-          >
-            Nexova
-          </a>
-
-          <nav aria-label="Navegación principal">
-            <ul class="flex items-center gap-2 text-sm font-medium sm:gap-6 sm:text-base">
-              <li>
-                <a
-                  href="./index.html"
-                  aria-current="page"
-                  class="rounded-md px-2 py-1 text-slate-100 transition hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  Inicio
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#servicios"
-                  class="rounded-md px-2 py-1 text-slate-300 transition hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  Servicios
-                </a>
-              </li>
-              <li>
-                <a
-                  href="./application.html"
-                  class="rounded-md px-2 py-1 text-slate-300 transition hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  Talento
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#contacto"
-                  class="rounded-md px-2 py-1 text-slate-300 transition hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                >
-                  Contacto
-                </a>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <nexova-header class="block" page="home"></nexova-header>
 
       <main id="contenido-principal" class="relative z-10">
         <section class="mx-auto grid min-h-[calc(100vh-73px)] w-full max-w-6xl content-center gap-12 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-2 lg:items-center">
@@ -237,16 +190,7 @@
         </section>
       </main>
 
-      <footer class="relative z-10 border-t border-white/10">
-        <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-6 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>© 2025 Nexova. Todos los derechos reservados.</p>
-          <p class="flex items-center gap-3" aria-label="Redes sociales">
-            <a href="https://linkedin.com/company/nexova" target="_blank" rel="noreferrer" class="rounded px-1 py-0.5 text-slate-100 hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">LinkedIn</a>
-            <span aria-hidden="true">|</span>
-            <a href="https://instagram.com/nexova" target="_blank" rel="noreferrer" class="rounded px-1 py-0.5 text-slate-100 hover:text-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">Instagram</a>
-          </p>
-        </div>
-      </footer>
+      <nexova-footer class="block"></nexova-footer>
     </div>
   </body>
 </html>
