@@ -11,6 +11,7 @@
       content="Vista interna del contexto de negocio y las etapas de talento de Nexova."
     />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./incidents.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -44,6 +45,10 @@
           <a class="nav-link" href="#ubicaciones">
             <span class="nav-index">04</span>
             Ubicaciones
+          </a>
+          <a class="nav-link" href="#incidencias">
+            <span class="nav-index">05</span>
+            Incidencias
           </a>
         </nav>
 
@@ -142,6 +147,106 @@
             <a class="contact-link" href="mailto:contacto@nexova.com">Contactar a Nexova <span aria-hidden="true">↗</span></a>
           </section>
 
+          <!-- Sección Analizador de Incidencias -->
+          <section id="incidencias" class="section-panel incidents-section" aria-labelledby="incidencias-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">HELP DESK OUTSOURCING / PROCESAMIENTO SEGURO</p>
+                <h2 id="incidencias-title">Analizador de incidencias</h2>
+              </div>
+              <span class="count-label">PRIVACIDAD GARANTIZADA</span>
+            </div>
+
+            <p class="section-intro">
+              Carga exportaciones mensuales en formato CSV del servicio de helpdesk para obtener métricas agregadas de volumen, resolución y satisfacción.
+              <strong>Los correos electrónicos y datos personales sensibles jamás se exponen, registran ni almacenan.</strong>
+            </p>
+
+            <div class="upload-zone" id="upload-dropzone" tabindex="0" role="region" aria-label="Zona de carga de archivo CSV">
+              <input type="file" id="incident-file-input" class="upload-input" accept=".csv" aria-label="Seleccionar archivo CSV de incidencias" />
+              <span class="upload-icon" aria-hidden="true">📁</span>
+              <p class="upload-prompt">Arrastra aquí el archivo <code>.csv</code> o haz clic para explorar</p>
+              <p class="upload-help">Formato requerido: CSV con encabezados de tickets de Nexova (UTF-8)</p>
+            </div>
+
+            <div id="selected-file-info" class="selected-file-info" style="display: none;">
+              <span>Archivo seleccionado: <strong id="selected-file-name"></strong></span>
+              <span class="notice-mark" aria-hidden="true">✓</span>
+            </div>
+
+            <div class="btn-row">
+              <button type="button" id="btn-analyze-incidents" class="btn btn-primary" disabled>
+                <span>Procesar y analizar incidencias</span>
+              </button>
+            </div>
+
+            <div id="status-container"></div>
+
+            <!-- Panel de Resultados (se muestra dinámicamente) -->
+            <div id="analysis-results" class="analysis-results-panel" style="display: none;">
+              <h3 style="font-size: 18px; margin-bottom: 16px;">Resultados del análisis</h3>
+
+              <div class="kpi-grid">
+                <article class="kpi-card">
+                  <p class="kpi-title">Total de registros</p>
+                  <p class="kpi-value" id="kpi-total">0</p>
+                  <p class="kpi-subtitle">Filas procesadas del CSV</p>
+                </article>
+                <article class="kpi-card kpi-valid">
+                  <p class="kpi-title">Registros válidos</p>
+                  <p class="kpi-value" id="kpi-valid">0</p>
+                  <p class="kpi-subtitle">Cumplen todas las reglas</p>
+                </article>
+                <article class="kpi-card kpi-invalid">
+                  <p class="kpi-title">Registros inválidos</p>
+                  <p class="kpi-value" id="kpi-invalid">0</p>
+                  <p class="kpi-subtitle">Excluidos de los KPIs</p>
+                </article>
+                <article class="kpi-card kpi-score">
+                  <p class="kpi-title">Satisfacción promedio</p>
+                  <p class="kpi-value" id="kpi-score">0.00</p>
+                  <p class="kpi-subtitle" id="kpi-score-count">0 tickets puntuados</p>
+                </article>
+              </div>
+
+              <div class="details-grid">
+                <div class="data-card">
+                  <h3>Distribución por categoría (válidos)</h3>
+                  <div id="category-breakdown-list"></div>
+                </div>
+
+                <div class="data-card">
+                  <h3>Distribución por estado (válidos)</h3>
+                  <div id="status-breakdown-list"></div>
+                </div>
+              </div>
+
+              <div class="details-grid">
+                <div class="data-card">
+                  <h3>Desglose de registros inválidos (sin PII)</h3>
+                  <p class="upload-help" style="margin-bottom: 12px;">Reglas activadas que impidieron incluir la fila en métricas operativas.</p>
+                  <ul class="invalid-list" id="invalid-breakdown-list"></ul>
+                </div>
+
+                <div class="data-card">
+                  <h3>Distribución de satisfacción (tickets cerrados)</h3>
+                  <p class="upload-help" style="margin-bottom: 12px;">Puntuación asignada por el cliente final del 1 al 5.</p>
+                  <div id="score-distribution-list"></div>
+                </div>
+              </div>
+
+              <div class="export-section">
+                <div>
+                  <strong>Exportación de resumen de auditoría</strong>
+                  <p class="upload-help" style="margin: 2px 0 0;">Descarga el archivo <code>results.csv</code> con una métrica por fila, listo para informes.</p>
+                </div>
+                <button type="button" id="btn-export-csv" class="btn btn-secondary">
+                  <span>⬇ Descargar results.csv</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
           <footer class="page-footer">
             <span>Nexova · People Operations</span>
             <span>Información de referencia basada en el briefing de empresa y la especificación del tracker.</span>
@@ -149,5 +254,6 @@
         </main>
       </div>
     </div>
+    <script src="./incidents.js" defer></script>
   </body>
 </html>
