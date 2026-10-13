@@ -12,6 +12,7 @@
     />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./incidents.css" />
+    <link rel="stylesheet" href="./suppliers.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -46,15 +47,19 @@
             <span class="nav-index">04</span>
             Ubicaciones
           </a>
-          <a class="nav-link" href="#incidencias">
+          <a class="nav-link" href="#proveedores">
             <span class="nav-index">05</span>
+            Proveedores
+          </a>
+          <a class="nav-link" href="#incidencias">
+            <span class="nav-index">06</span>
             Incidencias
           </a>
         </nav>
 
         <div class="rail-footer">
-          <span class="rail-status"><span aria-hidden="true"></span> Contexto de empresa</span>
-          <p>Vista de referencia<br />Sin conexión a datos operativos</p>
+          <span class="rail-status"><span aria-hidden="true"></span> Entorno local</span>
+          <p>Directorio comercial<br />Solo demo/local</p>
         </div>
       </aside>
 
@@ -76,7 +81,7 @@
 
           <aside class="data-notice" aria-label="Alcance de los datos mostrados">
             <span class="notice-mark" aria-hidden="true">i</span>
-            <p><strong>Vista de contexto, no de actividad en tiempo real.</strong> Las cifras de empresa provienen del briefing del proyecto; este panel no consulta ni almacena registros personales.</p>
+            <p><strong>El directorio contiene información comercial interna.</strong> Mantén el API y el panel en local/demo; CORS no sustituye autenticación. Las cifras de empresa provienen del briefing del proyecto.</p>
           </aside>
 
           <section class="metrics" aria-label="Indicadores de la empresa según el briefing">
@@ -145,6 +150,110 @@
             <div class="location-item"><span class="location-code">ES</span><span><strong>Valencia</strong><small>Sede</small></span></div>
             <div class="location-item"><span class="location-code location-us">US</span><span><strong>Miami</strong><small>Oficina de expansión</small></span></div>
             <a class="contact-link" href="mailto:contacto@nexova.com">Contactar a Nexova <span aria-hidden="true">↗</span></a>
+          </section>
+
+          <section id="proveedores" class="supplier-section" aria-labelledby="proveedores-title">
+            <div class="section-heading supplier-heading">
+              <div>
+                <p class="eyebrow">COMPRAS / DIRECTORIO</p>
+                <h2 id="proveedores-title">Proveedores</h2>
+              </div>
+              <p class="supplier-count" id="supplier-count" aria-live="polite">Cargando proveedores…</p>
+            </div>
+
+            <div class="supplier-toolbar" aria-label="Filtros de proveedores">
+              <label class="supplier-filter">
+                <span>País</span>
+                <select id="supplier-country-filter">
+                  <option value="">Todos</option>
+                  <option value="Spain">España</option>
+                  <option value="USA">Estados Unidos</option>
+                </select>
+              </label>
+              <label class="supplier-filter">
+                <span>Categoría</span>
+                <select id="supplier-category-filter">
+                  <option value="">Todas</option>
+                  <option value="job_boards">Portales de empleo</option>
+                  <option value="ats_software">Software ATS</option>
+                  <option value="assessment_tools">Evaluación</option>
+                  <option value="training_platforms">Formación</option>
+                  <option value="payroll_and_hr_software">Nóminas y RR. HH.</option>
+                  <option value="video_interview">Entrevistas por vídeo</option>
+                  <option value="background_check">Verificación de antecedentes</option>
+                  <option value="office_and_facilities">Oficinas e instalaciones</option>
+                  <option value="it_and_software_licenses">Licencias IT</option>
+                </select>
+              </label>
+              <button class="supplier-button supplier-button-secondary" id="supplier-refresh" type="button">
+                Actualizar lista
+              </button>
+            </div>
+
+            <div id="supplier-feedback" class="supplier-feedback" role="status" aria-live="polite" hidden></div>
+
+            <details class="supplier-create">
+              <summary>Añadir proveedor</summary>
+              <form id="supplier-form" class="supplier-form">
+                <label class="supplier-field">
+                  <span>Nombre comercial</span>
+                  <input name="name" type="text" required maxlength="120" />
+                </label>
+                <label class="supplier-field">
+                  <span>País</span>
+                  <select name="country" id="supplier-country" required>
+                    <option value="Spain">España</option>
+                    <option value="USA">Estados Unidos</option>
+                  </select>
+                </label>
+                <label class="supplier-field">
+                  <span>Tarifa mensual</span>
+                  <input name="monthly_rate" type="number" min="0.01" step="0.01" required />
+                </label>
+                <label class="supplier-field">
+                  <span>Moneda</span>
+                  <input name="currency" id="supplier-currency" type="text" value="EUR" readonly />
+                </label>
+                <label class="supplier-field">
+                  <span>Estado</span>
+                  <select name="status" required>
+                    <option value="active">Activo</option>
+                    <option value="suspended">Suspendido</option>
+                  </select>
+                </label>
+                <label class="supplier-field">
+                  <span>Renovación del contrato</span>
+                  <input name="contract_renewal_date" type="date" />
+                </label>
+                <label class="supplier-field supplier-field-wide">
+                  <span>Email de contacto</span>
+                  <input name="contact_email" type="email" maxlength="254" />
+                </label>
+                <fieldset class="supplier-category-field supplier-field-wide">
+                  <legend>Categorías</legend>
+                  <div class="supplier-category-grid">
+                    <label><input type="checkbox" name="categories" value="job_boards" /> Portales de empleo</label>
+                    <label><input type="checkbox" name="categories" value="ats_software" /> Software ATS</label>
+                    <label><input type="checkbox" name="categories" value="assessment_tools" /> Evaluación</label>
+                    <label><input type="checkbox" name="categories" value="training_platforms" /> Formación</label>
+                    <label><input type="checkbox" name="categories" value="payroll_and_hr_software" /> Nóminas y RR. HH.</label>
+                    <label><input type="checkbox" name="categories" value="video_interview" /> Entrevistas por vídeo</label>
+                    <label><input type="checkbox" name="categories" value="background_check" /> Verificación de antecedentes</label>
+                    <label><input type="checkbox" name="categories" value="office_and_facilities" /> Oficinas e instalaciones</label>
+                    <label><input type="checkbox" name="categories" value="it_and_software_licenses" /> Licencias IT</label>
+                  </div>
+                </fieldset>
+                <label class="supplier-field supplier-field-wide">
+                  <span>Notas internas</span>
+                  <textarea name="notes" rows="3" maxlength="1000"></textarea>
+                </label>
+                <div class="supplier-form-actions supplier-field-wide">
+                  <button class="supplier-button supplier-button-primary" type="submit">Guardar proveedor</button>
+                </div>
+              </form>
+            </details>
+
+            <div id="supplier-list" class="supplier-list" aria-busy="true"></div>
           </section>
 
           <!-- Sección Analizador de Incidencias -->
@@ -255,5 +364,6 @@
       </div>
     </div>
     <script src="./incidents.js" defer></script>
+    <script src="./suppliers.js" defer></script>
   </body>
 </html>

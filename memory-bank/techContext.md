@@ -11,7 +11,7 @@
 ## Estructura actual relevante
 
 - `uis/website/`: sitio público estático existente, con `index.html`, `application.html` y estilos Tailwind.
-- `uis/backoffice/`: panel interno estático existente con contexto, etapas y analizador de incidencias; la integración de la vista de proveedores queda pendiente.
+- `uis/backoffice/`: panel interno estático con contexto, etapas, analizador de incidencias y directorio de proveedores conectado al API local.
 - `uis/talent-pipeline-tracker/`: aplicación Next.js existente para gestión detallada de candidatos.
 - `services/api/`: API FastAPI para incidencias y directorio de proveedores; proveedores usa modelos Pydantic, TinyDB y rutas CRUD bajo `/api/suppliers`.
 - `memory-bank/`: contexto persistente para el proyecto.

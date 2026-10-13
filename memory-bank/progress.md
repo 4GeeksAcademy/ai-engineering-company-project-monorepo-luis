@@ -64,4 +64,6 @@ Actualizado: 2026-10-13
 - `uv run seed`, ejecutado desde `services/api`, insertó 15 registros en la primera ejecución y 0 en la segunda. La constante del seeder se comparó estructuralmente con los 15 registros del brief.
 - Etapa 3 completada: router CRUD `/api/suppliers` con filtros combinados AND, generación server-side de `updated_at`, validación Pydantic, respuestas `404`/`422` y eliminación.
 - Suite completa del API: 24 tests pasan, incluidos los tests previos de incidencias y los nuevos casos CRUD de proveedores.
+- Etapa 4 completada: sección Proveedores en `uis/backoffice` con filtros, alta, cambios de tarifa/estado, feedback de API, estados y resaltado de renovaciones; actualizados README, navegación y aviso de uso local/demo.
+- Verificación UI: `node --check`, diagnósticos del editor y smoke test HTTP pasan; página/assets responden `200`, el API devuelve 15 registros y el filtro España + portales devuelve dos. No hay navegador headless disponible, así que la comprobación visual/interactiva responsive queda pendiente.
 - El alcance permanece local/demo; no desplegar datos comerciales del directorio.
