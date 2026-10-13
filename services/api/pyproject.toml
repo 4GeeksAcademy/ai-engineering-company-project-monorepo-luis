@@ -1,0 +1,24 @@
+[project]
+name = "nexova-operations-api"
+version = "0.1.0"
+description = "Nexova operations API and supplier directory"
+requires-python = ">=3.10"
+dependencies = [
+    "email-validator>=2.0.0",
+    "fastapi>=0.110.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.6,<3",
+    "python-multipart>=0.0.9",
+    "tinydb>=4.8,<5",
+    "uvicorn>=0.28.0",
+]
+
+[project.scripts]
+seed = "seed:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["seed"]

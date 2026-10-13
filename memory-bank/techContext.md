@@ -2,7 +2,7 @@
 
 ## Fuentes de verdad
 
-- `ingenieria-ia.md`: alcance, ubicaciones y criterios de aceptación de este hito.
+- `base-dato-ligero.md`: alcance y criterios de aceptación del directorio de proveedores (Hito 09). `ingenieria-ia.md` fue una referencia temporal retirada al completar su función.
 - `CONTEXT.md`: negocio de Nexova y requisitos del sitio público y formulario.
 - `SPEC.md`: requisitos funcionales y API del tracker de candidatos.
 - README y `package.json` de cada aplicación: estructura y comandos disponibles.
@@ -11,10 +11,9 @@
 ## Estructura actual relevante
 
 - `uis/website/`: sitio público estático existente, con `index.html`, `application.html` y estilos Tailwind.
-- `uis/backoffice/`: panel interno estático con `index.html` y `styles.css`; presenta contexto de empresa y etapas, sin conectarse a datos de candidatos.
+- `uis/backoffice/`: panel interno estático existente con contexto, etapas y analizador de incidencias; la integración de la vista de proveedores queda pendiente.
 - `uis/talent-pipeline-tracker/`: aplicación Next.js existente para gestión detallada de candidatos.
-- `uis/backoffice/`: aplicación interna requerida por el hito; pendiente de crear.
-- `services/`: documentación de convenciones; no hay un servicio backend implementado actualmente.
+- `services/api/`: API FastAPI existente para incidencias; el Hito 09 añade modelos Pydantic, almacenamiento TinyDB y seeder para proveedores. Los endpoints de proveedores quedan pendientes de la etapa 3.
 - `memory-bank/`: contexto persistente para el proyecto.
 - `.agents/`: reglas y skills para agentes de desarrollo; pendiente de crear.
 - Existe `uis/talent-pipeline-tracker/AGENTS.md`; no sustituye el `AGENTS.md` raíz requerido.
@@ -24,6 +23,8 @@
 - Sitio público: HTML estático, Tailwind CSS 3.4.17 y componentes web nativos compartidos para header/footer en `uis/website/shared-components.js`.
 - Tracker de candidatos: Next.js App Router, React, TypeScript y Tailwind CSS 4.
 - El tracker consume `https://playground.4geeks.com/tracker/api/v1`; revisar `SPEC.md` para rutas, modelos y comportamiento.
+- El directorio de proveedores guarda TinyDB en `services/api/data/suppliers.json` por defecto, o en `NEXOVA_SUPPLIERS_DB_PATH` si se configura. El archivo local de datos está excluido de Git.
+- El comando idempotente `uv run seed` se ejecuta desde `services/api`; la API y sus datos comerciales permanecen en alcance local/demo.
 - La tecnología e integración de datos del nuevo backoffice quedan por decidir al implementarlo. Reutilizar la API del tracker solo si cubre los requisitos del backoffice.
 - No crear un backend por defecto. Si se necesita, debe vivir bajo `services/` y seguir sus convenciones.
 
@@ -52,6 +53,11 @@ Backoffice estático, desde la raíz:
 
 - Servir: `npx --yes serve uis/backoffice -l 5502`.
 - No tiene scripts propios de test, lint, typecheck o build.
+
+API de proveedores, desde `services/api/`:
+
+- `uv run seed`
+- Desde la raíz, suite Python: `uv run --project services/api python -m unittest discover -s services/api/tests -v`
 
 Los comandos de compilación y serving del website se ejecutaron. El backoffice se validó sirviéndolo y con smoke test HTTP; los checks del tracker y de raíz no se ejecutaron en esta etapa.
 
