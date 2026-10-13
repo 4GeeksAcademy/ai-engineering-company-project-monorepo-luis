@@ -65,5 +65,6 @@ Actualizado: 2026-10-13
 - Etapa 3 completada: router CRUD `/api/suppliers` con filtros combinados AND, generación server-side de `updated_at`, validación Pydantic, respuestas `404`/`422` y eliminación.
 - Suite completa del API: 24 tests pasan, incluidos los tests previos de incidencias y los nuevos casos CRUD de proveedores.
 - Etapa 4 completada: sección Proveedores en `uis/backoffice` con filtros, alta, cambios de tarifa/estado, feedback de API, estados y resaltado de renovaciones; actualizados README, navegación y aviso de uso local/demo.
-- Verificación UI: `node --check`, diagnósticos del editor y smoke test HTTP pasan; página/assets responden `200`, el API devuelve 15 registros y el filtro España + portales devuelve dos. No hay navegador headless disponible, así que la comprobación visual/interactiva responsive queda pendiente.
+- Verificación UI: Playwright 1.50.1 en Chromium probó escritorio 1440 × 900 y móvil 390 × 844 sin overflow, aplicó filtros y destacó una renovación sintética; alta, actualización de tarifa y suspensión pasaron contra el API real con registros de prueba eliminados. Cero errores de página.
+- Etapa 5 completada: `uv run seed` dio 15 inserciones y 0 en la segunda ejecución sobre DB temporal; tras reiniciar Uvicorn, permanecieron los 15 registros con el mismo hash. Capturas añadidas a `docs/screenshots/`: seed 15/0, filtro real Swagger `200 []` y directorio filtrado desktop/móvil con fixture sintético.
 - El alcance permanece local/demo; no desplegar datos comerciales del directorio.
