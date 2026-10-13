@@ -102,3 +102,22 @@ Actualizado: 2026-10-13
 5. Etapa 6: suite completa, verificación manual `/docs`, evidencias sin secretos y PR hacia `main`.
 
 La integración de autenticación en frontend queda fuera de este hito. Sus llamadas sin token fallarán a partir de la etapa 5; registrar esta limitación en la entrega.
+
+### Etapa 2 — Usuarios, perfiles y bcrypt internos
+
+- Implementados `auth_models.py`, `passwords.py`, `auth_storage.py` y `user_service.py`; añadidos dos archivos de tests siguiendo unittest y bases temporales. Todavía sin endpoints de usuarios/perfiles, login, JWT ni restricciones de rutas.
+- User y Profile viven solo en TinyDB y separados de proveedores. User contiene email, bcrypt, estado activo, rol y creación UTC; nombre/teléfono/dirección residen en Profile. El ID deriva del doc_id de TinyDB.
+- Registro público interno siempre `user`, con rechazo explícito de roles privilegiados. Enum acepta únicamente admin/manager/user. Email validado, normalizado y único; perfil creado aun sin datos opcionales; actualizaciones parciales y eliminación coordinada.
+- Contraseñas hasheadas al crear/actualizar, verificadas con libpass bcrypt. Mínimo 8 caracteres, máximo 72 bytes UTF-8, sin bytes nulos ni truncamiento silencioso. Entradas/hash usan SecretStr y quedan fuera de repr/serialización; respuesta UserResponse no contiene hash.
+- Escritura coordinada mediante snapshot TinyDB MemoryStorage y reemplazo del archivo después de completar la operación; bloqueo local, temporal owner-only, flush/fsync y limpieza ante fallos ordinarios. La tabla auth_metadata conserva contadores para no reutilizar IDs tras borrar/reabrir.
+- Limitación documentada: un proceso/worker, sin escrituras externas simultáneas ni garantías multiworker o completas de recuperación ante caídas. El servicio de actualización es interno y privilegiado; permisos HTTP se aplicarán en la etapa 4.
+- Las pruebas usaron solo datos sintéticos y directorios temporales; no se creó una base real, no se leyó ningún `.env` y no se alteraron routers, frontend ni dependencias. Cambios previos de formato en README API/backoffice conservados y excluidos del commit.
+
+### Verificación de etapa 2
+
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_auth_models.py -v` → 10 tests satisfactorios. El primer pase detectó email null generando AttributeError; se corrigió para devolver un error de validación y la misma prueba pasó.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_user_service.py -v` → 17 tests satisfactorios, incluidos duplicados concurrentes locales, perfil fallido, eliminación fallida y reemplazo de archivo fallido con preservación del snapshot original.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -v` → 51 tests satisfactorios: 27 nuevos y 24 previos sin regresiones.
+- Diagnósticos de los seis archivos Python nuevos → sin errores. Persiste el aviso preexistente de Starlette/TestClient sobre httpx; no se cambian dependencias ajenas para corregirlo.
+
+Siguiente etapa: configuración JWT por entorno, login JSON/OAuth2, get_current_user, `/auth/me` y comando local seguro para el primer admin. La autorización y los endpoints CRUD se implementarán después, no se exponen servicios sin proteger.
