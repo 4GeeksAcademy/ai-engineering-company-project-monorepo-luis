@@ -2,7 +2,7 @@
 
 ## Fuentes de verdad
 
-- `base-dato-ligero.md`: alcance y criterios de aceptación del directorio de proveedores (Hito 09). `ingenieria-ia.md` fue una referencia temporal retirada al completar su función.
+- `autenticacion.md`: guía del hito AUTH-01; el README oficial de 4Geeks enlazado allí prevalece ante discrepancias. Las referencias temporales `ingenieria-ia.md` y `base-dato-ligero.md` fueron retiradas al completar su función; el directorio de proveedores existente se documenta en el README de la API.
 - `CONTEXT.md`: negocio de Nexova y requisitos del sitio público y formulario.
 - `SPEC.md`: requisitos funcionales y API del tracker de candidatos.
 - README y `package.json` de cada aplicación: estructura y comandos disponibles.
@@ -68,3 +68,17 @@ Los comandos de compilación y serving del website se ejecutaron. El backoffice 
 - No almacenar PII real de candidatos en este banco de memoria, mocks o capturas.
 - Documentar mocks, APIs externas, estados de carga/error y limitaciones de datos.
 - La documentación es un resumen operativo; no reemplaza las especificaciones ni los contratos originales.
+
+## AUTH-01 — Preparación de autenticación
+
+Actualizado: 2026-10-13; etapa 1 completada, autenticación todavía sin implementar.
+
+- Rama de trabajo: `feature/auth-api`, creada desde `main` en `12ef190`. Plan de seis etapas y matriz de acceso en `services/api/README.md`; cada etapa cierra con pruebas, documentación, commit y push, y el PR final apunta a `main`.
+- Dependencias instaladas con `uv add --project services/api "python-jose[cryptography]" "libpass[bcrypt]"`. Versiones resueltas: `python-jose` 3.5.0, `libpass` 1.9.3, `bcrypt` 5.0.0. Mantener coherentes `pyproject.toml`, `uv.lock` y `requirements.txt`; el import bcrypt sigue siendo `from passlib.hash import bcrypt`.
+- Usuarios y perfiles se implementarán exclusivamente en TinyDB, separados de proveedores, con ruta prevista `services/api/data/auth.json`, configurable mediante `NEXOVA_AUTH_DB_PATH`. La carpeta de datos ya está ignorada por Git.
+- Variables previstas para JWT, aún no consumidas: `JWT_SECRET_KEY` y `ACCESS_TOKEN_EXPIRE_MINUTES`. Sin secretos por defecto ni valores en documentación; configuración por entorno, algoritmo HS256 fijo y expiración positiva finita.
+- Registro público solo con rol `user`; primer admin mediante comando local seguro. Listado de usuarios solo admin; credenciales propietario/admin; perfiles `/me` del usuario autenticado. Roles admitidos: `admin`, `manager`, `user`.
+- Login previsto en `/auth/login`: JSON email/password y formulario OAuth2 con email como username. Dependencia `get_current_user` verificará token y estado vigente del usuario; `401` para autenticación inválida y `403` para falta de permiso.
+- Se protegerán las seis operaciones de proveedores y las dos de incidencias. Ambos módulos permanecen compartidos entre usuarios autenticados; el último resultado de incidencias sigue siendo global en memoria. No se implementará propiedad por usuario para estos recursos.
+- Sin cambios frontend en este hito; después de proteger las rutas, el backoffice sin Bearer dejará de funcionar temporalmente. No añadir Supabase, cookies, sesiones, refresh tokens ni despliegue.
+- Verificación de etapa 1: 24 tests antes/después y smoke bcrypt/JWT satisfactorios. Comando reproducible desde raíz: `uv run --locked --project services/api python -m unittest discover -s services/api/tests -v`. No hay lint/typecheck/build Python declarados; no ejecutar checks frontend ajenos.

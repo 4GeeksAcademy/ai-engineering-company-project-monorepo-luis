@@ -68,3 +68,37 @@ Actualizado: 2026-10-13
 - Verificación UI: Playwright 1.50.1 en Chromium probó escritorio 1440 × 900 y móvil 390 × 844 sin overflow, aplicó filtros y destacó una renovación sintética; alta, actualización de tarifa y suspensión pasaron contra el API real con registros de prueba eliminados. Cero errores de página.
 - Etapa 5 completada: `uv run seed` dio 15 inserciones y 0 en la segunda ejecución sobre DB temporal; tras reiniciar Uvicorn, permanecieron los 15 registros con el mismo hash. Capturas añadidas a `docs/screenshots/`: seed 15/0, filtro real Swagger `200 []` y directorio filtrado desktop/móvil con fixture sintético.
 - El alcance permanece local/demo; no desplegar datos comerciales del directorio.
+
+## AUTH-01 — Autenticación y restricción de rutas
+
+Actualizado: 2026-10-13
+
+### Etapa 1 — Base auditada y dependencias
+
+- Creada `feature/auth-api` desde `main` sincronizada con `origin/main`, commit base `12ef190`. Existían cambios de formato en `services/api/README.md` y `uis/backoffice/README.md`; se conservan y quedan fuera del commit de esta etapa.
+- Contrastado íntegramente el README oficial en español de `ai-eng-user-authentication-api` con `autenticacion.md`, sin discrepancias funcionales. Las menciones antiguas a `ingenieria-ia.md` no requieren recrearlo: su retirada intencional ya está documentada.
+- Instaladas dependencias con `uv add --project services/api "python-jose[cryptography]" "libpass[bcrypt]"`; actualizados el manifiesto principal y su lockfile, y sincronizado `requirements.txt`. Versiones probadas: `python-jose` 3.5.0, `libpass` 1.9.3 y `bcrypt` 5.0.0.
+- Documentados en el README de la API los seis entregables, la matriz de endpoints/permisos, la configuración prevista, los límites de TinyDB y el procedimiento de cierre por etapa. No se crearon endpoints de auth, bases de credenciales ni restricciones todavía.
+- Decisiones confirmadas: registro público `user`, primer admin mediante comando local seguro, listado de usuarios solo admin, credenciales propietario/admin, perfiles `/me` propios y login JSON/OAuth2 compatible con Swagger. Las ocho operaciones existentes serán compartidas por usuarios autenticados; el resultado de incidencias permanece global en memoria.
+- Configuración futura: `NEXOVA_AUTH_DB_PATH`, `JWT_SECRET_KEY` y `ACCESS_TOKEN_EXPIRE_MINUTES`; sin valores secretos documentados. `git check-ignore services/api/data/auth.json` confirmó que la futura base está excluida. No se leyó ni modificó ningún `.env`.
+
+### Verificación de etapa 1
+
+- Suite basal: `uv run --locked --project services/api python -m unittest discover -s services/api/tests -v` → 24 tests satisfactorios.
+- Smoke de dependencias en el mismo entorno: imports, hash bcrypt, verificación positiva/negativa de contraseña y encode/decode JWT HS256 con expiración → satisfactorio. Valores sintéticos efímeros, sin imprimir contraseña, hash, secreto ni token.
+- Suite después de instalar/sincronizar dependencias: mismo comando → 24 tests satisfactorios.
+- Comparación de `pyproject.toml` y `requirements.txt` con TOML y colecciones de la biblioteca estándar → declaraciones idénticas. Un primer script auxiliar falló por no disponer de `packaging`; se corrigió sin instalar dependencias adicionales y la comprobación pasó.
+- `uv lock --check --project services/api` → satisfactorio; revisión estructurada del lockfile confirmó que conserva todas las versiones previas y que sus URLs no incluyen credenciales.
+- Smoke HTTP con `TestClient` → `/health`, `/docs` y `/openapi.json` responden `200`; `/health` mantiene `status=ok`.
+- Avisos no bloqueantes: deprecación preexistente de Starlette/TestClient sobre `httpx` y fallback de hardlinks a copia en la instalación con `uv`. No se modifican dependencias ajenas para corregirlos.
+- Sin lint/typecheck/build Python declarados; no se ejecutan checks del frontend ajenos al cambio. Estos resultados no implican que la autenticación del hito ya esté implementada.
+
+### Próximas etapas
+
+1. Etapa 2: usuarios/perfiles TinyDB y servicios internos, bcrypt y pruebas de ciclo de vida; todavía sin endpoints nuevos.
+2. Etapa 3: configuración JWT, login, dependencia, `/auth/me` y comando local de admin.
+3. Etapa 4: CRUD `/users` y `/profiles/me` con autorización desde su publicación.
+4. Etapa 5: proteger las ocho rutas existentes y conservar sus regresiones con tokens reales.
+5. Etapa 6: suite completa, verificación manual `/docs`, evidencias sin secretos y PR hacia `main`.
+
+La integración de autenticación en frontend queda fuera de este hito. Sus llamadas sin token fallarán a partir de la etapa 5; registrar esta limitación en la entrega.
