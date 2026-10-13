@@ -302,3 +302,124 @@ synthetic and databases are temporary; no real auth database or `.env` was used.
 
 Next: stage 3 introduces environment-based JWT configuration, login in both formats,
 `get_current_user`, `/auth/me` and the safe local admin command.
+
+## AUTH-01 stage 3: JWT, login and offline admin provisioning
+
+### Current behavior
+
+- `POST /auth/login` verifies credentials and returns `access_token` and
+  `token_type=bearer`. It accepts JSON `email`/`password` or
+  `application/x-www-form-urlencoded` with `username=email` and `password`.
+  The optional OAuth2 `grant_type`, if supplied, must be `password`.
+- `GET /auth/me` requires a valid Bearer token and returns the current user's
+  email, role and linked profile. It never returns a password or hash.
+- `get_current_user` is reusable by the next stages. It validates HS256 signature,
+  required expiration and a positive integer TinyDB `id`; an optional `sub` must
+  match that ID. It then reads the existing active user and current role from
+  TinyDB. Roles/passwords/contact data are not copied into issued tokens.
+- Invalid/missing credentials, token failures and deleted/inactive accounts return
+  generic `401` errors with `WWW-Authenticate: Bearer`. Invalid login payloads
+  return a generic `422` without echoing input; unsupported content types return
+  `415`. Unknown-user login still performs a dummy bcrypt verification.
+- OAuth2 password flow and both request formats are documented in OpenAPI;
+  Swagger `Authorize` uses the same `/auth/login` endpoint, with email as username.
+
+The routes for registration, user CRUD and `/profiles/me` are **not implemented
+yet**. Stage 3 tests create synthetic accounts through the internal service.
+Do not mistake login alone for complete API protection: suppliers and incidents
+remain public until stage 5. Their existing behavior and the frontend are unchanged,
+provided the backend is started with its new required configuration.
+
+### Required runtime configuration
+
+The FastAPI lifespan validates configuration before startup succeeds:
+
+| Variable | Stage 3 validation |
+| --- | --- |
+| `JWT_SECRET_KEY` | Required, nonblank, at least 32 UTF-8 bytes. Supply a high-entropy signing key, not a memorable password. No secret default. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Required positive integer; must yield a representable finite expiration. |
+| `NEXOVA_AUTH_DB_PATH` | Optional; same separate TinyDB path introduced in stage 2. |
+
+HS256 is fixed in code; a token header cannot choose the verification algorithm.
+Settings are loaded once at startup and changes require restarting the API. Startup
+errors name the invalid variable without printing its value. Tests calling auth
+must run `TestClient` as a context manager so the lifespan initializes settings.
+
+For a disposable local/demo session, from the repository root and with shell
+tracing disabled, generate the key into the environment without displaying it:
+
+```bash
+export JWT_SECRET_KEY="$(uv run --locked --project services/api python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export ACCESS_TOKEN_EXPIRE_MINUTES=15
+uv run --locked --project services/api uvicorn services.api.main:app --reload --port 8000
+```
+
+These commands do not write a `.env` file or version a secret. Regenerating the key
+invalidates previously signed tokens. Keep the same environment when restarting if
+tokens must remain valid until expiration. No real secret/configuration file was
+read, created or modified during this stage; all verification used temporary values.
+
+This is JWT stateless authentication, without cookies, sessions or refresh tokens.
+Password changes alone do not revoke previously issued tokens immediately; account
+deactivation/deletion is checked on each request and expiration remains mandatory.
+
+### First admin: explicit offline promotion
+
+The installed `promote-admin` command promotes an **existing active user** to
+admin. It never registers a user, accepts a password, seeds privileged credentials
+or exposes an HTTP bootstrap endpoint. Stop the API before running it: TinyDB's
+in-process lock cannot coordinate simultaneous writes by this separate process.
+
+From the repository root, use an existing authorized database and replace the
+example ID with the actual TinyDB ID of the intended user:
+
+```bash
+uv run --locked --project services/api promote-admin --database services/api/data/auth.json --user-id 1 --confirm
+```
+
+Both database path and positive user ID are mandatory; `--confirm` is required.
+The explicit path overrides `NEXOVA_AUTH_DB_PATH` only for the command and then
+restores it. Missing databases/users, inactive users and I/O failures exit nonzero;
+missing arguments exit with usage code 2. Promotion is idempotent and preserves
+the password hash and linked profile. Output contains no email, password or hash.
+Permission to execute this command comes from authorized local filesystem access,
+not from an unauthenticated API request. Real-data mutations require separate
+authorization under the repository rules; stage 3 ran it only against test data.
+
+`pyproject.toml` registers `promote-admin = "bootstrap_admin:main"` and packages
+the local command module alongside `seed`. Tests verify that the installed command
+also runs outside the repository working directory in this editable monorepo setup.
+This does not package the entire monorepo as a standalone production distribution.
+
+### Stage 3 verification and next step
+
+Run from the repository root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_security.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_auth_api.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_bootstrap_admin.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+```
+
+On 2026-10-13: 9 security tests, 13 HTTP/startup tests, 7 admin-command tests and
+all 80 backend tests passed. The 51 previous tests remain green. Checks cover
+missing/invalid configuration, expiration, wrong signature/algorithm, malformed
+claims, active/deleted users, current role changes, both login formats, generic
+errors, safe response/OpenAPI schemas, installed CLI and idempotent promotion.
+Password verification also safely rejects unencodable Unicode input.
+
+One HTTP test starts a real Uvicorn subprocess on an ephemeral local port, checks
+`/health`, `/docs`, unauthenticated `/auth/me`, JSON login and authenticated
+`/auth/me`, then stops the process. All databases/keys/accounts are temporary and
+synthetic; neither credentials nor tokens are printed. Manual browser verification
+of the complete registration/Swagger flow remains scheduled for stage 6, after the
+registration endpoints exist. No persistent development server was left running.
+
+Lockfile verification and diagnostics passed; there are no new dependencies or
+changes to `uv.lock`. The existing Starlette/httpx warning and uv hardlink fallback
+remain nonblocking. Pre-existing README formatting edits stay outside this commit.
+
+Next: stage 4 publishes `/users` and `/profiles/me` with owner/admin authorization
+from the outset, including privilege checks before calling the internal services.

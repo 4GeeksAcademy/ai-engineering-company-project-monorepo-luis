@@ -83,6 +83,7 @@ class TestAuthModels(unittest.TestCase):
         self.assertTrue(verify_password(password.get_secret_value(), hashed))
         self.assertFalse(verify_password("incorrect-password", hashed))
         self.assertFalse(verify_password("a" * 73, hashed))
+        self.assertFalse(verify_password("\ud800" * 8, hashed))
         self.assertFalse(verify_password("synthetic-password", SecretStr("invalid-hash")))
         with self.assertRaises(ValueError):
             hash_password(SecretStr("short"))

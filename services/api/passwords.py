@@ -12,9 +12,9 @@ def hash_password(password: SecretStr) -> SecretStr:
 
 
 def verify_password(password: str, hashed_password: SecretStr) -> bool:
-    if len(password.encode("utf-8")) > 72 or "\x00" in password:
-        return False
     try:
+        if len(password.encode("utf-8")) > 72 or "\x00" in password:
+            return False
         return bcrypt.verify(password, hashed_password.get_secret_value())
     except (ValueError, TypeError):
         return False

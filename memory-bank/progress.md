@@ -121,3 +121,24 @@ La integración de autenticación en frontend queda fuera de este hito. Sus llam
 - Diagnósticos de los seis archivos Python nuevos → sin errores. Persiste el aviso preexistente de Starlette/TestClient sobre httpx; no se cambian dependencias ajenas para corregirlo.
 
 Siguiente etapa: configuración JWT por entorno, login JSON/OAuth2, get_current_user, `/auth/me` y comando local seguro para el primer admin. La autorización y los endpoints CRUD se implementarán después, no se exponen servicios sin proteger.
+
+### Etapa 3 — JWT, login y comando local de admin
+
+- Implementados security.py, auth_dependencies.py, router auth y bootstrap_admin.py. main.py incorpora lifespan que valida entorno antes del arranque y registra solo POST `/auth/login` y GET `/auth/me`; no se adelantan CRUD de usuarios/perfiles ni restricciones operativas.
+- Configuración obligatoria JWT_SECRET_KEY (mínimo 32 bytes y no vacía) y ACCESS_TOKEN_EXPIRE_MINUTES (entero positivo representable); sin claves por defecto, valores en logs ni lectura/escritura de `.env`. Cambios de configuración requieren reiniciar la API.
+- Tokens HS256 con id TinyDB entero, sub equivalente, iat y exp. get_current_user requiere expiración y firma válidas y recupera usuario/estado/rol actuales de TinyDB. Usuario eliminado/inactivo, firma/algoritmo/claims inválidos o token ausente → 401 con WWW-Authenticate Bearer.
+- Login JSON email/password y formulario OAuth2 username=email/password comparten verificación bcrypt y respuesta access_token/token_type. Auth/me devuelve solo email/rol/perfil vinculado. Payload inválido se responde con 422 genérico, sin eco de contraseña; contenido no soportado 415; credenciales inválidas/inactivas/inexistentes 401 genérico.
+- Comando promote-admin registrado en pyproject y empaquetado junto a seed; exige base existente explícita, ID positivo y --confirm. Promueve usuario activo existente, idempotente, conserva credenciales/perfil y no imprime PII/hash/password. Debe ejecutarse con la API detenida; solo se probó con bases temporales sintéticas.
+- Verificación de passwords ajustada para rechazar también Unicode no codificable sin provocar error interno. Sin dependencias nuevas ni cambios al lockfile. Los cambios de formato preexistentes de los README siguen fuera del commit.
+
+### Verificación de etapa 3
+
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_security.py -v` → 9 tests satisfactorios: configuración, expiración, firma/algoritmo/claims y usuario vigente.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_auth_api.py -v` → 13 tests satisfactorios: startup válido/inválido, JSON/form, Bearer, errores genéricos y OpenAPI compatible con Swagger.
+- Un test levanta Uvicorn real en puerto local efímero, comprueba health/docs, auth/me sin token, login y auth/me con Bearer; cierra el proceso. Cuenta, claves, tokens y base efímeros/sintéticos, sin imprimir secretos.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_bootstrap_admin.py -v` → 7 tests satisfactorios: idempotencia, confirmación, casos ausentes/inactivos, errores de disco y comando instalado desde otro directorio.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 80 tests satisfactorios, incluidos los 51 anteriores; checks focales de modelos/passwords también pasan.
+- `uv lock --check --project services/api`, diagnósticos y revisión de diff → satisfactorios. Persisten avisos no bloqueantes previos Starlette/httpx y hardlink/copia uv; no se alteran dependencias ajenas.
+- Verificación manual completa en navegador de registro/login/Authorize queda para etapa 6; el registro HTTP aún no existe. No se deja servidor persistente y no se creó una base real de credenciales ni se conectaron servicios externos.
+
+Siguiente etapa: endpoints `/users` y `/profiles/me` con autorización propietario/admin y rechazo de cambios de rol/estado no autorizados. Proveedores/incidencias siguen públicos hasta la etapa 5; el backend ya necesita entorno JWT válido para arrancar.

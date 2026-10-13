@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -108,3 +109,24 @@ class UserRecord(UserResponse):
 class ProfileResponse(ProfileUpdate):
     id: int = Field(gt=0, strict=True)
     user_id: int = Field(gt=0, strict=True)
+
+
+class LoginRequest(AuthSchema):
+    email: EmailStr
+    password: SecretStr = Field(exclude=True, repr=False)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_must_be_normalized(cls, value: str) -> str:
+        return normalize_email(value)
+
+
+class TokenResponse(AuthSchema):
+    access_token: str = Field(repr=False)
+    token_type: Literal["bearer"] = "bearer"
+
+
+class AuthMeResponse(AuthSchema):
+    email: EmailStr
+    role: UserRole
+    profile: ProfileResponse
