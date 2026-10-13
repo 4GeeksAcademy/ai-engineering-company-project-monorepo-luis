@@ -76,3 +76,19 @@ class SupplierRecord(SupplierCreate):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("updated_at must include a timezone")
         return value.astimezone(timezone.utc)
+
+
+class SupplierRateUpdate(BaseModel):
+    """Client-controlled monthly rate update."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    monthly_rate: float = Field(gt=0, allow_inf_nan=False)
+
+
+class SupplierStatusUpdate(BaseModel):
+    """Client-controlled supplier status update."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: SupplierStatus

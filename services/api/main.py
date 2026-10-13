@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from services.api.routers.incidents import router as incidents_router
+from services.api.routers.suppliers import router as suppliers_router
 
 app = FastAPI(
     title="Nexova Operations API",
@@ -29,6 +30,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(incidents_router)
+app.include_router(suppliers_router)
 
 
 @app.get("/health", tags=["Health"])

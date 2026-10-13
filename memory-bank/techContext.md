@@ -13,7 +13,7 @@
 - `uis/website/`: sitio público estático existente, con `index.html`, `application.html` y estilos Tailwind.
 - `uis/backoffice/`: panel interno estático existente con contexto, etapas y analizador de incidencias; la integración de la vista de proveedores queda pendiente.
 - `uis/talent-pipeline-tracker/`: aplicación Next.js existente para gestión detallada de candidatos.
-- `services/api/`: API FastAPI existente para incidencias; el Hito 09 añade modelos Pydantic, almacenamiento TinyDB y seeder para proveedores. Los endpoints de proveedores quedan pendientes de la etapa 3.
+- `services/api/`: API FastAPI para incidencias y directorio de proveedores; proveedores usa modelos Pydantic, TinyDB y rutas CRUD bajo `/api/suppliers`.
 - `memory-bank/`: contexto persistente para el proyecto.
 - `.agents/`: reglas y skills para agentes de desarrollo; pendiente de crear.
 - Existe `uis/talent-pipeline-tracker/AGENTS.md`; no sustituye el `AGENTS.md` raíz requerido.

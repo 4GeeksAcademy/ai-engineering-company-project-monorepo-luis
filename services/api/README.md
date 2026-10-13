@@ -21,6 +21,25 @@ Centralized FastAPI backend service for Nexova operations and incident analysis.
 - **Method**: `GET`
 - **Response**: `{"status": "ok", "service": "nexova-api"}`
 
+### 4. Supplier directory (`/api/suppliers`)
+
+- `POST /api/suppliers`: create a supplier; returns `201` with the TinyDB ID and
+	server-generated `updated_at`.
+- `GET /api/suppliers`: list suppliers; optional `country` and `category` filters
+	can be combined and are applied together (AND).
+- `GET /api/suppliers/{id}`: retrieve a supplier; returns `404` when it does not
+	exist.
+- `PATCH /api/suppliers/{id}/rate`: update a positive `monthly_rate` and refresh
+	`updated_at`; returns `404` for an unknown ID.
+- `PATCH /api/suppliers/{id}/status`: set `active` or `suspended`; returns `404`
+	for an unknown ID.
+- `DELETE /api/suppliers/{id}`: remove a supplier; returns `200`, or `404` if it
+	does not exist.
+
+Pydantic rejects invalid payloads and filter values with `422`. The client cannot
+set the TinyDB ID or `updated_at`; changing status does not change the rate
+timestamp.
+
 ## Running the API locally
 
 ```bash

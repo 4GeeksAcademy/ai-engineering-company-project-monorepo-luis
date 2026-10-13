@@ -333,7 +333,7 @@ El README pide que el Pull Request de entrega incluya:
 
 - [x] **Etapa 1:** revisar estado de Git y documentación aplicable; tomar este archivo como referencia vigente; elegir `uis/backoffice` y `/api/suppliers`; acordar filtros AND, códigos HTTP, generación de `updated_at`, deduplicación y alcance local/demo.
 - [x] **Etapa 2:** modelos Pydantic y validaciones antes de persistir; TinyDB local excluido de Git; `uv run seed` desde `services/api`; 15 datos semilla exactos e idempotentes.
-- [ ] **Etapa 3:** probar entradas inválidas (tarifa ≤ 0, categorías/estados inválidos y país/moneda inconsistente), filtros combinados y respuestas `404`/`422`; confirmar que las rutas de incidencias no sufren regresiones.
+- [x] **Etapa 3:** router `/api/suppliers` integrado; CRUD y filtros AND implementados; validaciones `422`, inexistentes `404`, códigos `200`/`201` y regresión de incidencias probados.
 - [ ] **Etapa 4:** validar filtros sin recarga, alta, cambios de tarifa/estado, estados de error/vacío y visualización responsive; probar alertas de renovación con datos de prueba.
 - [ ] **Etapa 5:** ejecutar el seeder dos veces, comprobar persistencia tras reinicio, actualizar documentación y preparar las evidencias de entrega.
 - [ ] No almacenar credenciales o tokens en el repositorio.

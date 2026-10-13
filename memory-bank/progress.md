@@ -62,5 +62,6 @@ Actualizado: 2026-10-13
 - Etapa 1 completada: `base-dato-ligero.md` es la referencia vigente; `ingenieria-ia.md` era temporal y fue retirado intencionalmente.
 - Etapa 2 completada: añadidos modelos Pydantic, TinyDB y `services/api/seed.py`; base local por defecto en `services/api/data/suppliers.json`, configurable con `NEXOVA_SUPPLIERS_DB_PATH` y excluida de Git.
 - `uv run seed`, ejecutado desde `services/api`, insertó 15 registros en la primera ejecución y 0 en la segunda. La constante del seeder se comparó estructuralmente con los 15 registros del brief.
-- Suite completa del API: 15 tests pasan, incluidos los tests previos de incidencias. La API de proveedores aún no tiene rutas; corresponde a la etapa 3.
+- Etapa 3 completada: router CRUD `/api/suppliers` con filtros combinados AND, generación server-side de `updated_at`, validación Pydantic, respuestas `404`/`422` y eliminación.
+- Suite completa del API: 24 tests pasan, incluidos los tests previos de incidencias y los nuevos casos CRUD de proveedores.
 - El alcance permanece local/demo; no desplegar datos comerciales del directorio.
