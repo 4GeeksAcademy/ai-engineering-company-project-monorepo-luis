@@ -1,6 +1,7 @@
 """HTTP contract tests for the supplier directory API."""
 
 import os
+import secrets
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -14,18 +15,70 @@ from services.api.seed import seed_suppliers
 class TestSuppliersAPI(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
         database_path = os.path.join(self.temporary_directory.name, "suppliers.json")
+        auth_database_path = os.path.join(self.temporary_directory.name, "auth.json")
         self.database_environment = patch.dict(
             os.environ,
-            {"NEXOVA_SUPPLIERS_DB_PATH": database_path},
+            {
+                "NEXOVA_SUPPLIERS_DB_PATH": database_path,
+                "NEXOVA_AUTH_DB_PATH": auth_database_path,
+                "JWT_SECRET_KEY": secrets.token_urlsafe(48),
+                "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
+            },
         )
         self.database_environment.start()
+        self.addCleanup(self.database_environment.stop)
         seed_suppliers()
         self.client = TestClient(app)
+        self.client.__enter__()
+        self.addCleanup(self.client.__exit__, None, None, None)
+        registration = self.client.post(
+            "/users",
+            json={"email": "supplier-tests@example.com", "password": "synthetic-password"},
+        )
+        self.assertEqual(registration.status_code, 201)
+        login = self.client.post(
+            "/auth/login",
+            json={"email": "supplier-tests@example.com", "password": "synthetic-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        self.client.headers.update(
+            {"Authorization": "Bearer " + login.json()["access_token"]}
+        )
 
-    def tearDown(self):
-        self.database_environment.stop()
-        self.temporary_directory.cleanup()
+    def test_all_supplier_routes_reject_missing_and_invalid_bearer_tokens(self):
+        supplier_id = self.supplier_id("Workable")
+        requests = (
+            ("POST", "/api/suppliers", {"json": self.valid_payload()}),
+            ("GET", "/api/suppliers", {}),
+            ("GET", f"/api/suppliers/{supplier_id}", {}),
+            ("PATCH", f"/api/suppliers/{supplier_id}/rate", {"json": {"monthly_rate": 333}}),
+            ("PATCH", f"/api/suppliers/{supplier_id}/status", {"json": {"status": "suspended"}}),
+            ("DELETE", f"/api/suppliers/{supplier_id}", {}),
+        )
+        with TestClient(app) as anonymous_client:
+            for method, path, kwargs in requests:
+                for headers in ({}, {"Authorization": "Bearer malformed"}):
+                    with self.subTest(method=method, path=path, authenticated=bool(headers)):
+                        response = anonymous_client.request(method, path, headers=headers, **kwargs)
+                        self.assertEqual(response.status_code, 401)
+                        self.assertEqual(response.headers["www-authenticate"], "Bearer")
+
+    def test_supplier_routes_are_marked_protected_in_openapi(self):
+        paths = self.client.get("/openapi.json").json()["paths"]
+        expected = {
+            ("/api/suppliers", "post"),
+            ("/api/suppliers", "get"),
+            ("/api/suppliers/{supplier_id}", "get"),
+            ("/api/suppliers/{supplier_id}/rate", "patch"),
+            ("/api/suppliers/{supplier_id}/status", "patch"),
+            ("/api/suppliers/{supplier_id}", "delete"),
+        }
+        for path, method in expected:
+            with self.subTest(path=path, method=method):
+                self.assertIn("security", paths[path][method])
+        self.assertNotIn("security", paths["/health"]["get"])
 
     def supplier_id(self, name):
         response = self.client.get("/api/suppliers")

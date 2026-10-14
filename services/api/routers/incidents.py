@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+
+from services.api.auth_dependencies import get_current_user
 
 # Ensure monorepo root is on sys.path for packages.incident_analyzer
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -18,7 +20,11 @@ from packages.incident_analyzer import (
     export_results_to_csv_string,
 )
 
-router = APIRouter(prefix="/api/incidents", tags=["Incidents"])
+router = APIRouter(
+    prefix="/api/incidents",
+    tags=["Incidents"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # In-memory store for the latest analysis result
 _latest_analysis_result: Optional[IncidentAnalysisResult] = None

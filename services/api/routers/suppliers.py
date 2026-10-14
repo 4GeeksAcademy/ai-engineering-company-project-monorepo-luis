@@ -3,8 +3,9 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from services.api.auth_dependencies import get_current_user
 from services.api.supplier_models import (
     SupplierCategory,
     SupplierCountry,
@@ -15,7 +16,11 @@ from services.api.supplier_models import (
 )
 from services.api.supplier_storage import open_supplier_table
 
-router = APIRouter(prefix="/api/suppliers", tags=["Suppliers"])
+router = APIRouter(
+    prefix="/api/suppliers",
+    tags=["Suppliers"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _to_record(document: Any) -> SupplierRecord:
