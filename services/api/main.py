@@ -3,8 +3,10 @@
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # Ensure monorepo root is on sys.path
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -13,7 +15,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from services.api.routers.auth import router as auth_router
 from services.api.routers.incidents import router as incidents_router
+from services.api.routers.profiles import router as profiles_router
 from services.api.routers.suppliers import router as suppliers_router
+from services.api.routers.users import router as users_router
 from services.api.security import load_jwt_settings
 
 
@@ -45,6 +49,20 @@ app.add_middleware(
 app.include_router(incidents_router)
 app.include_router(suppliers_router)
 app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(profiles_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def sanitize_auth_validation_errors(
+    request: Request, error: RequestValidationError
+) -> JSONResponse:
+    if request.url.path == "/users" or request.url.path.startswith("/users/"):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Invalid user request"},
+        )
+    return JSONResponse(status_code=422, content={"detail": error.errors()})
 
 
 @app.get("/health", tags=["Health"])

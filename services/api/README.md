@@ -423,3 +423,71 @@ remain nonblocking. Pre-existing README formatting edits stay outside this commi
 
 Next: stage 4 publishes `/users` and `/profiles/me` with owner/admin authorization
 from the outset, including privilege checks before calling the internal services.
+
+## AUTH-01 stage 4: protected user and profile endpoints
+
+### Endpoint behavior
+
+- `POST /users` is public and creates a default `user` plus its linked profile.
+  Optional `name`, `phone` and `address` initialize `Profile`. The public
+  registration schema does not accept `role`, `id`, `is_active`,
+  `hashed_password`, `created_at` or `user_id`; invalid/extra fields return a
+  generic `422` without echoing credentials. Duplicate normalized emails return
+  `409`.
+- `GET /users` requires an active admin. It returns credential-safe user
+  responses and never includes hashes.
+- `GET /users/{user_id}`, `PUT /users/{user_id}` and
+  `DELETE /users/{user_id}` require an active owner or admin. A non-admin
+  accessing another ID gets `403` before existence is checked, preventing ID
+  enumeration; an authorized missing target gets `404`.
+- Owners can update their own email/password. Only admins can include `role` or
+  `is_active` in `PUT`, including setting the same value. The `manager` role
+  receives no admin privileges. Duplicate email updates return `409`; missing
+  authorized users return `404`. Passwords are re-hashed by the internal service.
+- `GET /profiles/me` and `PUT /profiles/me` require authentication and always use
+  the current token's user ID. There is no profile-by-ID route, even for admins.
+  The request accepts only `name`, `phone` and `address`; explicit null clears a
+  field, omitted fields remain unchanged, and contact details never enter `User`.
+- User deletion removes the linked profile. `/auth/me` continues to include that
+  user's linked profile. All user/profile routes return `401` with a Bearer
+  challenge for absent or invalid tokens; valid authentication without permission
+  returns `403`.
+
+All reads of users/profiles use `UserResponse`/`ProfileResponse`; the internal
+`UserRecord` hash is excluded by the response schemas. The app sanitizes request
+validation responses on `/users` so Pydantic errors cannot echo submitted
+passwords. Other existing API validation behavior is unchanged.
+
+### OpenAPI and local verification
+
+`/docs` exposes public registration and login separately from Bearer-protected
+user/profile operations. A disposable local API requires the stage 3 environment
+variables and can be run from the repository root as follows:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_users_api.py -v
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+```
+
+The test fixture registers synthetic accounts through the real HTTP endpoint,
+obtains tokens through the real JSON login, and promotes synthetic manager/admin
+accounts only through the internal service. It covers missing-token `401`, owner
+and manager `403`, authorized admin behavior, `404`/`409`/sanitized `422`, public
+role-escalation rejection, owner email/password changes, admin-only activation and
+role changes, self-profile isolation, cascade deletion, OpenAPI and absence of
+hashes/passwords in responses. No real credentials, personal data or auth database
+were used.
+
+On 2026-10-14, all 16 focused user/profile HTTP tests and all 96 backend tests
+passed, including the 80 tests from stages 1–3 and the unchanged incident/supplier
+regression tests. The existing Starlette `httpx` deprecation warning remains
+non-blocking. Changes to README formatting that predated this stage were preserved
+outside the commit.
+
+### Current boundary and next stage
+
+Stages 1–4 now implement auth dependencies and all `/users`, `/auth` and
+`/profiles` routes. The eight pre-existing operations under `/api/suppliers` and
+`/api/incidents` are **still public**; stage 5 must add authentication without
+changing their functional contracts. Frontend token integration and the manual
+end-to-end Swagger acceptance flow remain for stage 6.

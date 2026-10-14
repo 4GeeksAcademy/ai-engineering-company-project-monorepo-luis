@@ -64,6 +64,24 @@ class UserCreate(ProfileUpdate):
         return validate_password(value)
 
 
+class UserRegistration(AuthSchema):
+    email: EmailStr
+    password: SecretStr = Field(exclude=True, repr=False)
+    name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_must_be_normalized(cls, value: str) -> str:
+        return normalize_email(value)
+
+    @field_validator("password")
+    @classmethod
+    def password_must_be_valid(cls, value: SecretStr) -> SecretStr:
+        return validate_password(value)
+
+
 class UserUpdate(AuthSchema):
     email: EmailStr | None = None
     password: SecretStr | None = Field(default=None, exclude=True, repr=False)

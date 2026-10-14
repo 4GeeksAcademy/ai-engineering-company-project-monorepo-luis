@@ -141,4 +141,24 @@ Siguiente etapa: configuración JWT por entorno, login JSON/OAuth2, get_current_
 - `uv lock --check --project services/api`, diagnósticos y revisión de diff → satisfactorios. Persisten avisos no bloqueantes previos Starlette/httpx y hardlink/copia uv; no se alteran dependencias ajenas.
 - Verificación manual completa en navegador de registro/login/Authorize queda para etapa 6; el registro HTTP aún no existe. No se deja servidor persistente y no se creó una base real de credenciales ni se conectaron servicios externos.
 
-Siguiente etapa: endpoints `/users` y `/profiles/me` con autorización propietario/admin y rechazo de cambios de rol/estado no autorizados. Proveedores/incidencias siguen públicos hasta la etapa 5; el backend ya necesita entorno JWT válido para arrancar.
+Etapa 4 implementó `/users` y `/profiles/me` con autorización propietario/admin y rechazo de cambios de rol/estado no autorizados. Proveedores/incidencias siguen públicos hasta la etapa 5; el backend requiere entorno JWT válido para arrancar.
+
+### Etapa 4 — CRUD HTTP y autorización de usuarios/perfiles
+
+- Añadidos `UserRegistration`, separado del modelo interno `UserCreate` para que el registro público no acepte rol ni campos de servidor. `POST /users` crea `user` con su perfil inicial; errores de registro no revelan payload ni credenciales.
+- Registrados routers `users.py` y `profiles.py`: endpoints `/users`, `/users/{user_id}` y `/profiles/me`. Todo salvo registro usa `get_current_user` desde su publicación.
+- `GET /users` solo admin. Operaciones por ID autorizan propietario/admin antes de acceder a TinyDB; el actor no admin recibe 403 ante IDs ajenos sin revelar existencia, y admin recibe 404 para ID inexistente. El rol manager no equivale a admin.
+- Owner puede leer/actualizar email/password/eliminar su cuenta; admin puede además cambiar role/is_active en PUT sobre cualquier usuario. Cambios password siguen usando hash. Duplicado email devuelve 409. Alta y baja coordinadas con el perfil.
+- Perfiles solo en `/profiles/me`; admin también solo modifica su propio perfil por esta ruta. `ProfileUpdate` no acepta campos extra/user_id; omisión conserva valor y null lo limpia. `/auth/me` continúa devolviendo el perfil actual.
+- Handler FastAPI sanea `RequestValidationError` de `/users` y `/users/*` a detalle genérico para evitar que payloads inválidos reflejen contraseñas, hashes u otros datos enviados; el contrato de validación de routers preexistentes no cambia.
+
+### Verificación de etapa 4
+
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_users_api.py -v` → 16 tests HTTP satisfactorios con usuarios sintéticos registrados por HTTP y tokens emitidos por login real.
+- Casos: registro default/perfil, escalación de rol, input sensible sanitizado, duplicados 409, todas las rutas protegidas sin token 401, listado user/manager 403 y admin permitido sin hashes, ownership 403, owner actualiza credenciales, admin modifica roles/estado, perfil aislado, cascada, 404 tras autorización y schema OpenAPI.
+- La primera ejecución de tests detectó dos expectativas incorrectas, no defectos del código: `too-short` tiene 9 caracteres y cumple política; ID ajeno debe ocultarse con 403 al owner, mientras que ID inexistente devuelve 404 al admin. Las expectativas se corrigieron y suite focal pasa.
+- La eliminación con perfil ausente responde 404 sin borrar parcialmente el usuario.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 96 tests satisfactorios (80 previos + 16), sin regresiones de incidencias/proveedores. Diagnósticos funcionales por suite y lockfile correctos.
+- Se conservaron sin commit las ediciones previas de README (`services/api` y backoffice). Cambios de documentación AUTH se preparan selectivamente; no hubo PII real, secretos, DB persistente ni dependencia nueva.
+
+Siguiente etapa: proteger las ocho operaciones existentes de proveedores e incidencias con `get_current_user`, actualizar fixtures a login/token reales y conservar contratos funcionales. El frontend no se integra hasta la etapa 6.
