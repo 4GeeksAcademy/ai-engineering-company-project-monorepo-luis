@@ -71,7 +71,7 @@ Los comandos de compilación y serving del website se ejecutaron. El backoffice 
 
 ## AUTH-01 — Preparación de autenticación
 
-Actualizado: 2026-10-14; etapas 1, 2, 3 y 4 completadas. Auth y CRUD de usuarios/perfiles implementados; protección de rutas operativas pendiente.
+Actualizado: 2026-10-14; etapas 1–5 completadas. Auth, CRUD de usuarios/perfiles y protección de rutas operativas implementados; aceptación final pendiente.
 
 - Rama de trabajo: `feature/auth-api`, creada desde `main` en `12ef190`. Plan de seis etapas y matriz de acceso en `services/api/README.md`; cada etapa cierra con pruebas, documentación, commit y push, y el PR final apunta a `main`.
 - Dependencias instaladas con `uv add --project services/api "python-jose[cryptography]" "libpass[bcrypt]"`. Versiones resueltas: `python-jose` 3.5.0, `libpass` 1.9.3, `bcrypt` 5.0.0. Mantener coherentes `pyproject.toml`, `uv.lock` y `requirements.txt`; el import bcrypt sigue siendo `from passlib.hash import bcrypt`.
@@ -79,7 +79,7 @@ Actualizado: 2026-10-14; etapas 1, 2, 3 y 4 completadas. Auth y CRUD de usuarios
 - Variables JWT obligatorias validadas en el lifespan: `JWT_SECRET_KEY` (no vacía, al menos 32 bytes UTF-8) y `ACCESS_TOKEN_EXPIRE_MINUTES` (entero positivo con expiración representable). Sin secretos por defecto ni valores en documentación; HS256 fijo. Cambios de entorno requieren reiniciar; sin configuración válida no arranca la API.
 - Registro público HTTP solo permite los campos email/password/contacto inicial y siempre asigna `user`; `role` extra se rechaza con 422 genérico. Primer admin mediante comando local seguro. Listado de usuarios solo admin; credenciales propietario/admin; `role`/`is_active` modificables solo por admin; perfiles `/me` del usuario autenticado. Roles admitidos: `admin`, `manager`, `user`.
 - Login implementado en `/auth/login`: JSON email/password y formulario OAuth2 con email como username, compatible con Swagger. `get_current_user` valida firma/exp/id y recupera estado/rol vigente desde TinyDB; `401` con Bearer challenge para autenticación inválida. `/auth/me` devuelve email/rol/perfil. Endpoints `/users` y `/profiles/me` implementan propiedad/admin y `403` para usuarios sin permiso.
-- Se protegerán las seis operaciones de proveedores y las dos de incidencias. Ambos módulos permanecen compartidos entre usuarios autenticados; el último resultado de incidencias sigue siendo global en memoria. No se implementará propiedad por usuario para estos recursos.
+- Las seis operaciones de proveedores y dos de incidencias requieren `get_current_user` mediante dependencias a nivel de router. Ambos módulos permanecen compartidos entre usuarios autenticados; el último resultado de incidencias sigue siendo global en memoria. Sin propiedad por usuario.
 - Sin cambios frontend en este hito; después de proteger las rutas, el backoffice sin Bearer dejará de funcionar temporalmente. No añadir Supabase, cookies, sesiones, refresh tokens ni despliegue.
 - Verificación de etapa 1: 24 tests antes/después y smoke bcrypt/JWT satisfactorios. Comando reproducible desde raíz: `uv run --locked --project services/api python -m unittest discover -s services/api/tests -v`. No hay lint/typecheck/build Python declarados; no ejecutar checks frontend ajenos.
 
@@ -111,3 +111,11 @@ Actualizado: 2026-10-14; etapas 1, 2, 3 y 4 completadas. Auth y CRUD de usuarios
 - `ProfileUpdate` limita cambios a name/phone/address; omitted preserva y null limpia; siempre se usa el id autenticado. La eliminación user conserva cascada lógica user/profile coordinada.
 - Handler de `RequestValidationError` sanea respuestas para paths `/users` y `/users/*` en 422 genérico, previniendo eco de passwords y hashes. La validación de otros routers conserva su contrato actual.
 - Verificación: `test_users_api.py` (16 tests) y suite total (96 tests) satisfactorias con autenticación real por login y registros sintéticos aislados. Incluye autorización, rol admin/manager, seguridad contra escalación, secretos, OpenAPI, duplicados, 401/403/404/409/422 y cascada sin borrado parcial si falta perfil. Sin cambios en rutas supplier/incidents, aún públicas hasta etapa 5.
+
+### Protección operativa de etapa 5
+
+- `routers/suppliers.py` y `routers/incidents.py` aplican `Depends(get_current_user)` al router completo: 6+2 operaciones protegidas. OpenAPI refleja OAuth2 Bearer en cada operación; `/health`, `/docs` y `/openapi.json` siguen públicos.
+- Los recursos no son por propietario y no añaden permisos por rol: cualquier usuario activo autenticado conserva el comportamiento funcional existente.
+- Tests existentes de supplier/incidents ahora usan `POST /users` y `POST /auth/login` con cuenta sintética y TinyDB temporal; el TestClient se inicia con contextmanager tras inyectar env JWT. Se valida cada endpoint con token válido (contrato anterior intacto) y se añaden matrices de 401 para ausencia/token malformed. Fixture de análisis CSV existente permanece igual.
+- Al usar un TestClient autenticado y otro anónimo anidados, ambos comparten FastAPI `app.state`. El lifespan ahora restaura el valor previo de `jwt_settings` y elimina la clave únicamente si no existía al entrar, evitando doble eliminación en tests/uso anidado.
+- Verificación: supplier 11 tests, incidents 8 tests y suite total 100 tests, además `uv lock --check`/`git diff --check`. Sin dependencias nuevas. Pylance seleccionado global `/usr/local/python/3.12.1` aún emite imports no resueltos; entorno real de servicio `services/api/.venv` contiene FastAPI/Uvicorn, suites `uv run` pasan. No se modifica configuración VS Code.

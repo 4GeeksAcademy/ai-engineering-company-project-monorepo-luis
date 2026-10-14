@@ -20,14 +20,22 @@ from services.api.routers.suppliers import router as suppliers_router
 from services.api.routers.users import router as users_router
 from services.api.security import load_jwt_settings
 
+_NO_PREVIOUS_JWT_SETTINGS = object()
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    previous_settings = getattr(
+        application.state, "jwt_settings", _NO_PREVIOUS_JWT_SETTINGS
+    )
     application.state.jwt_settings = load_jwt_settings()
     try:
         yield
     finally:
-        del application.state.jwt_settings
+        if previous_settings is _NO_PREVIOUS_JWT_SETTINGS:
+            del application.state.jwt_settings
+        else:
+            application.state.jwt_settings = previous_settings
 
 app = FastAPI(
     title="Nexova Operations API",

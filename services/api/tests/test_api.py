@@ -1,8 +1,13 @@
 """Tests for the Nexova incident API endpoints."""
 
 import io
+import os
+import secrets
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from services.api.main import app
@@ -11,10 +16,61 @@ from services.api.routers.incidents import set_latest_result
 
 class TestIncidentsAPI(unittest.TestCase):
     def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        environment = patch.dict(os.environ, {
+            "NEXOVA_AUTH_DB_PATH": os.path.join(self.temporary_directory.name, "auth.json"),
+            "JWT_SECRET_KEY": secrets.token_urlsafe(48),
+            "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
         self.client = TestClient(app)
+        self.client.__enter__()
+        self.addCleanup(self.client.__exit__, None, None, None)
+        registration = self.client.post(
+            "/users",
+            json={"email": "incident-tests@example.com", "password": "synthetic-password"},
+        )
+        self.assertEqual(registration.status_code, 201)
+        login = self.client.post(
+            "/auth/login",
+            json={"email": "incident-tests@example.com", "password": "synthetic-password"},
+        )
+        self.assertEqual(login.status_code, 200)
+        self.client.headers.update(
+            {"Authorization": "Bearer " + login.json()["access_token"]}
+        )
         set_latest_result(None)  # Reset state before each test
         repo_root = Path(__file__).resolve().parents[3]
         self.fixture_path = repo_root / "data" / "raw" / "incidents-nexova.csv"
+
+    def test_incident_routes_reject_missing_and_invalid_bearer_tokens(self):
+        files = {"file": ("empty.csv", b"id\n", "text/csv")}
+        with TestClient(app) as anonymous_client:
+            for headers in ({}, {"Authorization": "Bearer malformed"}):
+                with self.subTest(path="/api/incidents/analyze", authenticated=bool(headers)):
+                    response = anonymous_client.post(
+                        "/api/incidents/analyze", files=files, headers=headers
+                    )
+                    self.assertEqual(response.status_code, 401)
+                    self.assertEqual(response.headers["www-authenticate"], "Bearer")
+                with self.subTest(path="/api/incidents/results/export", authenticated=bool(headers)):
+                    response = anonymous_client.get(
+                        "/api/incidents/results/export", headers=headers
+                    )
+                    self.assertEqual(response.status_code, 401)
+                    self.assertEqual(response.headers["www-authenticate"], "Bearer")
+
+    def test_incident_routes_are_marked_protected_in_openapi(self):
+        paths = self.client.get("/openapi.json").json()["paths"]
+        for path, method in (
+            ("/api/incidents/analyze", "post"),
+            ("/api/incidents/results/export", "get"),
+        ):
+            with self.subTest(path=path, method=method):
+                self.assertIn("security", paths[path][method])
+        self.assertNotIn("security", paths["/health"]["get"])
 
     def test_health_check(self):
         """Verifies health check endpoint returns 200."""

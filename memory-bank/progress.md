@@ -161,4 +161,22 @@ Etapa 4 implementó `/users` y `/profiles/me` con autorización propietario/admi
 - `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 96 tests satisfactorios (80 previos + 16), sin regresiones de incidencias/proveedores. Diagnósticos funcionales por suite y lockfile correctos.
 - Se conservaron sin commit las ediciones previas de README (`services/api` y backoffice). Cambios de documentación AUTH se preparan selectivamente; no hubo PII real, secretos, DB persistente ni dependencia nueva.
 
-Siguiente etapa: proteger las ocho operaciones existentes de proveedores e incidencias con `get_current_user`, actualizar fixtures a login/token reales y conservar contratos funcionales. El frontend no se integra hasta la etapa 6.
+Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias con `get_current_user`; los fixtures usan login/token reales y los contratos funcionales se mantienen. El frontend no se integra hasta la etapa 6.
+
+### Etapa 5 — Protección de proveedores e incidencias
+
+- Aplicada dependencia router-level `get_current_user` a los seis endpoints de `/api/suppliers` y los dos de `/api/incidents`. Recursos siguen compartidos entre usuarios autenticados; no se añade propietario ni matriz por rol.
+- Adaptados los tests de ambos routers para crear usuarios sintéticos mediante `POST /users`, obtener Bearer por `/auth/login`, y usar `TestClient` como context manager con variables JWT y TinyDB temporales.
+- Añadidas matrices de `401` con autorización ausente o token malformado para las ocho operaciones y comprobaciones OpenAPI de seguridad. `/health` sigue pública.
+- Una prueba inicial encontró que varios TestClient anidados compartían `app.state.jwt_settings` y el lifespan eliminaba el atributo al cerrar el cliente interior. Se corrigió `main.py` para restaurar la configuración previa al salir de cada lifespan; las suites focales pasan después del ajuste.
+- Se conservan filtros AND, creación 201, respuestas 404/422, timestamp rate/status, cambios TinyDB, validación/análisis de CSV, agregados y exportación. El resultado de incidencias sigue siendo global y en memoria.
+
+### Verificación de etapa 5
+
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_suppliers_api.py` → 11 tests satisfactorios, funcionalidad existente con login real y 401 ausente/inválido.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_api.py` → 8 tests satisfactorios, fixture CSV, comportamiento de incidentes y 401 ausente/inválido.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 100 tests satisfactorios, incluida la cobertura completa de etapas 1–4.
+- `uv lock --check --project services/api` y `git diff --check` satisfactorios; sin dependencias nuevas. Diagnósticos Pylance aún muestran imports FastAPI sin resolver porque el intérprete global `/usr/local/python/3.12.1` seleccionado no tiene los paquetes; `services/api/.venv` sí y `uv run` pasa. No se cambió configuración global del editor.
+- Se conservaron fuera del commit cambios de formato previos en `services/api/README.md` y `uis/backoffice/README.md`. Solo datos sintéticos/autorizados y TinyDB temporales; no secretos, bases reales ni PII nueva.
+
+Siguiente etapa: aceptación manual completa, matriz final de requisito/prueba y PR hacia `main`. La integración de Bearer en el backoffice sigue fuera del alcance hasta esa entrega/follow-up.

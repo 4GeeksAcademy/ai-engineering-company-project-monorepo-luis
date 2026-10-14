@@ -421,8 +421,8 @@ Lockfile verification and diagnostics passed; there are no new dependencies or
 changes to `uv.lock`. The existing Starlette/httpx warning and uv hardlink fallback
 remain nonblocking. Pre-existing README formatting edits stay outside this commit.
 
-Next: stage 4 publishes `/users` and `/profiles/me` with owner/admin authorization
-from the outset, including privilege checks before calling the internal services.
+Stage 4 subsequently published `/users` and `/profiles/me` with owner/admin
+authorization and privilege checks before invoking the internal services.
 
 ## AUTH-01 stage 4: protected user and profile endpoints
 
@@ -486,8 +486,68 @@ outside the commit.
 
 ### Current boundary and next stage
 
-Stages 1–4 now implement auth dependencies and all `/users`, `/auth` and
-`/profiles` routes. The eight pre-existing operations under `/api/suppliers` and
-`/api/incidents` are **still public**; stage 5 must add authentication without
-changing their functional contracts. Frontend token integration and the manual
+Stages 1–5 implement authentication for `/users`, `/auth`, `/profiles` and the
+eight pre-existing operational routes. Frontend token integration and the manual
 end-to-end Swagger acceptance flow remain for stage 6.
+
+## AUTH-01 stage 5: protect operational endpoints
+
+All six supplier operations and both incident operations require a valid Bearer
+token through router-level `get_current_user` dependencies:
+
+| Method | Route | Access |
+| --- | --- | --- |
+| POST | `/api/suppliers` | Active authenticated user. |
+| GET | `/api/suppliers` | Active authenticated user. |
+| GET | `/api/suppliers/{supplier_id}` | Active authenticated user. |
+| PATCH | `/api/suppliers/{supplier_id}/rate` | Active authenticated user. |
+| PATCH | `/api/suppliers/{supplier_id}/status` | Active authenticated user. |
+| DELETE | `/api/suppliers/{supplier_id}` | Active authenticated user. |
+| POST | `/api/incidents/analyze` | Active authenticated user. |
+| GET | `/api/incidents/results/export` | Active authenticated user. |
+
+The dependency runs before the existing operation. Missing, malformed, expired,
+invalidly signed, deleted-user or inactive-user credentials return `401` with a
+`WWW-Authenticate: Bearer` challenge. No new owner or role matrix is applied:
+the supplier directory and the latest incident analysis remain shared among
+authenticated users. The analysis result is still global and in memory. `/health`,
+`/docs` and `/openapi.json` remain public.
+
+Valid-token requests retain the existing contracts: supplier create remains `201`,
+filters still combine with AND, missing suppliers still return `404`, updates retain
+their timestamp behavior, and incident CSV validation, aggregation and export are
+unchanged. No response, storage schema, or frontend behavior changed beyond the
+required authentication header.
+
+### Stage 5 regression checks
+
+Run from the repository root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_suppliers_api.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_api.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+```
+
+The existing supplier and incident HTTP tests now register synthetic users and
+obtain tokens through `/auth/login` before exercising each original behavior. Added
+route matrices check that all six supplier operations and both incident operations
+reject absent and malformed tokens with `401`; OpenAPI also marks each operation as
+Bearer-protected. Public health behavior is asserted unchanged. Tests use temporary
+TinyDB files and disposable environment keys; no real credentials or candidate data
+were introduced.
+
+On 2026-10-14, the supplier slice passed 11 tests, the incident slice passed 8
+tests, and the full backend suite passed 100 tests. A nested `TestClient` test setup
+initially exposed that the app lifespan deleted shared `jwt_settings` twice; the
+lifespan now restores the prior app state on exit. The focused suites pass after
+that correction. Existing supplier response/filter/timestamp behavior and incident
+CSV behavior remain covered by valid-token requests.
+
+The test editor may report unresolved FastAPI imports if it selects the global
+Python interpreter. The service dependencies are installed in `services/api/.venv`;
+run the documented `uv` commands or select that interpreter for editor diagnostics.
+
+Next: stage 6 completes the manual `/docs` acceptance flow, redacted evidence,
+final requirement matrix and PR description. Frontend token integration remains a
+separate follow-up.
