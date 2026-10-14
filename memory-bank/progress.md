@@ -187,3 +187,14 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 100 tests satisfactorios. `uv lock --check --project services/api` y `git diff --check` satisfactorios. Aviso conocido: Pylance selecciona interpreter global sin FastAPI, mientras `services/api/.venv` y `uv run` pasan; no modificar settings globales.
 - Preparar commit/push de documentación de etapa 6 con staging selectivo; preservar las ediciones de formatter anteriores en README API/backoffice. Abrir PR desde `feature/auth-api` hacia `main` con matriz de rutas y evidencia.
 - El backoffice no envía Bearer todavía; su integración frontend queda como follow-up separado. Hasta entonces, llamadas a rutas protegidas responden 401.
+
+## AUTH-02 — Frontend
+
+### Etapa 2 — Cliente Nexova y sesión
+
+- Rama `feature/auth-frontend`, basada en `main` limpia en `df5d034`.
+- Añadidos tipos de registro, login, token, usuario actual y perfil en `uis/talent-pipeline-tracker/types/auth.ts`.
+- Añadido `lib/nexova-api.ts` con origen separado `NEXT_PUBLIC_NEXOVA_API_URL`; `NEXT_PUBLIC_API_URL` permanece exclusivo para la API externa de candidatos. Solo las llamadas protegidas adjuntan `Authorization: Bearer`; solo un `401` protegido o la ausencia local de token limpia sesión y notifica navegación a `/login`.
+- `NexovaSessionNavigation` escucha la expiración y usa `router.replace`; login y registro son públicos. La sesión se guarda en `localStorage` únicamente desde el navegador.
+- Todavía no existen las páginas `/login`, `/register`, `/account/profile` ni el guard de las vistas privadas; pertenecen a etapas posteriores. La UI del tracker no protege los datos servidos por la API externa 4Geeks.
+- `npm run lint`, `npm run build` y `git diff --check` pasan. Build advierte que Next infiere raíz Turbopack ante los lockfiles de raíz y tracker. No hay suite de tests del frontend declarada.
