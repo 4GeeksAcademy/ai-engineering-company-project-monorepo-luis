@@ -10,11 +10,13 @@ import {
   CircleAlert,
   Filter,
   LoaderCircle,
+  LogOut,
   Search,
   Users,
 } from "lucide-react";
 
 import { getCandidates } from "@/lib/api";
+import { endNexovaSession } from "@/lib/nexova-api";
 import CandidateForm from "@/components/candidate-form";
 import {
   STAGES,
@@ -184,7 +186,15 @@ export default function CandidateList() {
           </div>
         </header>
 
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+            onClick={endNexovaSession}
+            type="button"
+          >
+            <LogOut aria-hidden="true" size={16} />
+            Cerrar sesión
+          </button>
           <button
             className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
             onClick={() => setIsCreateOpen(true)}

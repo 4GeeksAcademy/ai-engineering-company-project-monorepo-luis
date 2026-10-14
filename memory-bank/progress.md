@@ -198,3 +198,11 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - `NexovaSessionNavigation` escucha la expiración y usa `router.replace`; login y registro son públicos. La sesión se guarda en `localStorage` únicamente desde el navegador.
 - Todavía no existen las páginas `/login`, `/register`, `/account/profile` ni el guard de las vistas privadas; pertenecen a etapas posteriores. La UI del tracker no protege los datos servidos por la API externa 4Geeks.
 - `npm run lint`, `npm run build` y `git diff --check` pasan. Build advierte que Next infiere raíz Turbopack ante los lockfiles de raíz y tracker. No hay suite de tests del frontend declarada.
+
+### Etapa 3 — Login, registro y logout
+
+- Añadidas las rutas `/login` y `/register` con un formulario compartido, validación nativa de email/contraseña, errores accesibles y mensajes de API saneados. El formulario de registro envía los campos opcionales `name`, `phone` y `address` admitidos por la API.
+- El registro ejecuta `POST /users` seguido de `POST /auth/login`; guarda `access_token` solo cuando el login también termina correctamente. Si el alta se completa pero falla el login, informa al usuario y no declara sesión.
+- Añadido logout visible en la lista de candidatos: elimina el token y el manejador global navega mediante `router.replace("/login")`.
+- Verificación: lint/build y diagnósticos sin errores; rutas HTTP `/login` y `/register` responden 200 y renderizan email/contraseña. Con API Uvicorn local aislada, datos de prueba efímeros y email sintético `example.com`, pasaron registro 201, login 200, `/auth/me` con Bearer 200, login inválido 401 y CORS preflight autorizado. Una primera prueba usó `.test` y recibió 422 de validación; al cambiar a `example.com` el recorrido pasó. No se usaron cuentas reales.
+- No hay Playwright/Puppeteer instalado; no se automatizó interacción visual. Permanecen pendientes el guard de páginas, perfil y aceptación manual. Los dos servicios locales actuales son de desarrollo/prueba y la base auth del API se elimina al detener el proceso.
