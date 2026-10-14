@@ -71,7 +71,7 @@ Los comandos de compilación y serving del website se ejecutaron. El backoffice 
 
 ## AUTH-01 — Preparación de autenticación
 
-Actualizado: 2026-10-14; etapas 1–5 completadas. Auth, CRUD de usuarios/perfiles y protección de rutas operativas implementados; aceptación final pendiente.
+Actualizado: 2026-10-14; etapas 1–6 completadas. Auth, CRUD de usuarios/perfiles y protección de rutas operativas implementados; aceptación final verificada y PR de entrega en curso.
 
 - Rama de trabajo: `feature/auth-api`, creada desde `main` en `12ef190`. Plan de seis etapas y matriz de acceso en `services/api/README.md`; cada etapa cierra con pruebas, documentación, commit y push, y el PR final apunta a `main`.
 - Dependencias instaladas con `uv add --project services/api "python-jose[cryptography]" "libpass[bcrypt]"`. Versiones resueltas: `python-jose` 3.5.0, `libpass` 1.9.3, `bcrypt` 5.0.0. Mantener coherentes `pyproject.toml`, `uv.lock` y `requirements.txt`; el import bcrypt sigue siendo `from passlib.hash import bcrypt`.
@@ -119,3 +119,10 @@ Actualizado: 2026-10-14; etapas 1–5 completadas. Auth, CRUD de usuarios/perfil
 - Tests existentes de supplier/incidents ahora usan `POST /users` y `POST /auth/login` con cuenta sintética y TinyDB temporal; el TestClient se inicia con contextmanager tras inyectar env JWT. Se valida cada endpoint con token válido (contrato anterior intacto) y se añaden matrices de 401 para ausencia/token malformed. Fixture de análisis CSV existente permanece igual.
 - Al usar un TestClient autenticado y otro anónimo anidados, ambos comparten FastAPI `app.state`. El lifespan ahora restaura el valor previo de `jwt_settings` y elimina la clave únicamente si no existía al entrar, evitando doble eliminación en tests/uso anidado.
 - Verificación: supplier 11 tests, incidents 8 tests y suite total 100 tests, además `uv lock --check`/`git diff --check`. Sin dependencias nuevas. Pylance seleccionado global `/usr/local/python/3.12.1` aún emite imports no resueltos; entorno real de servicio `services/api/.venv` contiene FastAPI/Uvicorn, suites `uv run` pasan. No se modifica configuración VS Code.
+
+### Aceptación y entrega de etapa 6
+
+- Proceso Uvicorn real y efímero comprobó `/docs`, OpenAPI, registro+perfil, rechazo role escalation, JSON/OAuth login, `/auth/me`, `/profiles/me`, 401 inválido/expirado y 403 listado user. Puerto aleatorio socket-activated; proceso, TinyDBs, secreto y usuario temporales se destruyeron al terminar.
+- En live smoke con credenciales Bearer pasaron las seis rutas supplier y ambas incident con CSV de una fila totalmente sintética; sin token se verificaron 401 en endpoints protegidos. OpenAPI lista los ocho schemas Security. Respuesta/TinyDB no exponen password/hash; TinyDB contiene bcrypt; export no contiene email.
+- Suite backend 100, `uv lock --check` y `git diff --check` correctos. La prueba de interacción se efectuó mediante llamadas HTTP contra `/docs`/OpenAPI y el OAuth2 form; no se integró UI del backoffice. Todo coincide con limitación explícita de frontend pendiente.
+- PR final hacia `main` desde `feature/auth-api`, con resumen de rutas/permisos y pruebas, conforme al flujo aprobado.

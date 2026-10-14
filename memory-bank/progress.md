@@ -179,4 +179,11 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - `uv lock --check --project services/api` y `git diff --check` satisfactorios; sin dependencias nuevas. Diagnósticos Pylance aún muestran imports FastAPI sin resolver porque el intérprete global `/usr/local/python/3.12.1` seleccionado no tiene los paquetes; `services/api/.venv` sí y `uv run` pasa. No se cambió configuración global del editor.
 - Se conservaron fuera del commit cambios de formato previos en `services/api/README.md` y `uis/backoffice/README.md`. Solo datos sintéticos/autorizados y TinyDB temporales; no secretos, bases reales ni PII nueva.
 
-Siguiente etapa: aceptación manual completa, matriz final de requisito/prueba y PR hacia `main`. La integración de Bearer en el backoffice sigue fuera del alcance hasta esa entrega/follow-up.
+### Etapa 6 — Aceptación y entrega
+
+- Ejecutado el flujo contra un proceso Uvicorn real en puerto local efímero; se detuvo al finalizar. Variables JWT, TinyDBs y usuarios fueron sintéticos/temporales; no se leyó ni escribió `.env` y no se usó PII real.
+- Smoke `/docs`, `/openapi.json` y `/health`; validado OpenAPI Bearer en las seis operaciones supplier y dos incidents. Registro default user/perfil, rechazo de escalación role, login JSON y OAuth2 form, `/auth/me`, `/profiles/me`, 401 por token malformado/expirado y 403 al listar como no admin.
+- Con Bearer válido, smoke supplier create/list/read/rate/status/delete y análisis/export de una fila CSV sintética válida. Sin token, supplier POST/GET e incident POST/GET devuelven 401. Hash bcrypt persiste; contraseña plaintext ausente de TinyDB/respuestas; email sintético ausente del export.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 100 tests satisfactorios. `uv lock --check --project services/api` y `git diff --check` satisfactorios. Aviso conocido: Pylance selecciona interpreter global sin FastAPI, mientras `services/api/.venv` y `uv run` pasan; no modificar settings globales.
+- Preparar commit/push de documentación de etapa 6 con staging selectivo; preservar las ediciones de formatter anteriores en README API/backoffice. Abrir PR desde `feature/auth-api` hacia `main` con matriz de rutas y evidencia.
+- El backoffice no envía Bearer todavía; su integración frontend queda como follow-up separado. Hasta entonces, llamadas a rutas protegidas responden 401.

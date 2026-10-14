@@ -414,8 +414,9 @@ One HTTP test starts a real Uvicorn subprocess on an ephemeral local port, check
 `/health`, `/docs`, unauthenticated `/auth/me`, JSON login and authenticated
 `/auth/me`, then stops the process. All databases/keys/accounts are temporary and
 synthetic; neither credentials nor tokens are printed. Manual browser verification
-of the complete registration/Swagger flow remains scheduled for stage 6, after the
-registration endpoints exist. No persistent development server was left running.
+of the complete registration/Swagger flow was scheduled for stage 6 after the
+registration endpoints existed; that acceptance is recorded below. No persistent
+development server was left running.
 
 Lockfile verification and diagnostics passed; there are no new dependencies or
 changes to `uv.lock`. The existing Starlette/httpx warning and uv hardlink fallback
@@ -548,6 +549,69 @@ The test editor may report unresolved FastAPI imports if it selects the global
 Python interpreter. The service dependencies are installed in `services/api/.venv`;
 run the documented `uv` commands or select that interpreter for editor diagnostics.
 
-Next: stage 6 completes the manual `/docs` acceptance flow, redacted evidence,
-final requirement matrix and PR description. Frontend token integration remains a
-separate follow-up.
+Stage 6 completed the final `/docs` acceptance flow, requirement matrix and PR
+description. Frontend token integration remains a separate follow-up.
+
+## AUTH-01 stage 6: acceptance and delivery
+
+### Final acceptance
+
+The final live HTTP flow was exercised against a real Uvicorn subprocess on an
+ephemeral local port. The signing key, access-token lifetime, auth/supplier TinyDB
+paths, account and request data were generated for this run only and removed when
+the process exited. No `.env` file, production service or real candidate data was
+used.
+
+The flow verified:
+
+- `/docs`, `/openapi.json` and `/health` respond; OpenAPI marks all six supplier
+  and both incident operations as Bearer-protected.
+- Public `POST /users` creates the default `user` and linked profile without
+  returning a hash/password; attempting public `role=admin` returns sanitized
+  `422`.
+- JSON login and OAuth2 form login work. `/auth/me` and `/profiles/me` return the
+  authenticated user's account/profile; invalid or expired token returns `401`,
+  and a non-admin cannot list users (`403`).
+- Missing-token calls to protected supplier create/list and incident analysis/export
+  return `401`. With a valid Bearer token, supplier create/list/read/rate/status/
+  delete preserve their existing HTTP contracts and incident analysis/export
+  succeed on one fully synthetic CSV row.
+- The exported analysis contains no synthetic email. The auth database contains a
+  bcrypt hash and not the submitted password; API responses contain neither hash
+  nor password.
+
+The complete automated acceptance/regression suite remains:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+git diff --check
+```
+
+On 2026-10-14, all 100 backend tests passed, including the six supplier operations,
+two incident operations, ownership/role checks, JWT failure cases, and existing
+functional regressions. The live Uvicorn flow above also passed. `uv lock --check`
+and `git diff --check` passed. Pylance diagnostics may still show unresolved FastAPI
+imports because the editor's selected global interpreter is `/usr/local/python/3.12.1`;
+the service `.venv` has FastAPI/Uvicorn and all `uv run` checks pass. No global editor
+setting was changed. The existing Starlette/httpx deprecation warning is non-blocking.
+
+### Protected-route matrix
+
+| Area           | Public                               | Protected                                                                                          |
+| -------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Users          | `POST /users` registration only.     | `GET /users` admin; `GET/PUT/DELETE /users/{user_id}` owner/admin; role/status changes admin only. |
+| Authentication | `POST /auth/login`.                  | `GET /auth/me`.                                                                                    |
+| Profiles       | None.                                | `GET/PUT /profiles/me`, current owner only.                                                        |
+| Suppliers      | None.                                | All six operations under `/api/suppliers`.                                                         |
+| Incidents      | None.                                | `POST /api/incidents/analyze` and `GET /api/incidents/results/export`.                             |
+| Health/docs    | `/health`, `/docs`, `/openapi.json`. | None.                                                                                              |
+
+### Pull request
+
+The feature is delivered from `feature/auth-api` to `main`. The PR description
+summarizes the protected routes, user/profile ownership rules, TinyDB-only identity
+storage, environment-based JWT configuration, and the automated/live verification
+above. The backoffice has not been updated to send Bearer tokens; that frontend
+integration remains a separate follow-up. Its requests to the now-protected
+operational routes will receive `401` until integrated.
