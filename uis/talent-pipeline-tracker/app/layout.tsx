@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import NexovaAuthGuard from "@/components/nexova-auth-guard";
 import NexovaSessionNavigation from "@/components/nexova-session-navigation";
 import "./globals.css";
 
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <NexovaSessionNavigation />
-        {children}
+        <NexovaAuthGuard>{children}</NexovaAuthGuard>
       </body>
     </html>
   );

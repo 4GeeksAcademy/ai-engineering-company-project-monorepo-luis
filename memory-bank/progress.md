@@ -206,3 +206,10 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - Añadido logout visible en la lista de candidatos: elimina el token y el manejador global navega mediante `router.replace("/login")`.
 - Verificación: lint/build y diagnósticos sin errores; rutas HTTP `/login` y `/register` responden 200 y renderizan email/contraseña. Con API Uvicorn local aislada, datos de prueba efímeros y email sintético `example.com`, pasaron registro 201, login 200, `/auth/me` con Bearer 200, login inválido 401 y CORS preflight autorizado. Una primera prueba usó `.test` y recibió 422 de validación; al cambiar a `example.com` el recorrido pasó. No se usaron cuentas reales.
 - No hay Playwright/Puppeteer instalado; no se automatizó interacción visual. Permanecen pendientes el guard de páginas, perfil y aceptación manual. Los dos servicios locales actuales son de desarrollo/prueba y la base auth del API se elimina al detener el proceso.
+
+### Etapa 4 — Guard de vistas privadas
+
+- Añadido `NexovaAuthGuard` en el layout raíz. `/login` y `/register` siguen públicas; `/`, `/candidates/*` y `/account/profile` requieren token local y validación exitosa de `GET /auth/me` antes de renderizar sus children.
+- Sin token, navega a `/login`. Token rechazado limpia sesión mediante el cliente central y redirige. Fallos de red/API muestran error y botón de reintento sin borrar token; las vistas permanecen ocultas durante la comprobación.
+- `npm run lint` y `npm run build` pasan. Un chequeo HTTP del HTML generado comprobó `/` y `/candidates/1` con loader y sin contenido de la vista, y `/login`/`/register` accesibles con sus formularios. El primer detector de strings incluyó el título en `<title>`; inspección puntual confirmó que no era contenido de candidatos.
+- Sigue sin Playwright/Puppeteer, por lo que la navegación client-side no tuvo interacción automatizada en browser. El backend/API temporal no constituye autorización para datos de la API externa de Tracker; el guard protege la UI según el alcance acordado.
