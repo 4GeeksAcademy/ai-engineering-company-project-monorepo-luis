@@ -1,5 +1,40 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Nexova Authentication
+
+The tracker and Nexova authentication use separate API origins:
+
+| Variable | Purpose | Typical local value |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Candidate records from the external Tracker API | `https://playground.4geeks.com/tracker/api/v1` |
+| `NEXT_PUBLIC_NEXOVA_API_URL` | Nexova users, authentication, and profiles | `http://127.0.0.1:8000` |
+
+From this directory, start Next.js with the Nexova API origin:
+
+```bash
+NEXT_PUBLIC_NEXOVA_API_URL=http://127.0.0.1:8000 npm run dev
+```
+
+The Nexova API must be running with valid `JWT_SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES` settings; see `services/api/README.md`. `NEXT_PUBLIC_*` values are bundled at build time, so set them before `npm run build`. Never put secrets in a `NEXT_PUBLIC_*` variable or commit `.env*` files.
+
+## Authentication Routes
+
+| Route | Access |
+|---|---|
+| `/login`, `/register` | Public |
+| `/`, `/candidates/[id]`, `/account/profile` | Client-side Nexova session guard |
+
+Protected Nexova requests send `Authorization: Bearer <token>`. Only a protected `401` expires the session; `403`, network errors, and `5xx` responses do not. The guard protects the tracker UI, not candidate data returned by the external Tracker API, which does not validate Nexova JWTs. The public website in `uis/website/` is separate and has no auth guard.
+
+## Validation
+
+Run the available checks from this directory:
+
+```bash
+npm run lint
+npm run build
+```
+
 ## Getting Started
 
 First, run the development server:

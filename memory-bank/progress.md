@@ -220,3 +220,12 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - La edición usa `PUT /profiles/me`, con Bearer vía el cliente común. Se añadieron estados de carga, error recuperable, guardado y confirmación; campos vacíos se envían como null para limpiarlos.
 - Verificación: `npm run lint` y `npm run build` pasan, diagnósticos sin errores. Smoke sintético sobre API efímera: registro 201, `GET /auth/me` 200, `PUT /profiles/me` 200 y lectura posterior confirma persistencia. `/account/profile` sin sesión devuelve HTTP 200 con loader y no renderiza el perfil.
 - La prueba usa base TinyDB temporal y usuario sintético, eliminados al detener Uvicorn. No hay Playwright/Puppeteer para interacción visual automatizada; build avisa sobre lockfiles múltiples al inferir raíz Turbopack.
+
+### Etapa 6 — Aceptación y cierre documental
+
+- Actualizado `autenticacion-frontend.md`: corregidos los endpoints de auth (ya presentes), los nombres de respuesta (`access_token`), la variable Nexova separada y el alcance acordado. Se anotan los límites de autorización de candidatos, la verificación ejecutada y lo que sigue pendiente; no se cambiaron `CONTEXT.md` ni `SPEC.md`.
+- Actualizado el README del tracker con configuración `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_NEXOVA_API_URL`, rutas públicas/privadas, límite de seguridad y comandos de validación.
+- `npm run lint`, `npm run build`, `npm run typecheck` raíz y `git diff --check` pasan. Next informa la advertencia conocida de varios lockfiles/raíz Turbopack inferida.
+- Smoke final de API con usuario sintético: `/auth/me` anónimo 401, registro 201, login 200, `/auth/me` Bearer 200, `PUT /profiles/me` 200, persistencia confirmada, listado no-admin 403 y login inválido 401. Token no impreso. Bases y cuentas en el proceso temporal.
+- Website estático sin cambios: `/`, `/index.html`, `/application` y `/application.html` respondieron 200 sin redirección a login. Tracker respondió 200 para `/login` y `/account/profile`; el perfil privado mostró loader sin sesión.
+- No se ejecutó interacción automatizada en navegador (no hay Playwright/Puppeteer instalado). La URL de despliegue y la PR no se verificaron/abrieron. Crear PR queda pendiente de solicitud explícita; rama feature ya publicada.
