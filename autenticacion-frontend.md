@@ -25,8 +25,17 @@ La API del hito anterior exige un JWT en sus rutas protegidas. Este proyecto com
 - La aplicación Next.js identificada está en [`uis/talent-pipeline-tracker/`](./uis/talent-pipeline-tracker/), con App Router bajo `app/` y cliente HTTP en [`lib/api.ts`](./uis/talent-pipeline-tracker/lib/api.ts). Ahí se integran login, registro, perfil y protección de vistas si es una aplicación que requiere autenticación.
 - El sitio público de Nexova está en [`uis/website/`](./uis/website/); es un sitio estático y debe permanecer público, sin guard de sesión.
 - El cliente HTTP existente usa `NEXT_PUBLIC_API_URL` con un valor por defecto de la API pública de Tracker. Antes de conectar autenticación, configurar la URL adecuada para la API Nexova según el entorno; no dejar que las rutas de auth se envíen a la API de Tracker.
-- En la auditoría del código actual no se encontraron todavía routers/handlers `/auth`, `/users` o `/profiles` en `services/api`. Confirmar que la API del hito anterior esté implementada, ejecutándose y alcanzable antes de dar por terminado el flujo; si falta, registrar este bloqueo de integración en vez de simular éxito.
+- La API de Nexova sí implementa `POST /users`, `POST /auth/login`, `GET /auth/me` y `GET/PUT /profiles/me` en `services/api`. El login devuelve `access_token` y `token_type`; `/auth/me` devuelve `email`, `role` y `profile`. Para ejecución real, la API necesita `JWT_SECRET_KEY` y `ACCESS_TOKEN_EXPIRE_MINUTES` válidos.
+- El tracker usa `NEXT_PUBLIC_API_URL` para `https://playground.4geeks.com/tracker/api/v1`. La autenticación Nexova usa por separado `NEXT_PUBLIC_NEXOVA_API_URL` (por ejemplo, la raíz de la API local); no reemplazar la URL de Tracker ni añadir `/api` a la base de Nexova.
 - El README propone la rama `feature/auth-frontend` (o continuar en la rama de trabajo). La entrega de implementación se hace mediante PR hacia `main`.
+
+## Estado de implementación — 2026-10-15
+
+- Flujos implementados en `uis/talent-pipeline-tracker`: `/login`, `/register`, `/account/profile`; registro `POST /users` seguido de login; almacenamiento en `localStorage`; logout; manejo centralizado de `401`; y guard cliente para `/`, `/candidates/*` y `/account/profile`.
+- El website estático `uis/website/` no se modificó ni depende de autenticación. El backoffice estático queda fuera del alcance acordado.
+- El guard protege la visualización de la UI del tracker, pero los datos de candidatos siguen proviniendo de la API externa de 4Geeks y no están protegidos por el JWT Nexova. No considerar ese guard una frontera de autorización de datos.
+- Comprobaciones ejecutadas: `npm run lint`, `npm run build`; smoke HTTP de registro/login, credenciales inválidas, `/auth/me`, `PUT /profiles/me`, persistencia del perfil y CORS en API local aislada con datos sintéticos; rutas frontend y guard SSR sin sesión. La base de prueba es temporal y se elimina al detener Uvicorn.
+- Pendiente antes de declarar aceptación manual completa: probar en navegador los flujos UI con la API configurada para el entorno de ejecución, los estados de `403`/`5xx` y el logout desde la UI. No se automatizó navegador porque no hay Playwright/Puppeteer instalado. La URL real de despliegue y la PR contra `main` aún no se verificaron/abrieron.
 
 ## Contrato esperado con la API
 

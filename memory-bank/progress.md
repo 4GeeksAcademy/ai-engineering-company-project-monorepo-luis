@@ -187,3 +187,45 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → 100 tests satisfactorios. `uv lock --check --project services/api` y `git diff --check` satisfactorios. Aviso conocido: Pylance selecciona interpreter global sin FastAPI, mientras `services/api/.venv` y `uv run` pasan; no modificar settings globales.
 - Preparar commit/push de documentación de etapa 6 con staging selectivo; preservar las ediciones de formatter anteriores en README API/backoffice. Abrir PR desde `feature/auth-api` hacia `main` con matriz de rutas y evidencia.
 - El backoffice no envía Bearer todavía; su integración frontend queda como follow-up separado. Hasta entonces, llamadas a rutas protegidas responden 401.
+
+## AUTH-02 — Frontend
+
+### Etapa 2 — Cliente Nexova y sesión
+
+- Rama `feature/auth-frontend`, basada en `main` limpia en `df5d034`.
+- Añadidos tipos de registro, login, token, usuario actual y perfil en `uis/talent-pipeline-tracker/types/auth.ts`.
+- Añadido `lib/nexova-api.ts` con origen separado `NEXT_PUBLIC_NEXOVA_API_URL`; `NEXT_PUBLIC_API_URL` permanece exclusivo para la API externa de candidatos. Solo las llamadas protegidas adjuntan `Authorization: Bearer`; solo un `401` protegido o la ausencia local de token limpia sesión y notifica navegación a `/login`.
+- `NexovaSessionNavigation` escucha la expiración y usa `router.replace`; login y registro son públicos. La sesión se guarda en `localStorage` únicamente desde el navegador.
+- Todavía no existen las páginas `/login`, `/register`, `/account/profile` ni el guard de las vistas privadas; pertenecen a etapas posteriores. La UI del tracker no protege los datos servidos por la API externa 4Geeks.
+- `npm run lint`, `npm run build` y `git diff --check` pasan. Build advierte que Next infiere raíz Turbopack ante los lockfiles de raíz y tracker. No hay suite de tests del frontend declarada.
+
+### Etapa 3 — Login, registro y logout
+
+- Añadidas las rutas `/login` y `/register` con un formulario compartido, validación nativa de email/contraseña, errores accesibles y mensajes de API saneados. El formulario de registro envía los campos opcionales `name`, `phone` y `address` admitidos por la API.
+- El registro ejecuta `POST /users` seguido de `POST /auth/login`; guarda `access_token` solo cuando el login también termina correctamente. Si el alta se completa pero falla el login, informa al usuario y no declara sesión.
+- Añadido logout visible en la lista de candidatos: elimina el token y el manejador global navega mediante `router.replace("/login")`.
+- Verificación: lint/build y diagnósticos sin errores; rutas HTTP `/login` y `/register` responden 200 y renderizan email/contraseña. Con API Uvicorn local aislada, datos de prueba efímeros y email sintético `example.com`, pasaron registro 201, login 200, `/auth/me` con Bearer 200, login inválido 401 y CORS preflight autorizado. Una primera prueba usó `.test` y recibió 422 de validación; al cambiar a `example.com` el recorrido pasó. No se usaron cuentas reales.
+- No hay Playwright/Puppeteer instalado; no se automatizó interacción visual. Permanecen pendientes el guard de páginas, perfil y aceptación manual. Los dos servicios locales actuales son de desarrollo/prueba y la base auth del API se elimina al detener el proceso.
+
+### Etapa 4 — Guard de vistas privadas
+
+- Añadido `NexovaAuthGuard` en el layout raíz. `/login` y `/register` siguen públicas; `/`, `/candidates/*` y `/account/profile` requieren token local y validación exitosa de `GET /auth/me` antes de renderizar sus children.
+- Sin token, navega a `/login`. Token rechazado limpia sesión mediante el cliente central y redirige. Fallos de red/API muestran error y botón de reintento sin borrar token; las vistas permanecen ocultas durante la comprobación.
+- `npm run lint` y `npm run build` pasan. Un chequeo HTTP del HTML generado comprobó `/` y `/candidates/1` con loader y sin contenido de la vista, y `/login`/`/register` accesibles con sus formularios. El primer detector de strings incluyó el título en `<title>`; inspección puntual confirmó que no era contenido de candidatos.
+- Sigue sin Playwright/Puppeteer, por lo que la navegación client-side no tuvo interacción automatizada en browser. El backend/API temporal no constituye autorización para datos de la API externa de Tracker; el guard protege la UI según el alcance acordado.
+
+### Etapa 5 — Perfil de cuenta
+
+- Añadida `/account/profile`, protegida por el guard global y enlazada desde la lista. Carga email, name, phone y address reales de `GET /auth/me`; muestra formulario solo después de cargar correctamente.
+- La edición usa `PUT /profiles/me`, con Bearer vía el cliente común. Se añadieron estados de carga, error recuperable, guardado y confirmación; campos vacíos se envían como null para limpiarlos.
+- Verificación: `npm run lint` y `npm run build` pasan, diagnósticos sin errores. Smoke sintético sobre API efímera: registro 201, `GET /auth/me` 200, `PUT /profiles/me` 200 y lectura posterior confirma persistencia. `/account/profile` sin sesión devuelve HTTP 200 con loader y no renderiza el perfil.
+- La prueba usa base TinyDB temporal y usuario sintético, eliminados al detener Uvicorn. No hay Playwright/Puppeteer para interacción visual automatizada; build avisa sobre lockfiles múltiples al inferir raíz Turbopack.
+
+### Etapa 6 — Aceptación y cierre documental
+
+- Actualizado `autenticacion-frontend.md`: corregidos los endpoints de auth (ya presentes), los nombres de respuesta (`access_token`), la variable Nexova separada y el alcance acordado. Se anotan los límites de autorización de candidatos, la verificación ejecutada y lo que sigue pendiente; no se cambiaron `CONTEXT.md` ni `SPEC.md`.
+- Actualizado el README del tracker con configuración `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_NEXOVA_API_URL`, rutas públicas/privadas, límite de seguridad y comandos de validación.
+- `npm run lint`, `npm run build`, `npm run typecheck` raíz y `git diff --check` pasan. Next informa la advertencia conocida de varios lockfiles/raíz Turbopack inferida.
+- Smoke final de API con usuario sintético: `/auth/me` anónimo 401, registro 201, login 200, `/auth/me` Bearer 200, `PUT /profiles/me` 200, persistencia confirmada, listado no-admin 403 y login inválido 401. Token no impreso. Bases y cuentas en el proceso temporal.
+- Website estático sin cambios: `/`, `/index.html`, `/application` y `/application.html` respondieron 200 sin redirección a login. Tracker respondió 200 para `/login` y `/account/profile`; el perfil privado mostró loader sin sesión.
+- No se ejecutó interacción automatizada en navegador (no hay Playwright/Puppeteer instalado). La URL de despliegue y la PR no se verificaron/abrieron. Crear PR queda pendiente de solicitud explícita; rama feature ya publicada.
