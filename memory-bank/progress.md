@@ -213,3 +213,10 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - Sin token, navega a `/login`. Token rechazado limpia sesión mediante el cliente central y redirige. Fallos de red/API muestran error y botón de reintento sin borrar token; las vistas permanecen ocultas durante la comprobación.
 - `npm run lint` y `npm run build` pasan. Un chequeo HTTP del HTML generado comprobó `/` y `/candidates/1` con loader y sin contenido de la vista, y `/login`/`/register` accesibles con sus formularios. El primer detector de strings incluyó el título en `<title>`; inspección puntual confirmó que no era contenido de candidatos.
 - Sigue sin Playwright/Puppeteer, por lo que la navegación client-side no tuvo interacción automatizada en browser. El backend/API temporal no constituye autorización para datos de la API externa de Tracker; el guard protege la UI según el alcance acordado.
+
+### Etapa 5 — Perfil de cuenta
+
+- Añadida `/account/profile`, protegida por el guard global y enlazada desde la lista. Carga email, name, phone y address reales de `GET /auth/me`; muestra formulario solo después de cargar correctamente.
+- La edición usa `PUT /profiles/me`, con Bearer vía el cliente común. Se añadieron estados de carga, error recuperable, guardado y confirmación; campos vacíos se envían como null para limpiarlos.
+- Verificación: `npm run lint` y `npm run build` pasan, diagnósticos sin errores. Smoke sintético sobre API efímera: registro 201, `GET /auth/me` 200, `PUT /profiles/me` 200 y lectura posterior confirma persistencia. `/account/profile` sin sesión devuelve HTTP 200 con loader y no renderiza el perfil.
+- La prueba usa base TinyDB temporal y usuario sintético, eliminados al detener Uvicorn. No hay Playwright/Puppeteer para interacción visual automatizada; build avisa sobre lockfiles múltiples al inferir raíz Turbopack.
