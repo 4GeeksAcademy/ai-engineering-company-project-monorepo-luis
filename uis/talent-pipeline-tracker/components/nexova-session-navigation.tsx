@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { NEXOVA_SESSION_EXPIRED_EVENT } from "@/lib/nexova-api";
+import { isNexovaPublicPath } from "@/lib/nexova-auth-routes";
 
 export default function NexovaSessionNavigation() {
   const pathname = usePathname();
@@ -11,7 +12,7 @@ export default function NexovaSessionNavigation() {
 
   useEffect(() => {
     function handleExpiredSession() {
-      if (pathname !== "/login") {
+      if (!isNexovaPublicPath(pathname)) {
         router.replace("/login");
       }
     }

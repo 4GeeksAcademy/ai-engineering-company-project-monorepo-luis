@@ -29,6 +29,24 @@ export interface NexovaLoginInput {
   password: string;
 }
 
+export interface NexovaForgotPasswordInput {
+  email: string;
+}
+
+export interface NexovaResetPasswordInput {
+  token: string;
+  new_password: string;
+}
+
+export interface NexovaChangePasswordInput {
+  current_password: string;
+  new_password: string;
+}
+
+export interface NexovaAuthActionResponse {
+  message: string;
+}
+
 export interface NexovaTokenResponse {
   access_token: string;
   token_type: "bearer";

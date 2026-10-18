@@ -9,20 +9,12 @@ import {
   getNexovaCurrentUser,
   NexovaApiError,
 } from "@/lib/nexova-api";
+import {
+  isNexovaProtectedPath,
+  isNexovaPublicPath,
+} from "@/lib/nexova-auth-routes";
 
 type GuardStatus = "checking" | "allowed" | "error";
-
-function isPublicPath(pathname: string): boolean {
-  return pathname === "/login" || pathname === "/register";
-}
-
-function isProtectedPath(pathname: string): boolean {
-  return (
-    pathname === "/" ||
-    pathname.startsWith("/candidates/") ||
-    pathname === "/account/profile"
-  );
-}
 
 export default function NexovaAuthGuard({
   children,
@@ -36,7 +28,7 @@ export default function NexovaAuthGuard({
   }>({ pathname: "", status: "checking" });
 
   useEffect(() => {
-    if (!isProtectedPath(pathname)) {
+    if (!isNexovaProtectedPath(pathname)) {
       return;
     }
 
@@ -73,7 +65,7 @@ export default function NexovaAuthGuard({
     };
   }, [attempt, pathname, router]);
 
-  if (!isProtectedPath(pathname) || isPublicPath(pathname)) {
+  if (!isNexovaProtectedPath(pathname) || isNexovaPublicPath(pathname)) {
     return children;
   }
 

@@ -1,9 +1,13 @@
 import type {
+  NexovaAuthActionResponse,
+  NexovaChangePasswordInput,
   NexovaCurrentUser,
+  NexovaForgotPasswordInput,
   NexovaLoginInput,
   NexovaProfile,
   NexovaProfileUpdate,
   NexovaRegistrationInput,
+  NexovaResetPasswordInput,
   NexovaTokenResponse,
   NexovaUser,
 } from "@/types/auth";
@@ -128,6 +132,36 @@ export function loginToNexova(input: NexovaLoginInput): Promise<NexovaTokenRespo
     "/auth/login",
     { method: "POST", body: JSON.stringify(input) },
     "public",
+  );
+}
+
+export function requestNexovaPasswordReset(
+  input: NexovaForgotPasswordInput,
+): Promise<NexovaAuthActionResponse> {
+  return request<NexovaAuthActionResponse>(
+    "/auth/forgot-password",
+    { method: "POST", body: JSON.stringify(input) },
+    "public",
+  );
+}
+
+export function resetNexovaPassword(
+  input: NexovaResetPasswordInput,
+): Promise<NexovaAuthActionResponse> {
+  return request<NexovaAuthActionResponse>(
+    "/auth/reset-password",
+    { method: "POST", body: JSON.stringify(input) },
+    "public",
+  );
+}
+
+export function changeNexovaPassword(
+  input: NexovaChangePasswordInput,
+): Promise<NexovaAuthActionResponse> {
+  return request<NexovaAuthActionResponse>(
+    "/auth/change-password",
+    { method: "POST", body: JSON.stringify(input) },
+    "required",
   );
 }
 
