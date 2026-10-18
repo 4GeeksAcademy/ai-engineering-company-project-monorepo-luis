@@ -8,9 +8,11 @@
 - [README oficial en español](https://github.com/4GeeksAcademy/ai-engineering-syllabus/blob/main/content/projects/ai-eng-user-authentication-restore/README.es.md).
 - [README oficial en inglés](https://github.com/4GeeksAcademy/ai-engineering-syllabus/blob/main/content/projects/ai-eng-user-authentication-restore/README.md).
 - Contexto de la API existente: [`services/api/README.md`](./services/api/README.md).
-- Aplicación Next.js existente: [`uis/talent-pipeline-tracker/README.md`](./uis/talent-pipeline-tracker/README.md), [`uis/talent-pipeline-tracker/AGENTS.md`](./uis/talent-pipeline-tracker/AGENTS.md) y [`uis/talent-pipeline-tracker/lib/api.ts`](./uis/talent-pipeline-tracker/lib/api.ts).
+- Aplicación Next.js existente: [`uis/talent-pipeline-tracker/README.md`](./uis/talent-pipeline-tracker/README.md), [`uis/talent-pipeline-tracker/AGENTS.md`](./uis/talent-pipeline-tracker/AGENTS.md) y cliente de autenticación [`uis/talent-pipeline-tracker/lib/nexova-api.ts`](./uis/talent-pipeline-tracker/lib/nexova-api.ts).
 
 Las dos versiones oficiales se revisaron y contienen los mismos requisitos sustanciales. Esta guía prioriza la versión en español.
+
+Revisión de etapa 1, 2026-10-18: se volvió a consultar íntegramente el README oficial en español. Los endpoints, páginas, proveedores admitidos, expiración, uso único y entrega coinciden con esta guía. La cadena aleatoria persistida es una alternativa admitida al JWT firmado. No se modifican los criterios de aceptación.
 
 ## Objetivo y alcance
 
@@ -32,10 +34,10 @@ El ticket es **AUTH-03 — Recuperación y cambio de contraseña**. Debe añadir
 
 - El backend de Nexova está en `services/api/`. La autenticación AUTH-01 ya implementa usuarios/perfiles en TinyDB, login JWT y `get_current_user`; los routers existentes están en `services/api/routers/`. Extender este servicio y mantener sus patrones, configuración y pruebas.
 - El router `services/api/routers/auth.py` actualmente ofrece `POST /auth/login` y `GET /auth/me`; los endpoints AUTH-03 aún no existen en el checkout auditado. No afirmar que el flujo está implementado hasta verificarlo.
-- El frontend Next.js existente está en `uis/talent-pipeline-tracker/`, pero su cliente `lib/api.ts` usa por defecto `https://playground.4geeks.com/tracker/api/v1` y hoy no integra el backend de autenticación de Nexova. Antes de implementar, decidir y documentar la integración real con el frontend adecuado; no enviar las rutas de auth a la API de Tracker por accidente ni simular un backend exitoso.
-- Los requisitos oficiales piden las rutas/páginas, pero no especifican explícitamente en qué aplicación del monorepo deben vivir. Revisar las instrucciones locales de la aplicación elegida y mantener el sitio público del Hito 1 ajeno a cualquier guard de autenticación.
+- AUTH-02 ya integra el backend Nexova en `uis/talent-pipeline-tracker/`: existen `/login`, `/register`, `/account/profile`, gestión de sesión y guard. El cliente `lib/nexova-api.ts` utiliza `NEXT_PUBLIC_NEXOVA_API_URL`; `lib/api.ts` y `NEXT_PUBLIC_API_URL` siguen dedicados a la API externa de candidatos. Añadir AUTH-03 al cliente Nexova, nunca a la API de Tracker.
+- Las nuevas páginas vivirán en esa aplicación Next.js, reutilizando login, sesión y patrones de formularios. El guard actual enumera las rutas protegidas: habrá que añadir expresamente `/account/change-password` y mantener públicas `/forgot-password` y `/reset-password`, incluso ante una sesión anterior expirada. El sitio público y el backoffice no se modifican en este hito.
 - La API existente requiere `JWT_SECRET_KEY` y `ACCESS_TOKEN_EXPIRE_MINUTES` al arrancar; véase `services/api/README.md`. Las claves del proveedor de email y cualquier otra credencial también deben llegar desde el entorno, no desde el código.
-- No hay proveedor de email elegido ni variables AUTH-03 configuradas/documentadas todavía. Elegir **Resend o SendGrid** (son los dos servicios aceptados por el README), integrar uno y documentar el nombre exacto de su variable API en `README` o `.env.example`. No se debe publicar ni commitear una API key.
+- El proveedor elegido es **Resend**. Su variable secreta será `RESEND_API_KEY`; la configuración prevista se documenta en el README de la API. Esto no implica que exista una cuenta, remitente, clave configurada o envío probado. No se lee ni modifica ningún `.env*` ni se conecta Resend sin autorización específica.
 
 ## Contrato funcional de backend
 
@@ -108,8 +110,8 @@ El ticket es **AUTH-03 — Recuperación y cambio de contraseña**. Debe añadir
 
 ## Variables de entorno y email
 
-- Elegir **Resend o SendGrid** e integrar el envío real en el backend.
-- Configurar la API key por variable de entorno. Documentar el **nombre exacto** de la variable en el README de la API o en `.env.example`; el nombre concreto queda pendiente de la selección del proveedor y no debe inventarse como si ya estuviera configurado.
+- Integrar **Resend**, seleccionado entre los dos proveedores admitidos.
+- Configurar la API key exclusivamente mediante `RESEND_API_KEY` en el entorno del backend. Su nombre y las demás variables previstas se documentan en el [README de la API](./services/api/README.md#auth-03-password-recovery-plan); documentarlas no equivale a configurarlas ni probarlas.
 - Documentar remitente/requisitos de configuración que correspondan al servicio seleccionado, sin incluir claves reales.
 - Asegurarse de que `.env` está excluido por Git antes de almacenar credenciales localmente. Versionar únicamente un `.env.example` con nombres de variables y valores placeholder no secretos.
 - La entrega final debe indicar qué proveedor se eligió, qué variable de entorno hace falta y confirmar que se probó el flujo end-to-end.
@@ -193,4 +195,66 @@ El README considera opcionales: plantilla de email HTML (un email legible en mó
 
 Crear la rama indicada por el README oficial (`feature/password-reset`) desde la base actualizada y abrir un PR hacia `main` del repositorio transversal. El PR debe resumir qué se implementó, nombrar el proveedor elegido, documentar la variable de entorno necesaria y confirmar explícitamente la prueba completa end-to-end.
 
-**Estado de auditoría:** este documento captura y organiza requisitos; no implementa AUTH-03 ni sustituye las pruebas o el PR de entrega. Al comenzar la implementación, volver a revisar el README oficial, el estado de `git`, las instrucciones de las carpetas tocadas y la configuración de secretos.
+## Plan de trabajo por etapas
+
+### Base y decisiones de implementación
+
+- El 2026-10-18, `feature/password-reset` ya existe y parte de `origin/main` en `78d8678`, que incorpora AUTH-02. Su HEAD inicial es `65f4656`, con los requisitos y una eliminación documental anteriores a esta etapa. Tras `git fetch origin`, la rama contiene la base remota y el árbol inicial está limpio. No recrear la rama ni restaurar documentos eliminados.
+- Extender exclusivamente la API existente y la autenticación del tracker. Mantener los contratos de login, registro, perfiles, proveedores e incidencias; no modificar `CONTEXT.md`, `SPEC.md` ni la web pública.
+- Emitir un token opaco con `secrets.token_urlsafe(32)`, persistir solo su digest SHA-256 y estado mínimo asociado al usuario y vencimiento, y comparar de forma segura. Duración por defecto: 30 minutos, configurable únicamente entre 15 y 60. No usar un access token como token de recuperación.
+- Una nueva emisión invalida los enlaces anteriores del usuario. Restablecer la contraseña y consumir los tokens pendientes debe ser una única operación dentro de `open_auth_database`, sin escrituras parciales. Probar dos consumos concurrentes: solo uno puede tener éxito. El bloqueo existente solo garantiza coordinación en un proceso/worker; no ampliar a producción multiworker.
+- Invalidar resets pendientes también ante cambios de contraseña/email, desactivación o eliminación mediante las operaciones existentes. Conservar el contrato JWT actual: el cambio de contraseña no revoca automáticamente los access tokens emitidos; la revocación general de sesiones queda fuera de alcance.
+- Reutilizar bcrypt y su política actual: mínimo 8 caracteres, máximo 72 bytes UTF-8 y sin bytes nulos ni truncamiento. Sanear errores de validación de las nuevas rutas para no reflejar contraseñas o tokens.
+
+### Política de correo acordada
+
+Para el alcance local/demo se acepta envío en segundo plano, sin cola durable ni garantía de reintentos. Un `200` confirma la aceptación de la solicitud, no la recepción del correo. Buscar la cuenta, emitir el token y enviar el email fuera del camino de respuesta evita que la espera de Resend dependa públicamente de si existe la cuenta. No mantener el bloqueo de TinyDB durante llamadas de red.
+
+Para emails sintácticamente válidos, existentes o no, el cuerpo y estado públicos serán iguales. Email malformado recibirá validación genérica sin eco de datos. Si falta configuración o no se puede aceptar la tarea, se devolverá un fallo operativo común, independiente de la cuenta; la UI no mostrará éxito ante ese rechazo o un fallo de red. Los fallos posteriores de Resend se registrarán sin secretos ni datos personales, sin informar al solicitante si la cuenta existe ni afirmar que el correo fue enviado. Un reinicio puede perder tareas pendientes y requerir otra solicitud. La aceptación final exige igualmente comprobar un email real recibido.
+
+### Tablero de control
+
+Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloqueada**. Una etapa solo queda Publicada tras verificar el push. No rellenar SHA o evidencia antes de ejecutar la operación correspondiente.
+
+| Etapa | Entregable y criterio de cierre | Estado | Evidencia | Commit | Push |
+|---|---|---|---|---|---|
+| 1. Base, contratos y control | Contrastar README oficial, Git y AUTH-02; actualizar esta guía, configuración prevista y memoria; ejecutar baseline. | En revisión | 2026-10-18: README oficial, base Git, 100 tests backend, lint/build y revisión documental correctos; limitaciones registradas abajo. | Pendiente de aprobación | Pendiente |
+| 2. Dominio seguro | Tokens hasheados, expiración, invalidación y cambio coordinado; pruebas de uso único, concurrencia y fallo de persistencia. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 3. API y Resend | Tres endpoints, configuración y envío real integrados; pruebas HTTP y de transporte simulado, errores seguros y regresiones backend. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Pendiente | Pendiente | Pendiente | Pendiente |
+
+### Validaciones y evidencias esperadas
+
+- **Etapa 1:** suite backend y lint/build del tracker para conocer el punto de partida; revisar enlaces documentales y `git diff --check`. No confundir baseline con pruebas de AUTH-03, aún inexistente.
+- **Etapas 2–3:** unittest con cuentas sintéticas, bases temporales y reloj controlado, sin esperas artificiales. Cubrir token inválido, faltante, expirado, consumido, concurrente y rechazo cruzado JWT/reset; cambio autorizado/401/contraseña incorrecta 400; respuestas genéricas, proveedor fallido y ausencia de secretos. No llamar Resend real en unit tests.
+- **Etapas 4–6:** `npm run lint` y `npm run build` desde el tracker, más pruebas dirigidas de llamadas y navegación en navegador contra Nexova. Comprobar móvil/escritorio, teclado, etiquetas, foco, estados de carga y errores de red. No existe script de tests frontend declarado; registrar si la prueba es manual o automatizada.
+- **Etapa 5:** quitar el token de la URL tras capturarlo y no persistirlo; recargar la URL limpia requiere reabrir el enlace. Aplicar política de referrer y evitar recursos externos/analytics en reset. La limpieza posterior no elimina la petición inicial: revisar logs de servidor/proxy y no capturar URLs secretas en trazas o screenshots.
+- **Etapa 7:** solicitar, recibir el email real, abrir el enlace, restablecer, iniciar sesión con la nueva y rechazar la antigua; rechazar reutilización y probar cambio autenticado. Verificar expiración con reloj controlado sin reducir el TTL permitido. Si no se recibe correo, la aceptación queda Bloqueada, no completada.
+- Comandos y configuración: [README API](./services/api/README.md#auth-03-password-recovery-plan) y [README tracker](./uis/talent-pipeline-tracker/README.md#validation). No ejecutar checks de aplicaciones ajenas ni inventar scripts.
+
+### Cierre obligatorio por etapa
+
+1. Completar solo el alcance de la etapa, ejecutar sus comprobaciones y registrar resultados reales y limitaciones.
+2. Actualizar README y banco de memoria, revisar el diff y archivos sensibles/generados sin imprimir secretos; conservar cualquier cambio ajeno.
+3. Presentar archivos y mensaje propuesto al usuario con estado **LISTO PARA REVISIÓN**, **NO LISTO** o **BLOQUEADO**. Esperar aprobación explícita antes de commit y push.
+4. Con aprobación, usar staging selectivo, revisar el diff preparado, crear un commit descriptivo y hacer push a la misma `feature/password-reset`. Registrar SHA y resultado remoto antes de pasar a Publicada. No hacer force-push ni merge a `main`.
+5. La PR final y la configuración de secretos/servicios externos requieren autorización propia. No avanzar automáticamente a la siguiente etapa.
+
+Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(auth): add single-use password reset tokens`, `feat(auth): expose password recovery and change endpoints`, `feat(auth-ui): add password API client and route access`, `feat(auth-ui): implement password recovery screens`, `feat(auth-ui): add authenticated password change` y `test(auth): verify password lifecycle end to end`.
+
+### Registro de etapa 1 — 2026-10-18
+
+- **LISTO PARA REVISIÓN:** solo documentación y contratos; commit y push pendientes de aprobación. Ningún endpoint o formulario AUTH-03 implementado y ninguna prueba de email real realizada.
+- `git fetch origin` y revisión de historial: `origin/main` en `78d8678` es ancestro de HEAD `65f4656`; la rama ya contiene AUTH-01 y AUTH-02. Se conserva la rama existente y sus dos commits previos. El árbol estaba limpio al iniciar.
+- `uv run --locked --project services/api python -m unittest discover -s services/api/tests`: **100 tests OK**. Advertencia preexistente de Starlette sobre httpx; sin cambios de dependencias.
+- `npm run lint` y `npm run build`, ejecutados mediante `npm --prefix uis/talent-pipeline-tracker`: **correctos**, con comprobación TypeScript integrada en build. Rutas generadas: login, register y perfil existentes; todavía no hay páginas AUTH-03.
+- Next.js mantiene la advertencia de raíz Turbopack inferida por varios lockfiles y carga automáticamente `.env.local` durante build. No se inspeccionó ni modificó su contenido ni se imprimieron sus valores.
+- `git diff --check`: correcto. Los enlaces documentales nuevos tienen destino; sigue una referencia histórica preexistente a `autenticacion.md` en el README de la API, documento ya eliminado y fuera del alcance de esta etapa.
+- La revisión de exclusiones detectó que `services/api/.env` no estaba ignorado. Se añadieron `.env` y `.env.*` al `.gitignore` raíz, con excepción para `.env.example`. `git check-ignore --no-index --verbose` confirmó las exclusiones y la excepción de la plantilla API, sin abrir ni crear archivos de entorno. La base de auth y el entorno local del tracker ya estaban ignorados.
+- La instrucción global de 4Geeks no pudo leerse por exclusión de Copilot; se aplicaron `AGENTS.md`, reglas y skill de validación del repositorio. La retirada intencional de `ingenieria-ia.md` ya está documentada en el banco de memoria; no se recreó.
+- No se modificó código, configuración de ejecución, dependencias ni el briefing; además de documentación, solo cambió la exclusión preventiva de Git. No se configuraron credenciales ni se conectó Resend. Las pruebas de navegador y la aceptación end-to-end pertenecen a las etapas funcionales posteriores.
+
+**Estado de auditoría:** la etapa 1 prepara documentación y contratos; todavía no implementa AUTH-03 ni acredita envío real, pruebas de aceptación o PR. Los criterios de aceptación anteriores permanecen sin marcar hasta verificarlos.

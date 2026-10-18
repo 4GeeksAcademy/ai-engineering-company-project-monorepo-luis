@@ -615,3 +615,123 @@ storage, environment-based JWT configuration, and the automated/live verificatio
 above. The backoffice has not been updated to send Bearer tokens; that frontend
 integration remains a separate follow-up. Its requests to the now-protected
 operational routes will receive `401` until integrated.
+
+## AUTH-03: password recovery plan
+
+Stage 1, 2026-10-18, documents the contract only. Password recovery endpoints,
+reset tokens and email delivery are **not implemented or configured yet**.
+The [requirements and seven-stage board](../../restablecimiento-contrasena.md#plan-de-trabajo-por-etapas)
+track evidence, review, commit and push separately. Work continues on the existing
+`feature/password-reset`; every commit and push requires the user's approval.
+
+### Integration and planned endpoints
+
+AUTH-02 already integrates Nexova login, registration and profiles in
+`uis/talent-pipeline-tracker`. Extend its `lib/nexova-api.ts` client and
+`NEXT_PUBLIC_NEXOVA_API_URL`; do not send authentication requests to the external
+candidate API configured by `NEXT_PUBLIC_API_URL`. The public website and the
+static backoffice are outside this milestone.
+
+| Method | Route | Planned access and behavior |
+| --- | --- | --- |
+| POST | `/auth/forgot-password` | Public; `{ email }`; identical `200` body for valid existing/unknown emails when accepted. No account-existence disclosure. |
+| POST | `/auth/reset-password` | Public; `{ token, new_password }`; invalid, missing, expired or consumed token returns generic `400`. |
+| POST | `/auth/change-password` | Bearer required; `{ current_password, new_password }`; wrong current password returns `400`, missing/invalid session `401`. No caller-supplied user ID. |
+
+Malformed email or password-policy failures use sanitized validation errors,
+without echoing input. Preserve bcrypt's minimum 8 characters, maximum 72 UTF-8
+bytes, and rejection of null bytes. New auth payloads must not leak credentials
+through FastAPI/Pydantic validation responses, logs or exception details.
+
+### Planned reset-token storage
+
+Use an opaque token generated with `secrets.token_urlsafe(32)` and persist only
+its SHA-256 digest, user association and minimal expiration/consumption state.
+Use secure comparison and a 30-minute default lifetime, bounded to 15-60 minutes.
+Reset tokens cannot authorize protected routes; access JWTs cannot reset passwords.
+
+Issuing another token invalidates previous links for that user. Validate and
+consume the token, update the password hash and invalidate pending resets within
+one `open_auth_database` snapshot, not separate service commits. Concurrent use
+must yield exactly one success; persistence failure must leave the password and
+token unchanged. Invalidate outstanding resets on existing password/email changes,
+deactivation and deletion too. Clean up expired records without unbounded growth.
+Reuse the existing single-process lock; multi-worker guarantees remain out of scope.
+Previously issued access JWTs retain their existing expiration behavior: this work
+does not introduce server-side session revocation or refresh tokens.
+
+### Planned Resend configuration
+
+These names are the implementation contract, **not settings currently read by the
+application**. No credential or `.env` file is needed for stage 1. Existing required
+`JWT_SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES` remain unchanged.
+
+| Variable | Planned purpose |
+| --- | --- |
+| `RESEND_API_KEY` | Backend-only secret API key. Never expose through `NEXT_PUBLIC_*`, responses, logs or committed files. |
+| `RESEND_FROM_EMAIL` | Sender authorized by Resend. Verify the account's current onboarding/domain and recipient restrictions before a real test. |
+| `NEXOVA_FRONTEND_URL` | Trusted frontend origin used to construct `/reset-password?token=...`; never derive it from a caller-controlled Host header. Local HTTP is for development only. |
+| `PASSWORD_RESET_EXPIRE_MINUTES` | Optional integer, default `30`, constrained to `15` through `60`. |
+
+Use runtime environment variables. Reading or modifying `.env*`, configuring real
+credentials and connecting Resend require separate authorization. Check Git ignore
+coverage before any approved file-based setup. Stage 1 neither creates nor reads an
+environment file. Real email acceptance requires an authorized sender and test
+inbox; no real candidate data may be used.
+
+Stage 1 added root Git ignore rules for `.env` and `.env.*`, allowing
+`.env.example` templates. `git check-ignore --no-index --verbose` verified the
+API environment paths and its template exception without opening or creating them.
+Nested application rules can be stricter; verify the exact path before any approved
+template or credential setup.
+
+### Accepted local/demo delivery policy
+
+Perform account lookup, token issuance and Resend delivery in a background task,
+outside the public response path. An identical `200` means the request was accepted,
+not that email delivery succeeded. Do not hold the TinyDB lock across a network call.
+Use bounded provider timeouts and sanitized operational failures; never log a reset
+URL, token, API key, password, provider payload or recipient address.
+
+Check local configuration and task acceptance consistently regardless of the email.
+A failure before acceptance is a generic operational error, not a false success;
+malformed email remains a generic validation error. A later provider failure must
+not become an account-existence signal. The UI must distinguish a network or
+acceptance error from a successfully accepted request without claiming delivery.
+This agreed scope has no durable queue or guaranteed retries: a restart can lose
+pending work and require another request. Real email receipt remains mandatory for
+final acceptance; mocked delivery cannot satisfy it.
+
+### Stage checks
+
+From the monorepo root, establish the backend baseline:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+git diff --check
+```
+
+From `uis/talent-pipeline-tracker`, establish the frontend baseline:
+
+```bash
+npm run lint
+npm run build
+```
+
+Future backend tests use temporary databases, synthetic users, controlled clocks
+and injected email transports. Cover expiration, one-time/concurrent consumption,
+persistence failures, indistinguishable public responses, provider failures,
+cross-use of JWT/reset tokens, validation secrecy and existing endpoint regressions.
+Run focused tests before the full suite; check the uv lockfile if dependencies change.
+No Python lint/typecheck/build or frontend test script is currently declared.
+Final acceptance additionally requires a browser flow and real Resend receipt,
+with sanitized evidence and no tokens in URLs captured by logs, screenshots or traces.
+
+Stage 1 baseline on 2026-10-18: all **100 backend tests**, tracker lint and
+production build passed. The existing Starlette/httpx deprecation and Next.js
+multiple-lockfile/root-inference warnings remain nonblocking. The build loaded its
+existing local environment automatically; no environment file content was inspected,
+changed or printed. Document diff formatting passed; new local link destinations
+exist. An older AUTH-01 link to the deleted `autenticacion.md` remains historical
+and outside this change. These checks establish the starting point, not AUTH-03
+acceptance. Stage 1 is ready for review; no commit or push has been made.
