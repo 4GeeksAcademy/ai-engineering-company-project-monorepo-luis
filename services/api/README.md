@@ -618,14 +618,15 @@ operational routes will receive `401` until integrated.
 
 ## AUTH-03: password recovery plan
 
-Stage 1, 2026-10-18, documented the contract. Stage 2 now implements the internal
-token/password domain below. Password recovery endpoints, frontend and email
-delivery are **not implemented or configured yet**.
+Stage 1 documented the contract, stage 2 added the internal token/password domain,
+and stage 3 now exposes the three AUTH-03 endpoints and a configurable Resend
+client. **Frontend recovery pages and real email receipt are not verified yet**;
+stage 3 tests use synthetic configuration and injected transports only.
 The [requirements and seven-stage board](../../restablecimiento-contrasena.md#plan-de-trabajo-por-etapas)
 track evidence, review, commit and push separately. Work continues on the existing
 `feature/password-reset`; every commit and push requires the user's approval.
 
-### Integration and planned endpoints
+### Integration and endpoints
 
 AUTH-02 already integrates Nexova login, registration and profiles in
 `uis/talent-pipeline-tracker`. Extend its `lib/nexova-api.ts` client and
@@ -633,7 +634,7 @@ AUTH-02 already integrates Nexova login, registration and profiles in
 candidate API configured by `NEXT_PUBLIC_API_URL`. The public website and the
 static backoffice are outside this milestone.
 
-| Method | Route | Planned access and behavior |
+| Method | Route | Access and behavior |
 | --- | --- | --- |
 | POST | `/auth/forgot-password` | Public; `{ email }`; identical `200` body for valid existing/unknown emails when accepted. No account-existence disclosure. |
 | POST | `/auth/reset-password` | Public; `{ token, new_password }`; invalid, missing, expired or consumed token returns generic `400`. |
@@ -644,7 +645,7 @@ without echoing input. Preserve bcrypt's minimum 8 characters, maximum 72 UTF-8
 bytes, and rejection of null bytes. New auth payloads must not leak credentials
 through FastAPI/Pydantic validation responses, logs or exception details.
 
-### Planned reset-token storage
+### Reset-token storage
 
 Use an opaque token generated with `secrets.token_urlsafe(32)` and persist only
 its SHA-256 digest, user association and minimal expiration/consumption state.
@@ -661,17 +662,20 @@ Reuse the existing single-process lock; multi-worker guarantees remain out of sc
 Previously issued access JWTs retain their existing expiration behavior: this work
 does not introduce server-side session revocation or refresh tokens.
 
-### Planned Resend configuration
+### Resend configuration
 
-These names are the implementation contract, **not settings currently read by the
-application**. No credential or `.env` file is needed for stage 1. Existing required
-`JWT_SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES` remain unchanged.
+Stage 3 reads these settings for each forgot-password request, before accepting
+background work. No automatic `.env` loader is introduced. Missing or invalid
+configuration returns the same generic `503` for every account; it does not prevent
+JWT startup or affect login/reset/change. Existing required `JWT_SECRET_KEY` and
+`ACCESS_TOKEN_EXPIRE_MINUTES` remain unchanged. Production credentials have not been
+configured or tested during this implementation.
 
-| Variable | Planned purpose |
+| Variable | Purpose and validation |
 | --- | --- |
-| `RESEND_API_KEY` | Backend-only secret API key. Never expose through `NEXT_PUBLIC_*`, responses, logs or committed files. |
-| `RESEND_FROM_EMAIL` | Sender authorized by Resend. Verify the account's current onboarding/domain and recipient restrictions before a real test. |
-| `NEXOVA_FRONTEND_URL` | Trusted frontend origin used to construct `/reset-password?token=...`; never derive it from a caller-controlled Host header. Local HTTP is for development only. |
+| `RESEND_API_KEY` | Required backend-only secret, nonblank printable ASCII without spaces. Never expose through `NEXT_PUBLIC_*`, responses, logs or committed files. |
+| `RESEND_FROM_EMAIL` | Required plain email address (no display name), authorized by Resend. Verify current onboarding/domain and recipient restrictions before a real test. |
+| `NEXOVA_FRONTEND_URL` | Required trusted origin used to construct `/reset-password?token=...`, never a caller-controlled Host. HTTPS required except HTTP localhost/127.0.0.1/[::1]; reject credentials, paths, query strings, fragments and port zero. |
 | `PASSWORD_RESET_EXPIRE_MINUTES` | Optional integer, default `30`, constrained to `15` through `60`. |
 
 Use runtime environment variables. Reading or modifying `.env*`, configuring real
@@ -759,8 +763,8 @@ synchronized branch were verified before starting stage 2.
 
 The two mutators return no credential data. Invalid new passwords reuse the
 existing policy and leave both the previous password and reset token unchanged.
-No router imports these functions yet: stage 2 does not expose unauthenticated
-password changes, send email, read new environment settings or revoke access JWTs.
+At the stage 2 checkpoint no router imported these functions. Stage 3 now wires
+them as described below; access JWT revocation remains outside this milestone.
 
 ### Persistence and coordinated invalidation
 
@@ -803,5 +807,77 @@ and injected commit failures during issuance/reset/change/user update/deletion.
 All accounts/databases are synthetic and temporary. Diagnostics for the six touched
 Python files, lockfile and diff checks passed; dependencies did not change.
 The known Starlette/httpx warning remains. Frontend checks and real email testing
-do not apply to this internal-only stage. Stage 2 is ready for review; commit/push
-still require approval.
+did not apply to that internal-only stage. Stage 2 was approved and published as
+`1997bce`, with its push and clean branch verified before starting stage 3.
+
+## AUTH-03 stage 3: HTTP and Resend integration
+
+### HTTP contract
+
+- `POST /auth/forgot-password` accepts JSON `{ email }`. A valid accepted request
+  returns `200` with only a generic `message`; unknown/inactive accounts receive the
+  same response. Syntax failures return sanitized `422`. Missing/invalid settings
+  or task-acceptance failure return generic `503` regardless of account existence.
+- `POST /auth/reset-password` accepts `{ token, new_password }`. Invalid, absent,
+  null, expired or consumed tokens return generic `400`; other invalid payloads or
+  passwords return sanitized `422`. Success returns `200` with only a confirmation
+  message. Password persistence failure returns generic `503`, without consuming
+  the token or partially changing credentials.
+- `POST /auth/change-password` accepts `{ current_password, new_password }`, requires
+  Bearer and derives its user ID from `get_current_user`. Wrong current password
+  returns `400`; missing/invalid/expired credentials or a no-longer-active account
+  return `401` with the Bearer challenge. Extra fields (including user ID) and
+  password-policy failures return sanitized `422`; persistence failure returns
+  generic `503`. Success returns only a confirmation message.
+
+The new schemas use `SecretStr` and exclude sensitive inputs from repr/dumps.
+`main.py` sanitizes validation errors for these three routes, including malformed
+JSON, without changing prior routes' validation contracts. Login behavior and
+JWT/session policy remain unchanged. OpenAPI distinguishes public recovery from
+the Bearer-protected change operation.
+
+### Background delivery and transport
+
+`get_password_reset_settings` validates a configuration snapshot per request;
+`get_password_reset_sender` supplies the replaceable sender. `BackgroundTasks`
+performs lookup, issuance and sending after the public response body. This ordering
+is tested with ASGI response events, not inferred from TestClient timings.
+
+`email_service.py` posts to `https://api.resend.com/emails` through existing httpx,
+with the API key only in the Authorization header, a plain-text Spanish message,
+and a trusted-origin reset link. Timeouts are 10 seconds per network phase;
+redirects, environment proxy settings and automatic retries are disabled. Non-2xx
+responses and network/timeout errors become `EmailDeliveryError` without provider
+payload or credential echo. The background handler logs only a fixed operational
+failure message, with no traceback, recipient, URL, token or provider body.
+
+An accepted `200` does not certify delivery. Background work is not durable, can be
+lost on process restart and has no guaranteed retry. Later failures do not change
+the public response or disclose account existence. A real Resend inbox receipt is
+still required in the final end-to-end acceptance, after explicit authorization to
+configure credentials/sender and connect the provider. No real email was sent in
+stage 3; mocks verify integration contracts, not actual deliverability.
+
+### Stage 3 verification
+
+From the monorepo root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_email_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_password_reset_api.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+git diff --check
+```
+
+On 2026-10-18: **5 email tests**, **23 AUTH-03 HTTP tests** and **155 total backend
+tests** passed. Test fixtures use temporary TinyDB and synthetic keys/users; sender
+injection and `httpx.MockTransport` prevent external delivery. Coverage includes
+configuration validation, message/link construction, sanitized provider/timeout
+failures, common acceptance errors, response-before-lookup ordering, equal public
+responses, expiry/reuse, concurrent HTTP consumption, password policy, authorization,
+cross-use rejection of JWT/reset tokens, persistence rollback and existing login.
+Diagnostics for six touched Python files, lockfile and diff checks passed, with no
+new dependencies. The known Starlette/httpx warning remains. Frontend was unchanged;
+no frontend lint/build/browser or real-email acceptance is claimed. Stage 3 is ready
+for review; commit and push await the user's approval.

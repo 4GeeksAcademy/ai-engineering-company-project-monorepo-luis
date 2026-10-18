@@ -161,3 +161,36 @@ class PasswordResetRecord(AuthSchema):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("expiration must include a timezone")
         return value.astimezone(timezone.utc)
+
+
+class ForgotPasswordRequest(AuthSchema):
+    email: EmailStr
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_must_be_normalized(cls, value: str) -> str:
+        return normalize_email(value)
+
+
+class ResetPasswordRequest(AuthSchema):
+    token: SecretStr = Field(exclude=True, repr=False)
+    new_password: SecretStr = Field(exclude=True, repr=False)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_must_be_valid(cls, value: SecretStr) -> SecretStr:
+        return validate_password(value)
+
+
+class ChangePasswordRequest(AuthSchema):
+    current_password: SecretStr = Field(exclude=True, repr=False)
+    new_password: SecretStr = Field(exclude=True, repr=False)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_must_be_valid(cls, value: SecretStr) -> SecretStr:
+        return validate_password(value)
+
+
+class AuthActionResponse(AuthSchema):
+    message: str

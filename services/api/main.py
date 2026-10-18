@@ -70,6 +70,14 @@ async def sanitize_auth_validation_errors(
             status_code=422,
             content={"detail": "Invalid user request"},
         )
+    if request.url.path in (
+        "/auth/forgot-password", "/auth/reset-password", "/auth/change-password"
+    ):
+        if request.url.path == "/auth/reset-password" and any(
+            tuple(item["loc"]) == ("body", "token") for item in error.errors()
+        ):
+            return JSONResponse(status_code=400, content={"detail": "Invalid password reset token"})
+        return JSONResponse(status_code=422, content={"detail": "Invalid password request"})
     return JSONResponse(status_code=422, content={"detail": error.errors()})
 
 
