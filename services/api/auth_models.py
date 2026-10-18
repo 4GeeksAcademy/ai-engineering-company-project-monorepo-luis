@@ -148,3 +148,16 @@ class AuthMeResponse(AuthSchema):
     email: EmailStr
     role: UserRole
     profile: ProfileResponse
+
+
+class PasswordResetRecord(AuthSchema):
+    user_id: int = Field(gt=0, strict=True)
+    token_digest: SecretStr = Field(exclude=True, repr=False)
+    expires_at: datetime
+
+    @field_validator("expires_at")
+    @classmethod
+    def expiration_must_be_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("expiration must include a timezone")
+        return value.astimezone(timezone.utc)

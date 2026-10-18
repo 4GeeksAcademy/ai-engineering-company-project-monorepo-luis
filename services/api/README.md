@@ -618,8 +618,9 @@ operational routes will receive `401` until integrated.
 
 ## AUTH-03: password recovery plan
 
-Stage 1, 2026-10-18, documents the contract only. Password recovery endpoints,
-reset tokens and email delivery are **not implemented or configured yet**.
+Stage 1, 2026-10-18, documented the contract. Stage 2 now implements the internal
+token/password domain below. Password recovery endpoints, frontend and email
+delivery are **not implemented or configured yet**.
 The [requirements and seven-stage board](../../restablecimiento-contrasena.md#plan-de-trabajo-por-etapas)
 track evidence, review, commit and push separately. Work continues on the existing
 `feature/password-reset`; every commit and push requires the user's approval.
@@ -734,4 +735,73 @@ existing local environment automatically; no environment file content was inspec
 changed or printed. Document diff formatting passed; new local link destinations
 exist. An older AUTH-01 link to the deleted `autenticacion.md` remains historical
 and outside this change. These checks establish the starting point, not AUTH-03
-acceptance. Stage 1 is ready for review; no commit or push has been made.
+acceptance. Stage 1 was approved and published as `0ac5d4f`; its push and clean,
+synchronized branch were verified before starting stage 2.
+
+## AUTH-03 stage 2: internal password lifecycle
+
+### Internal functions, not HTTP endpoints
+
+`password_reset_service.py` adds:
+
+- `issue_password_reset_token(email, lifetime_minutes=30)`: normalizes the email,
+  returns `None` for an unknown/inactive account, otherwise returns a `SecretStr`
+  holding a fresh opaque token. Lifetime must be an actual integer from 15 to 60.
+  Environment parsing and provider settings remain for stage 3.
+- `reset_password(token, new_password)`: validates the token format, compares its
+  SHA-256 digest with `hmac.compare_digest`, and checks expiration and the live
+  active account before hashing the new password. Invalid/expired/consumed tokens
+  or missing/inactive users raise the same `InvalidPasswordResetTokenError`.
+- `change_password(user_id, current_password, new_password)`: verifies the current
+  password under the storage lock before hashing/updating. A mismatch raises
+  `CurrentPasswordMismatchError`; missing/inactive users raise `UserNotFoundError`.
+  The future router must derive the ID from `get_current_user`, not request input.
+
+The two mutators return no credential data. Invalid new passwords reuse the
+existing policy and leave both the previous password and reset token unchanged.
+No router imports these functions yet: stage 2 does not expose unauthenticated
+password changes, send email, read new environment settings or revoke access JWTs.
+
+### Persistence and coordinated invalidation
+
+`PasswordResetRecord` requires a positive integer user ID and timezone-aware
+expiration normalized to UTC. Its digest is `SecretStr`, excluded from repr and
+normal serialization; only the storage path explicitly persists it.
+The optional `password_reset_tokens` table in the existing auth TinyDB contains
+`user_id`, `token_digest` and `expires_at`. It stores neither raw tokens nor email
+messages/passwords. The user ID is also its document key, limiting pending records
+to one per user. New issuance replaces the old link and removes expired records.
+
+Validation, bcrypt hashing, password update and token removal share a single
+`open_auth_database` context. A consumed token is removed, so repeat or concurrent
+consumption cannot succeed. Disk failure leaves the previous snapshot unchanged,
+including its unused token. The existing `update_user` invalidates pending resets
+on password/email submissions or deactivation; `delete_user` removes them alongside
+the user/profile. Profile-only and role-only updates preserve them, and other users
+are unaffected. This remains single-process/single-worker coordination, not a
+multi-process database transaction or a durable delivery queue.
+
+### Stage 2 checks
+
+From the monorepo root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_password_reset_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_user_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+git diff --check
+```
+
+On 2026-10-18: **23 reset-domain tests**, **21 user-service tests** and **127 total
+backend tests** passed. The focused suites were repeated after the final test-only
+adjustment. Coverage includes exact expiry with a controlled clock (no sleeps),
+15/60-minute boundaries, tampering/reuse, persisted hash-only records, reopening,
+replacement/cleanup, missing/inactive users, two simultaneous resets and two
+simultaneous current-password changes, scoped invalidation, invalid password limits,
+and injected commit failures during issuance/reset/change/user update/deletion.
+All accounts/databases are synthetic and temporary. Diagnostics for the six touched
+Python files, lockfile and diff checks passed; dependencies did not change.
+The known Starlette/httpx warning remains. Frontend checks and real email testing
+do not apply to this internal-only stage. Stage 2 is ready for review; commit/push
+still require approval.

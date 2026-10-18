@@ -9,12 +9,16 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Iterator
 
-from tinydb import TinyDB
+from tinydb import Query, TinyDB
 from tinydb.storages import MemoryStorage
 
 DATABASE_ENV_VAR = "NEXOVA_AUTH_DB_PATH"
 DEFAULT_DATABASE_PATH = Path(__file__).resolve().parent / "data" / "auth.json"
 _AUTH_LOCK = RLock()
+
+
+def invalidate_password_reset_tokens(database: TinyDB, user_id: int) -> None:
+    database.table("password_reset_tokens").remove(Query().user_id == user_id)
 
 
 def get_auth_database_path() -> Path:
