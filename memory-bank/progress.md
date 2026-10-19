@@ -309,3 +309,16 @@ Actualizado: 2026-10-19. Etapa 6 aprobada/publicada en `bbfe6b1`, push y árbol 
   - Llamada HTTP con Bearer token a `changeNexovaPassword`.
   - Tratamiento accesible de respuestas: contraseña actual incorrecta (400) mostrada como error de formulario; feedback de éxito visible y reseteo de campos; fallos de servidor (500) y de red manejados comprensiblemente.
 - Build y TypeScript completos ejecutados con éxito (`npm run build` con Webpack).
+- Tablero: etapas 1–6 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`, `bbfe6b1`). Etapa 7 En revisión.
+
+### Etapa 7 — Aceptación y entrega
+
+Actualizado: 2026-10-19. Etapa 7 **LISTO PARA REVISIÓN**; commit, push y apertura de PR pendientes de aprobación del usuario.
+
+- Verificación integral del ciclo de contraseñas AUTH-03 completada en monorepo:
+  - Recuperación pública (`/forgot-password` y `/reset-password`): tokens de un solo uso con hash SHA-256 en TinyDB, prevención de enumeración con respuesta 200 genérica, sanitización de URL en el cliente (token solo en memoria), política `no-referrer`, redirección con feedback a `/login`.
+  - Cambio autenticado (`/account/change-password`): ruta protegida con Bearer token, validación de contraseña actual y coincidencia de nueva, enlace directo desde perfil.
+  - Servicio de email Resend integrado en backend con texto plano legible en móvil y enlace confiable.
+  - Plantilla de variables de entorno `.env.example` creada en `services/api/` documentando `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL` y variables JWT/TinyDB.
+  - Ningún secreto ni credencial real versionada en Git.
+  - TypeScript y build de Next.js (`npm run build`) verificados con éxito (0 errores).

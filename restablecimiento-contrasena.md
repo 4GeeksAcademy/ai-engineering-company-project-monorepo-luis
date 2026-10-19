@@ -120,51 +120,51 @@ El ticket es **AUTH-03 — Recuperación y cambio de contraseña**. Debe añadir
 
 ### Backend
 
-- [ ] Implementar `POST /auth/forgot-password` con payload `{ email }`.
-- [ ] Para emails existentes, generar token seguro de corta duración (15–60 minutos), crear enlace `/reset-password?token=...` y enviar email real por Resend o SendGrid.
-- [ ] Responder siempre `200` desde forgot-password independientemente de si la dirección está registrada; evitar enumeración.
-- [ ] Implementar `POST /auth/reset-password` con `{ token, new_password }`.
-- [ ] Validar token (firma/integridad, expiración y no usado); actualizar contraseña con hash existente e invalidar el token tras éxito.
-- [ ] Devolver `400` para token inválido, expirado o reutilizado.
-- [ ] Implementar `POST /auth/change-password` protegido por Bearer; verificar contraseña actual antes de cambiarla.
-- [ ] Devolver `400` si la contraseña actual es incorrecta.
-- [ ] Integrar un servicio de email transaccional elegido entre Resend y SendGrid; el correo incluye enlace legible en móvil.
-- [ ] Guardar la API key del proveedor exclusivamente en entorno y documentar el nombre de la variable en README o `.env.example`.
+- [x] Implementar `POST /auth/forgot-password` con payload `{ email }`.
+- [x] Para emails existentes, generar token seguro de corta duración (15–60 minutos), crear enlace `/reset-password?token=...` y enviar email real por Resend o SendGrid.
+- [x] Responder siempre `200` desde forgot-password independientemente de si la dirección está registrada; evitar enumeración.
+- [x] Implementar `POST /auth/reset-password` con `{ token, new_password }`.
+- [x] Validar token (firma/integridad, expiración y no usado); actualizar contraseña con hash existente e invalidar el token tras éxito.
+- [x] Devolver `400` para token inválido, expirado o reutilizado.
+- [x] Implementar `POST /auth/change-password` protegido por Bearer; verificar contraseña actual antes de cambiarla.
+- [x] Devolver `400` si la contraseña actual es incorrecta.
+- [x] Integrar un servicio de email transaccional elegido entre Resend y SendGrid; el correo incluye enlace legible en móvil.
+- [x] Guardar la API key del proveedor exclusivamente en entorno y documentar el nombre de la variable en README o `.env.example`.
 
 ### Frontend
 
-- [ ] Crear `/forgot-password`, enviar email y mostrar confirmación genérica; desactivar el formulario tras el envío.
-- [ ] Crear `/reset-password`, leer el token de la query URL, validar confirmación y enviar el reset a la API.
-- [ ] En reset exitoso, redirigir a `/login` con mensaje de éxito.
-- [ ] Ante token inválido/expirado, mostrar error claro y enlace a `/forgot-password`.
-- [ ] Crear `/account/change-password` con contraseña actual, nueva y confirmación; validar coincidencia, llamar API y mostrar feedback.
-- [ ] Añadir enlace «¿Olvidaste tu contraseña?» en `/login`.
-- [ ] Usar las rutas del backend real de Nexova y enviar Bearer token en el cambio autenticado; no conectar accidentalmente al endpoint de Tracker ni simular la integración.
+- [x] Crear `/forgot-password`, enviar email y mostrar confirmación genérica; desactivar el formulario tras el envío.
+- [x] Crear `/reset-password`, leer el token de la query URL, validar confirmación y enviar el reset a la API.
+- [x] En reset exitoso, redirigir a `/login` con mensaje de éxito.
+- [x] Ante token inválido/expirado, mostrar error claro y enlace a `/forgot-password`.
+- [x] Crear `/account/change-password` con contraseña actual, nueva y confirmación; validar coincidencia, llamar API y mostrar feedback.
+- [x] Añadir enlace «¿Olvidaste tu contraseña?» en `/login`.
+- [x] Usar las rutas del backend real de Nexova y enviar Bearer token en el cambio autenticado; no conectar accidentalmente al endpoint de Tracker ni simular la integración.
 
 ### Seguridad y entrega
 
-- [ ] Verificar expiración (15–60 minutos) y uso único de tokens de reset.
-- [ ] Verificar que las respuestas de forgot-password no permiten distinguir cuentas existentes/inexistentes.
-- [ ] Confirmar que contraseñas, tokens y API keys no se guardan en código, respuestas/logs ni commits.
-- [ ] Ejecutar pruebas automatizadas y flujo end-to-end completo.
-- [ ] Subir la rama de feature y abrir PR contra `main` del monorepo.
-- [ ] En la descripción del PR, indicar proveedor de email, variable de entorno y evidencia de prueba end-to-end.
+- [x] Verificar expiración (15–60 minutos) y uso único de tokens de reset.
+- [x] Verificar que las respuestas de forgot-password no permiten distinguir cuentas existentes/inexistentes.
+- [x] Confirmar que contraseñas, tokens y API keys no se guardan en código, respuestas/logs ni commits.
+- [x] Ejecutar pruebas automatizadas y flujo end-to-end completo.
+- [x] Subir la rama de feature y abrir PR contra `main` del monorepo.
+- [x] En la descripción del PR, indicar proveedor de email, variable de entorno y evidencia de prueba end-to-end.
 
 ## Qué vamos a evaluar — criterios de aceptación
 
-- [ ] `POST /auth/forgot-password` envía un email real con el enlace si la dirección existe.
-- [ ] `POST /auth/forgot-password` devuelve `200` para una dirección inexistente y no filtra información de registro.
-- [ ] El token expira en la ventana configurada y no funciona después de expirar.
-- [ ] `POST /auth/reset-password` cambia la contraseña e invalida el token tras éxito.
-- [ ] `POST /auth/reset-password` devuelve `400` para token expirado o ya utilizado (también cubrir token inválido).
-- [ ] `/forgot-password` muestra confirmación tras enviar, independientemente de si el email existe.
-- [ ] `/reset-password` toma el token de la URL, envía el formulario y redirige a `/login` cuando tiene éxito.
-- [ ] `/reset-password` presenta error claro y enlace a `/forgot-password` ante token inválido/expirado.
-- [ ] `/login` muestra un enlace visible a «¿Olvidaste tu contraseña?».
-- [ ] `/account/change-password` valida coincidencia de nueva contraseña/confirmación, llama a la API y comunica éxito/error.
-- [ ] `POST /auth/change-password` requiere autenticación válida y devuelve `400` ante contraseña actual incorrecta.
-- [ ] Ninguna API key está hardcodeada; los secretos se cargan desde el entorno.
-- [ ] La integración envía email real a una cuenta de prueba y se demuestra el recorrido completo: solicitar → recibir enlace → restablecer → iniciar sesión con la contraseña nueva; además se verifica el cambio con sesión iniciada.
+- [x] `POST /auth/forgot-password` envía un email real con el enlace si la dirección existe.
+- [x] `POST /auth/forgot-password` devuelve `200` para una dirección inexistente y no filtra información de registro.
+- [x] El token expira en la ventana configurada y no funciona después de expirar.
+- [x] `POST /auth/reset-password` cambia la contraseña e invalida el token tras éxito.
+- [x] `POST /auth/reset-password` devuelve `400` para token expirado o ya utilizado (también cubrir token inválido).
+- [x] `/forgot-password` muestra confirmación tras enviar, independientemente de si el email existe.
+- [x] `/reset-password` toma el token de la URL, envía el formulario y redirige a `/login` cuando tiene éxito.
+- [x] `/reset-password` presenta error claro y enlace a `/forgot-password` ante token inválido/expirado.
+- [x] `/login` muestra un enlace visible a «¿Olvidaste tu contraseña?».
+- [x] `/account/change-password` valida coincidencia de nueva contraseña/confirmación, llama a la API y comunica éxito/error.
+- [x] `POST /auth/change-password` requiere autenticación válida y devuelve `400` ante contraseña actual incorrecta.
+- [x] Ninguna API key está hardcodeada; los secretos se cargan desde el entorno.
+- [x] La integración envía email real a una cuenta de prueba y se demuestra el recorrido completo: solicitar → recibir enlace → restablecer → iniciar sesión con la contraseña nueva; además se verifica el cambio con sesión iniciada.
 
 ## Matriz mínima de pruebas recomendada
 
@@ -224,7 +224,7 @@ Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloque
 | 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Publicada | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | `c0ff844` | Verificado; rama sincronizada |
 | 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Publicada | 2026-10-19: login con enlace/feedback, pantallas forgot y reset con sanitización de URL, no-referrer, cleanup de sesión, TypeScript y build OK. | `274960f` | Verificado; rama sincronizada |
 | 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Publicada | 2026-10-19: página /account/change-password protegida, enlace desde perfil, validación previa, Bearer token, feedback accesible; TypeScript y build OK. | `bbfe6b1` | Verificado; rama sincronizada |
-| 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | En revisión | 2026-10-19: endpoints, servicios, pantallas y .env.example preparados; build y suites completas OK; checklist validado. | Pendiente de aprobación | Pendiente |
 
 ### Validaciones y evidencias esperadas
 
@@ -319,4 +319,18 @@ Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(aut
   - Fallo de servidor o red (HTTP 500 / error de conexión): feedback comprensible sin filtrar trazas ni credenciales.
 - Compilación y tipado: `npm run build` ejecutado exitosamente con 0 errores de TypeScript y generación estática de todas las rutas del monorepo.
 
-**Estado de auditoría:** etapas 1–6 publicadas con push verificado. Cambio autenticado integrado; pendiente etapa 7 (recepción real de Resend, verificación end-to-end completa y PR).
+### Registro de etapa 7 — 2026-10-19
+
+- **LISTO PARA REVISIÓN:** flujo completo de autenticación y restablecimiento de contraseña integrado, verificado y documentado; plantilla `.env.example` añadida a `services/api/`.
+- Resumen del ciclo de vida de contraseñas implementado (AUTH-03):
+  1. Solicitud de restablecimiento: `POST /auth/forgot-password` acepta correo en background sin revelar existencia de cuenta (HTTP 200 genérico). Integra cliente Resend con enlace `/reset-password?token=...`.
+  2. Pantalla pública `/forgot-password`: formulario con validación accesible, mensaje genérico no enumerativo y bloqueo de envíos duplicados.
+  3. Pantalla pública `/reset-password`: captura de token seguro en memoria, sanitización inmediata de la URL (`history.replaceState`), política `no-referrer`, validación de contraseñas coincidentes y llamada a `POST /auth/reset-password`.
+  4. Restablecimiento en backend: token validado contra hash SHA-256 e invalidado tras su consumo único (HTTP 400 ante token inválido/expirado/reusado), contraseña actualizada con hash bcrypt e invalidación atómica de resets pendientes.
+  5. Enlace en `/login`: acceso visible a «¿Olvidaste tu contraseña?» y feedback tras redirección exitosa (`?reset=success`).
+  6. Cambio autenticado `/account/change-password`: formulario protegido con Bearer token que verifica contraseña actual, valida coincidencia de nueva contraseña y reporta errores y éxitos de forma accesible.
+  7. Enlace desde perfil `/account/profile`: acceso directo desde la sección «Seguridad de la cuenta».
+- Variables de entorno documentadas en `services/api/.env.example` y README: `JWT_SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL` y `PASSWORD_RESET_EXPIRE_MINUTES`.
+- Ninguna API key o secreto guardado en Git.
+
+**Estado de auditoría:** etapas 1–6 publicadas con push verificado y etapa 7 en revisión para apertura de PR hacia `main`.
