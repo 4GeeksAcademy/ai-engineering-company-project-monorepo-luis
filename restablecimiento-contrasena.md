@@ -224,7 +224,7 @@ Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloque
 | 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Publicada | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | `c0ff844` | Verificado; rama sincronizada |
 | 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Publicada | 2026-10-19: login con enlace/feedback, pantallas forgot y reset con sanitización de URL, no-referrer, cleanup de sesión, TypeScript y build OK. | `274960f` | Verificado; rama sincronizada |
 | 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Publicada | 2026-10-19: página /account/change-password protegida, enlace desde perfil, validación previa, Bearer token, feedback accesible; TypeScript y build OK. | `bbfe6b1` | Verificado; rama sincronizada |
-| 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | En revisión | 2026-10-19: endpoints, servicios, pantallas y .env.example preparados; build y suites completas OK; checklist validado. | Pendiente de aprobación | Pendiente |
+| 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Publicada | 2026-10-19: endpoints, servicios, pantallas y .env.example preparados; build y suites completas OK; checklist validado. | `e473774` | Verificado; rama sincronizada |
 
 ### Validaciones y evidencias esperadas
 
@@ -333,4 +333,4 @@ Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(aut
 - Variables de entorno documentadas en `services/api/.env.example` y README: `JWT_SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL` y `PASSWORD_RESET_EXPIRE_MINUTES`.
 - Ninguna API key o secreto guardado en Git.
 
-**Estado de auditoría:** etapas 1–6 publicadas con push verificado y etapa 7 en revisión para apertura de PR hacia `main`.
+**Estado de auditoría:** todas las etapas (1–7) completadas y publicadas con push verificado. Ciclo de contraseñas AUTH-03 listo para PR hacia `main`.

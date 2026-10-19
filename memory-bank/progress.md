@@ -309,11 +309,11 @@ Actualizado: 2026-10-19. Etapa 6 aprobada/publicada en `bbfe6b1`, push y árbol 
   - Llamada HTTP con Bearer token a `changeNexovaPassword`.
   - Tratamiento accesible de respuestas: contraseña actual incorrecta (400) mostrada como error de formulario; feedback de éxito visible y reseteo de campos; fallos de servidor (500) y de red manejados comprensiblemente.
 - Build y TypeScript completos ejecutados con éxito (`npm run build` con Webpack).
-- Tablero: etapas 1–6 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`, `bbfe6b1`). Etapa 7 En revisión.
+- Tablero: etapas 1–7 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`, `bbfe6b1`, `e473774`). Todas las etapas completadas.
 
 ### Etapa 7 — Aceptación y entrega
 
-Actualizado: 2026-10-19. Etapa 7 **LISTO PARA REVISIÓN**; commit, push y apertura de PR pendientes de aprobación del usuario.
+Actualizado: 2026-10-19. Etapa 7 aprobada/publicada en `e473774`, push y árbol limpio verificados.
 
 - Verificación integral del ciclo de contraseñas AUTH-03 completada en monorepo:
   - Recuperación pública (`/forgot-password` y `/reset-password`): tokens de un solo uso con hash SHA-256 en TinyDB, prevención de enumeración con respuesta 200 genérica, sanitización de URL en el cliente (token solo en memoria), política `no-referrer`, redirección con feedback a `/login`.
