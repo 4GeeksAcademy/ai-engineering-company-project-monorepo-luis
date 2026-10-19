@@ -289,11 +289,11 @@ Actualizado: 2026-10-18. Etapa 3 aprobada/publicada en `a4429d2`, push y árbol 
 
 ### Publicación de etapa 4 y etapa 5 — Pantallas públicas de recuperación
 
-Actualizado: 2026-10-19. Etapa 4 aprobada/publicada en `c0ff844`, push y árbol limpio verificados. Etapa 5 **LISTO PARA REVISIÓN**; commit y push pendientes de aprobación del usuario.
+Actualizado: 2026-10-19. Etapa 4 aprobada/publicada en `c0ff844`. Etapa 5 aprobada/publicada en `274960f`, push y árbol limpio verificados. Etapa 6 Pendiente.
 
 - Implementadas las vistas públicas de recuperación en `uis/talent-pipeline-tracker/`:
   - `auth-form.tsx`: enlace visible «¿Olvidaste tu contraseña?» apuntando a `/forgot-password`, y feedback de éxito `reset=success` al redirigir tras un restablecimiento exitoso. Envuelto en `Suspense` en `/login` y `/register`.
   - `/forgot-password` (`forgot-password-form.tsx` y `page.tsx`): formulario accesible, llamada a `requestNexovaPasswordReset`, confirmación genérica no enumerativa («Si esa dirección está registrada, recibirás un enlace en breve») y desactivación de envío tras completar la solicitud.
   - `/reset-password` (`reset-password-form.tsx` y `page.tsx`): captura de `token` del query string, sanitización inmediata de la URL con `window.history.replaceState` (sin persistencia en localStorage ni historial), metadato `referrer: "no-referrer"`, validación de coincidencia de contraseñas, llamada a `resetNexovaPassword`, limpieza de sesión residual con `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido/expirado muestra error claro y enlace de retorno.
 - Sin contraseñas ni tokens en URL, logs o almacenamiento local del navegador.
-- Tablero: etapa 4 Publicada `c0ff844`, etapa 5 En revisión. Mensaje propuesto: `feat(auth-ui): implement password recovery screens`.
+- Tablero: etapas 1–5 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`). Etapa 6 Pendiente.
