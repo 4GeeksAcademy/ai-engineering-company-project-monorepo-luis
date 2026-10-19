@@ -223,7 +223,7 @@ Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloque
 | 3. API y Resend | Tres endpoints y cliente Resend integrados; pruebas HTTP y de transporte simulado, errores seguros y regresiones backend. | Publicada | 2026-10-18: 155 tests OK; publicación aprobada y verificada. Sin correo real todavía. | `a4429d2` | Verificado; rama sincronizada |
 | 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Publicada | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | `c0ff844` | Verificado; rama sincronizada |
 | 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Publicada | 2026-10-19: login con enlace/feedback, pantallas forgot y reset con sanitización de URL, no-referrer, cleanup de sesión, TypeScript y build OK. | `274960f` | Verificado; rama sincronizada |
-| 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | En revisión | 2026-10-19: página /account/change-password protegida, enlace desde perfil, validación previa, Bearer token, feedback accesible; TypeScript y build OK. | Pendiente de aprobación | Pendiente |
+| 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Publicada | 2026-10-19: página /account/change-password protegida, enlace desde perfil, validación previa, Bearer token, feedback accesible; TypeScript y build OK. | `bbfe6b1` | Verificado; rama sincronizada |
 | 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Pendiente | Pendiente | Pendiente | Pendiente |
 
 ### Validaciones y evidencias esperadas
@@ -319,4 +319,4 @@ Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(aut
   - Fallo de servidor o red (HTTP 500 / error de conexión): feedback comprensible sin filtrar trazas ni credenciales.
 - Compilación y tipado: `npm run build` ejecutado exitosamente con 0 errores de TypeScript y generación estática de todas las rutas del monorepo.
 
-**Estado de auditoría:** etapas 1–5 publicadas con push verificado y etapa 6 en revisión. Cambio autenticado completado; pendiente etapa 7 (recepción real de Resend, verificación end-to-end completa y PR).
+**Estado de auditoría:** etapas 1–6 publicadas con push verificado. Cambio autenticado integrado; pendiente etapa 7 (recepción real de Resend, verificación end-to-end completa y PR).
