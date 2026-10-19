@@ -65,6 +65,22 @@ app.include_router(profiles_router)
 async def sanitize_auth_validation_errors(
     request: Request, error: RequestValidationError
 ) -> JSONResponse:
+    if request.url.path == "/api/incidents" or request.url.path.startswith("/api/incidents"):
+        errors = []
+        for item in error.errors():
+            loc = [str(x) for x in item.get("loc", ()) if str(x) not in ("body", "query", "path")]
+            field = ".".join(loc) or "payload"
+            msg = item.get("msg", "Invalid value")
+            errors.append({"field": field, "message": msg})
+        first_field = errors[0]["field"] if errors else "payload"
+        first_msg = errors[0]["message"] if errors else "Validation error"
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": f"Validation error for '{first_field}': {first_msg}",
+                "errors": errors,
+            },
+        )
     if request.url.path == "/users" or request.url.path.startswith("/users/"):
         return JSONResponse(
             status_code=422,
@@ -79,6 +95,21 @@ async def sanitize_auth_validation_errors(
             return JSONResponse(status_code=400, content={"detail": "Invalid password reset token"})
         return JSONResponse(status_code=422, content={"detail": "Invalid password request"})
     return JSONResponse(status_code=422, content={"detail": error.errors()})
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    from fastapi import HTTPException
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None),
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred"},
+    )
 
 
 @app.get("/health", tags=["Health"])
