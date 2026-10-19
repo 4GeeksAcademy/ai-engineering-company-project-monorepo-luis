@@ -223,7 +223,7 @@ Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloque
 | 3. API y Resend | Tres endpoints y cliente Resend integrados; pruebas HTTP y de transporte simulado, errores seguros y regresiones backend. | Publicada | 2026-10-18: 155 tests OK; publicación aprobada y verificada. Sin correo real todavía. | `a4429d2` | Verificado; rama sincronizada |
 | 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Publicada | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | `c0ff844` | Verificado; rama sincronizada |
 | 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Publicada | 2026-10-19: login con enlace/feedback, pantallas forgot y reset con sanitización de URL, no-referrer, cleanup de sesión, TypeScript y build OK. | `274960f` | Verificado; rama sincronizada |
-| 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | En revisión | 2026-10-19: página /account/change-password protegida, enlace desde perfil, validación previa, Bearer token, feedback accesible; TypeScript y build OK. | Pendiente de aprobación | Pendiente |
 | 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Pendiente | Pendiente | Pendiente | Pendiente |
 
 ### Validaciones y evidencias esperadas
@@ -304,4 +304,19 @@ Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(aut
 - Consumo seguro y cleanup: llamada a `resetNexovaPassword({ token, new_password })`, limpieza de tokens de acceso previos mediante `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido o expirado (400) presenta mensaje claro y enlace para solicitar un nuevo enlace en `/forgot-password`.
 - Sin persistencia de contraseñas ni tokens en localStorage/logs/URL.
 
-**Estado de auditoría:** etapas 1–5 publicadas con push verificado. Pantallas de recuperación pública integradas; pendiente etapa 6 (cambio autenticado) y etapa 7 (recepción real de Resend, verificación end-to-end y PR).
+### Registro de etapa 6 — 2026-10-19
+
+- **LISTO PARA REVISIÓN:** vista de cambio de contraseña autenticado integrada y accesible; commit y push pendientes de aprobación. La etapa 5 se publicó con aprobación en `274960f`, con push verificado antes de iniciar esta etapa.
+- Acceso desde perfil (`components/account-profile.tsx`): añadida sección accesible «Seguridad de la cuenta» con enlace directo a `/account/change-password`.
+- Página `/account/change-password` (`components/account-change-password.tsx` y `app/account/change-password/page.tsx`): vista protegida por `NexovaAuthGuard` que exige sesión activa.
+- Formulario de cambio: campos para contraseña actual, nueva contraseña y confirmación de la nueva.
+- Validaciones en cliente: nueva contraseña mínimo 8 caracteres, coincidencia estricta con la confirmación y verificación de que difiera de la contraseña actual antes de enviar la petición.
+- Invocación segura: llamada a `changeNexovaPassword({ current_password, new_password })` enviando cabecera `Authorization: Bearer <token>` de la sesión vigente.
+- Manejo accesible de respuestas y errores:
+  - Contraseña actual incorrecta (HTTP 400): mostrada como error accesible de formulario (`role="alert"`), sin cerrar la sesión ni considerarse éxito.
+  - Validación de formato/seguridad (HTTP 422): mensaje de feedback contextual.
+  - Éxito (HTTP 200): aviso visible en verde (`role="status"`, `aria-live="polite"`), reseteo de los campos de formulario para no conservarlos en memoria y enlaces de navegación hacia el perfil y pipeline.
+  - Fallo de servidor o red (HTTP 500 / error de conexión): feedback comprensible sin filtrar trazas ni credenciales.
+- Compilación y tipado: `npm run build` ejecutado exitosamente con 0 errores de TypeScript y generación estática de todas las rutas del monorepo.
+
+**Estado de auditoría:** etapas 1–5 publicadas con push verificado y etapa 6 en revisión. Cambio autenticado completado; pendiente etapa 7 (recepción real de Resend, verificación end-to-end completa y PR).

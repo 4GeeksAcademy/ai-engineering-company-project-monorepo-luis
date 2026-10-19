@@ -296,4 +296,16 @@ Actualizado: 2026-10-19. Etapa 4 aprobada/publicada en `c0ff844`. Etapa 5 aproba
   - `/forgot-password` (`forgot-password-form.tsx` y `page.tsx`): formulario accesible, llamada a `requestNexovaPasswordReset`, confirmación genérica no enumerativa («Si esa dirección está registrada, recibirás un enlace en breve») y desactivación de envío tras completar la solicitud.
   - `/reset-password` (`reset-password-form.tsx` y `page.tsx`): captura de `token` del query string, sanitización inmediata de la URL con `window.history.replaceState` (sin persistencia en localStorage ni historial), metadato `referrer: "no-referrer"`, validación de coincidencia de contraseñas, llamada a `resetNexovaPassword`, limpieza de sesión residual con `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido/expirado muestra error claro y enlace de retorno.
 - Sin contraseñas ni tokens en URL, logs o almacenamiento local del navegador.
-- Tablero: etapas 1–5 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`). Etapa 6 Pendiente.
+- Tablero: etapas 1–5 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`). Etapa 6 En revisión.
+
+### Etapa 6 — Cambio de contraseña autenticado
+
+Actualizado: 2026-10-19. Etapa 6 **LISTO PARA REVISIÓN**; commit y push pendientes de aprobación del usuario.
+
+- Implementada la vista autenticada en `uis/talent-pipeline-tracker/`:
+  - `components/account-profile.tsx`: enlace accesible a `/account/change-password` en la sección de seguridad.
+  - `/account/change-password` (`components/account-change-password.tsx` y `app/account/change-password/page.tsx`): ruta protegida por el guard de sesión Nexova.
+  - Formulario completo con validaciones: longitud mínima (8 caracteres), verificación de que no coincida con la actual y validación previa de coincidencia exacta entre contraseña nueva y confirmación antes del envío.
+  - Llamada HTTP con Bearer token a `changeNexovaPassword`.
+  - Tratamiento accesible de respuestas: contraseña actual incorrecta (400) mostrada como error de formulario; feedback de éxito visible y reseteo de campos; fallos de servidor (500) y de red manejados comprensiblemente.
+- Build y TypeScript completos ejecutados con éxito (`npm run build` con Webpack).

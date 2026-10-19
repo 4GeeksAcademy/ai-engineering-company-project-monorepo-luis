@@ -24,7 +24,7 @@ The Nexova API must be running with valid `JWT_SECRET_KEY` and `ACCESS_TOKEN_EXP
 | `/login`, `/register` | Public |
 | `/`, `/candidates/[id]`, `/account/profile` | Client-side Nexova session guard |
 | `/forgot-password`, `/reset-password` | Public recovery pages added in stage 5 |
-| `/account/change-password` | Protected policy prepared in stage 4; page is added in stage 6 |
+| `/account/change-password` | Protected change password page added in stage 6 |
 
 Protected Nexova requests send `Authorization: Bearer <token>`. Only a protected `401` expires the session; `403`, network errors, and `5xx` responses do not. The guard protects the tracker UI, not candidate data returned by the external Tracker API, which does not validate Nexova JWTs. The public website in `uis/website/` is separate and has no auth guard.
 
@@ -98,6 +98,20 @@ Stage 5 implements the public password recovery flow:
   - Client-side validation: minimum 8 characters and confirmation match before calling `resetNexovaPassword`.
   - Cleans up residual local session with `clearNexovaSession()` upon successful reset, then redirects to `/login?reset=success`.
   - Invalid/expired tokens (HTTP 400) display a clear alert and a link to request a new link at `/forgot-password`.
+
+## Stage 6 Authenticated Password Change
+
+Stage 6 implements password changes for authenticated sessions:
+
+- `/account/profile` ([`components/account-profile.tsx`](components/account-profile.tsx)):
+  - Added visible "Seguridad de la cuenta" section with a direct link to `/account/change-password`.
+- `/account/change-password` ([`app/account/change-password/page.tsx`](app/account/change-password/page.tsx), [`components/account-change-password.tsx`](components/account-change-password.tsx)):
+  - Protected view requiring active Nexova session, guarded by `NexovaAuthGuard`.
+  - Fields for current password, new password, and confirmation.
+  - Client-side validation: minimum 8 characters, confirmation matching, and ensuring the new password differs from current before sending.
+  - Authenticated request: calls `changeNexovaPassword({ current_password, new_password })` sending session Bearer token.
+  - Accessible feedback: wrong current password (HTTP 400) displayed as form error alert without session logout; success notification resets input fields.
+  - Navigation links back to profile and pipeline.
 
 ## Validation
 
