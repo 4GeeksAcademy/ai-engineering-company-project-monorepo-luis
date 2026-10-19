@@ -143,3 +143,4 @@ class IncidentSummary(BaseModel):
     by_category: dict[IncidentCategory, int]
     by_origin: dict[IncidentOrigin, int]
     by_branch: dict[IncidentBranch, int]
+
