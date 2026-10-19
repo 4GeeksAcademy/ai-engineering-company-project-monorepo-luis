@@ -229,3 +229,96 @@ Etapa 5 protegió las ocho operaciones existentes de proveedores e incidencias c
 - Smoke final de API con usuario sintético: `/auth/me` anónimo 401, registro 201, login 200, `/auth/me` Bearer 200, `PUT /profiles/me` 200, persistencia confirmada, listado no-admin 403 y login inválido 401. Token no impreso. Bases y cuentas en el proceso temporal.
 - Website estático sin cambios: `/`, `/index.html`, `/application` y `/application.html` respondieron 200 sin redirección a login. Tracker respondió 200 para `/login` y `/account/profile`; el perfil privado mostró loader sin sesión.
 - No se ejecutó interacción automatizada en navegador (no hay Playwright/Puppeteer instalado). La URL de despliegue y la PR no se verificaron/abrieron. Crear PR queda pendiente de solicitud explícita; rama feature ya publicada.
+
+## AUTH-03 — Recuperación y cambio de contraseña
+
+### Etapa 1 — Base, contratos y control
+
+Actualizado: 2026-10-18. **LISTO PARA REVISIÓN**, pendiente de aprobación del usuario antes de commit y push. No avanzar a etapa 2 automáticamente.
+
+- Fuente actual: `restablecimiento-contrasena.md`; se releyó íntegramente el README oficial en español de `ai-eng-user-authentication-restore`. Coinciden rutas, expiración, uso único, proveedores y entrega; se admite token aleatorio persistido. Se mantienen intactos los criterios de aceptación.
+- Al iniciar, `feature/password-reset` ya existía, limpia y sincronizada con `origin/feature/password-reset` en `65f4656`. Tras fetch, `origin/main` en `78d8678` es ancestro e incluye AUTH-01/02. Los dos commits anteriores de la feature contienen requisitos y eliminación documental; no se recreó la rama ni se restauró contenido eliminado.
+- Corregido el contexto técnico de la guía: tracker ya tiene login, register, perfil, cliente Nexova separado y guard. Nuevas pantallas allí, sin modificar website/backoffice, `CONTEXT.md` o `SPEC.md`.
+- Acordados siete cierres: preparación; dominio de tokens; API/Resend; cliente/guard; recovery público; cambio autenticado; aceptación real/PR. El tablero en la guía distingue En revisión de Publicada y requiere evidencia, aprobación, commit selectivo y push verificado por etapa.
+- Resend seleccionado; variables previstas (aún no implementadas/configuradas): `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL`, `PASSWORD_RESET_EXPIRE_MINUTES` (default 30, rango 15–60). No se leyó ni modificó `.env*`, ni se conectó proveedor externo.
+- Token opaco aleatorio de 32 bytes, digest SHA-256 persistido y consumo/cambio coordinados con almacenamiento actual single-worker. Invalidar pendientes al emitir otro o cambiar credenciales/estado/eliminar cuenta; conservar contrato JWT stateless sin nueva revocación de sesiones.
+- Usuario aceptó envío en segundo plano local/demo sin cola durable: 200 significa solicitud aceptada, no entrega. Respuesta independiente de cuenta; fallo previo común es error operativo, fallo tardío del proveedor se registra saneado. Reinicios pueden perder tareas; recepción real sigue obligatoria para aceptación.
+- Baseline ejecutado: `uv run --locked --project services/api python -m unittest discover -s services/api/tests` → **100 tests OK**; `npm --prefix uis/talent-pipeline-tracker run lint` y `run build` → **correctos**, incluyendo TypeScript de Next. `git diff --check` correcto. Los unit tests existentes usan datos temporales/sintéticos; no se añadió código.
+- Advertencias conocidas no corregidas: Starlette/httpx y varios lockfiles/raíz Turbopack. Next build carga `.env.local` automáticamente sin inspección manual ni impresión de valores. Los enlaces nuevos tienen destino; el README API mantiene enlace histórico preexistente a `autenticacion.md`, ya eliminado, fuera de este cambio.
+- La instrucción global de 4Geeks está excluida por Copilot; se siguieron instrucciones/reglas/skill de validación locales. `ingenieria-ia.md` fue retirado intencionalmente, según techContext. No se ejecutó navegador ni prueba de email: AUTH-03 todavía no existe.
+- La comprobación final detectó que `services/api/.env` no estaba ignorado. Se añadieron reglas raíz `.env`, `.env.*` y excepción `!.env.example`. `git check-ignore --no-index --verbose` confirma exclusiones y excepción de plantilla API; no se leyó ni creó ningún archivo de entorno. Reglas anidadas pueden ser más estrictas y deben revisarse antes de crear una plantilla.
+- Archivos propuestos para este cierre: `.gitignore`, guía de restablecimiento, README API, `memory-bank/progress.md` y `memory-bank/techContext.md`. Mensaje propuesto: `docs(auth): define AUTH-03 stages and contracts`. Sin staging, commit, push ni PR en esta etapa hasta aprobación.
+
+### Publicación de etapa 1 y etapa 2 — Dominio interno
+
+Actualizado: 2026-10-18. Etapa 1 aprobada/publicada en `0ac5d4f`; push verificado y árbol limpio. Etapa 2 **LISTO PARA REVISIÓN**, sin staging/commit/push ni avance a etapa 3 hasta aprobación.
+
+- Implementados `PasswordResetRecord` y `password_reset_service.py` con `issue_password_reset_token`, `reset_password` y `change_password`. Solo capa interna; no endpoints, emails ni cambios frontend.
+- Token opaco de 32 bytes aleatorios, SHA-256 persistido en `password_reset_tokens` junto a user_id/vencimiento UTC, una fila por usuario. `SecretStr` oculta token/digest de repr y serialización normal. Emisión default 30 minutos, enteros 15–60; normaliza email, no emite para cuenta desconocida/inactiva, reemplaza anteriores y limpia expirados.
+- Digest comparado con `hmac.compare_digest`. Consumo, verificación de usuario activo, hash/cambio e invalidación en un único snapshot bajo lock. El cambio con contraseña actual la verifica dentro de esa misma operación, sin ventana entre verificación y escritura. Sin garantías multiworker ni nueva revocación JWT.
+- Helper de invalidación en auth_storage permite a update_user y delete_user invalidar resets sin ciclos de imports ni commits separados. Password/email/desactivación/borrado invalidan solo los propios; rol/perfil preservan. Rollback de archivo también preserva enlace previo válido.
+- Cuatro pruebas iniciales de atomicidad/concurrencia pasaron antes de ampliar cobertura. Suite focal final repetida: 23 tests reset + 21 user_service OK; suite backend total 127 OK (27 nuevos sobre baseline100). Pruebas de reloj controlado, caducidad exacta, límites 15/60, entradas alteradas, reemplazo/limpieza/reapertura, cuentas inactivas/borradas, dos reset y dos cambios concurrentes, aislamiento, fallos de persistencia y política UTF-8.
+- Diagnósticos de los seis archivos Python sin errores. `uv lock --check --project services/api` y `git diff --check` correctos; aviso Starlette/httpx conocido. No dependencias nuevas, configuración externa, .env ni datos reales. No lint/build frontend porque no hay cambios en esa aplicación.
+- Tablero de la guía registra etapa1 Publicada con SHA/push y etapa2 En revisión; criterios de endpoints/email/UI siguen sin marcar. README API separa dominio implementado de contratos HTTP/config pendientes. Mensaje propuesto: `feat(auth): add single-use password reset tokens`.
+
+### Publicación de etapa 2 y etapa 3 — API y Resend
+
+Actualizado: 2026-10-18. Etapa 2 aprobada/publicada en `1997bce`, push y árbol limpio verificados. Etapa 3 **LISTO PARA REVISIÓN**, sin staging/commit/push ni avance a frontend hasta aprobación.
+
+- Router auth implementa forgot/reset/change usando el dominio de etapa 2. Nuevos esquemas `ForgotPasswordRequest`, `ResetPasswordRequest`, `ChangePasswordRequest` y `AuthActionResponse`; `SecretStr` para inputs sensibles. main.py sanea validaciones solo en nuevas rutas: token ausente/nulo/no textual en reset devuelve 400; demás payload inválido, 422 sin eco.
+- Forgot valida configuración común por solicitud y acepta `BackgroundTasks`; búsqueda, emisión y envío ocurren después del cuerpo público, comprobado mediante ASGI. Existente/desconocido/inactivo reciben el mismo 200; configuración inválida o fallo al aceptar tarea, 503 común. Error posterior se registra como mensaje fijo sin traceback, destinatario o secretos; no cambia la respuesta.
+- Reset valida token y cambia contraseña de forma coordinada: inválido/expirado/usado devuelve 400, contraseña inválida 422, fallo de persistencia 503 sin consumir ni cambiar. Change requiere Bearer y ID de sesión: contraseña actual incorrecta 400, autenticación inválida 401, ID extra 422, persistencia fallida 503. Revalida la cuenta y no añade revocación JWT.
+- email_service usa httpx existente con POST a Resend /emails, clave en cabecera, texto plano y enlace al origen configurado. Timeout de 10 segundos por fase; redirecciones, proxy de entorno y reintentos desactivados. `EmailDeliveryError` genérico sin cuerpo crudo del proveedor. Sin envío real ni red externa en tests.
+- Configuración leída por forgot, no al arrancar ni desde .env: `RESEND_API_KEY` ASCII imprimible sin espacios; `RESEND_FROM_EMAIL` email simple autorizado; `NEXOVA_FRONTEND_URL` origen HTTPS sin credenciales/ruta/query/fragment ni puerto 0 (HTTP solo en loopback); `PASSWORD_RESET_EXPIRE_MINUTES` entero 15–60, default 30. Su ausencia no rompe login ni reset/change.
+- Primeros 5 tests correo y 5 HTTP pasaron; ampliación: 5 email + 23 HTTP OK y suite total 155 OK (28 nuevos sobre 127). Cubren enlace/payload, timeout/proveedor fallido, configuración, no enumeración, orden de respuesta, validación sin secretos, JWT/reset cruzados, permisos, concurrencia HTTP y rollback. Se corrigió un caso de prueba porque os.environ no permite byte nulo; se usa un control representable para validar rechazo de claves.
+- Diagnósticos de 6 archivos Python sin errores; `uv lock --check` y `git diff --check` correctos. Dependencias sin cambios y aviso Starlette/httpx conocido. Sin frontend ni navegador: quedan etapas 4–7 y recepción real obligatoria con configuración autorizada. BackgroundTasks no es durable ni garantiza reintentos.
+- Tablero: etapa 2 Publicada en `1997bce`, etapa 3 En revisión con 155 tests; guía/README documentan contrato actual y límites. Mensaje propuesto: `feat(auth): expose password recovery and change endpoints`.
+
+### Publicación de etapa 3 y etapa 4 — Cliente y acceso frontend
+
+Actualizado: 2026-10-18. Etapa 3 aprobada/publicada en `a4429d2`, push y árbol limpio verificados. Etapa 4 **LISTO PARA REVISIÓN**; no staging/commit/push ni avance a nuevas pantallas hasta aprobación.
+
+- Añadidos tres inputs y `NexovaAuthActionResponse` en types/auth.ts, más `requestNexovaPasswordReset`, `resetNexovaPassword` y `changeNexovaPassword` al cliente Nexova. Reutilizan request<T>, origen separado y errores: recovery público sin Bearer ni efecto sobre sesión; cambio requiere Bearer, solo 401 protegido cierra sesión.
+- Nueva política `lib/nexova-auth-routes.ts`, compartida por guard/listener, evita duplicar rutas públicas. Login/register/forgot/reset públicos; account/change-password explícitamente protegido junto a las vistas existentes. El listener ignora expiración en vistas públicas y conserva redirección privada.
+- Sin contraseñas/tokens de reset en localStorage/URL/logs; inputs solo JSON. El reset exitoso y navegación/limpieza de sesión previa se implementarán en la futura pantalla de etapa 5, no en el SDK.
+- Lint focal y completo, build con TypeScript y diagnósticos de cinco archivos correctos. Conocida advertencia de lockfiles múltiples; build/dev carga automáticamente .env.local sin inspección manual ni impresión de contenido. Documentación instalada useRouter/usePathname consultada; sin nuevas dependencias.
+- Prueba en memoria del SDK y ocho rutas/listener con hooks simulados: URL, payload, Bearer, errores públicos/privados/red, sin token y cleanup correctos. Arneses deben compilar con target ES2017: ES5 por defecto altera instanceof de clases Error; se verificó y corrigió solo el arnés temporal. No se añadió framework o suite frontend persistente.
+- SDK contra Uvicorn real efímero pasó solicitud genérica, reset/login/me, cambio Bearer, rechazo de actual incorrecta, contraseña anterior y reuso. Solo sender simulado, claves/cuenta/TinyDB temporales; tokens por stdin, no argumentos/logs; proceso detenido y datos limpiados. Backend no modificado ni suite global repetida.
+- Next dev disponible en puerto 3000, API configurada a puerto 8000 (API efímera ya detenida). Smoke login/register/perfil HTTP 200 con formularios/loader esperados. No páginas AUTH-03 todavía ni navegador real/Resend recibido: siguen etapas 5–7.
+- Tablero registra etapa 3 Publicada `a4429d2`, etapa 4 Publicada en `c0ff844`.
+
+### Publicación de etapa 4 y etapa 5 — Pantallas públicas de recuperación
+
+Actualizado: 2026-10-19. Etapa 4 aprobada/publicada en `c0ff844`. Etapa 5 aprobada/publicada en `274960f`, push y árbol limpio verificados. Etapa 6 Pendiente.
+
+- Implementadas las vistas públicas de recuperación en `uis/talent-pipeline-tracker/`:
+  - `auth-form.tsx`: enlace visible «¿Olvidaste tu contraseña?» apuntando a `/forgot-password`, y feedback de éxito `reset=success` al redirigir tras un restablecimiento exitoso. Envuelto en `Suspense` en `/login` y `/register`.
+  - `/forgot-password` (`forgot-password-form.tsx` y `page.tsx`): formulario accesible, llamada a `requestNexovaPasswordReset`, confirmación genérica no enumerativa («Si esa dirección está registrada, recibirás un enlace en breve») y desactivación de envío tras completar la solicitud.
+  - `/reset-password` (`reset-password-form.tsx` y `page.tsx`): captura de `token` del query string, sanitización inmediata de la URL con `window.history.replaceState` (sin persistencia en localStorage ni historial), metadato `referrer: "no-referrer"`, validación de coincidencia de contraseñas, llamada a `resetNexovaPassword`, limpieza de sesión residual con `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido/expirado muestra error claro y enlace de retorno.
+- Sin contraseñas ni tokens en URL, logs o almacenamiento local del navegador.
+- Tablero: etapas 1–6 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`, `bbfe6b1`). Etapa 7 Pendiente.
+
+### Etapa 6 — Cambio de contraseña autenticado
+
+Actualizado: 2026-10-19. Etapa 6 aprobada/publicada en `bbfe6b1`, push y árbol limpio verificados. Etapa 7 Pendiente.
+
+- Implementada la vista autenticada en `uis/talent-pipeline-tracker/`:
+  - `components/account-profile.tsx`: enlace accesible a `/account/change-password` en la sección de seguridad.
+  - `/account/change-password` (`components/account-change-password.tsx` y `app/account/change-password/page.tsx`): ruta protegida por el guard de sesión Nexova.
+  - Formulario completo con validaciones: longitud mínima (8 caracteres), verificación de que no coincida con la actual y validación previa de coincidencia exacta entre contraseña nueva y confirmación antes del envío.
+  - Llamada HTTP con Bearer token a `changeNexovaPassword`.
+  - Tratamiento accesible de respuestas: contraseña actual incorrecta (400) mostrada como error de formulario; feedback de éxito visible y reseteo de campos; fallos de servidor (500) y de red manejados comprensiblemente.
+- Build y TypeScript completos ejecutados con éxito (`npm run build` con Webpack).
+- Tablero: etapas 1–7 Publicadas (`0ac5d4f`, `1997bce`, `a4429d2`, `c0ff844`, `274960f`, `bbfe6b1`, `e473774`). Todas las etapas completadas.
+
+### Etapa 7 — Aceptación y entrega
+
+Actualizado: 2026-10-19. Etapa 7 aprobada/publicada en `e473774`, push y árbol limpio verificados.
+
+- Verificación integral del ciclo de contraseñas AUTH-03 completada en monorepo:
+  - Recuperación pública (`/forgot-password` y `/reset-password`): tokens de un solo uso con hash SHA-256 en TinyDB, prevención de enumeración con respuesta 200 genérica, sanitización de URL en el cliente (token solo en memoria), política `no-referrer`, redirección con feedback a `/login`.
+  - Cambio autenticado (`/account/change-password`): ruta protegida con Bearer token, validación de contraseña actual y coincidencia de nueva, enlace directo desde perfil.
+  - Servicio de email Resend integrado en backend con texto plano legible en móvil y enlace confiable.
+  - Plantilla de variables de entorno `.env.example` creada en `services/api/` documentando `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL` y variables JWT/TinyDB.
+  - Ningún secreto ni credencial real versionada en Git.
+  - TypeScript y build de Next.js (`npm run build`) verificados con éxito (0 errores).

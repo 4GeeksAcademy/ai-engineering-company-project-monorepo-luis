@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CircleAlert, LoaderCircle, Save } from "lucide-react";
+import { ArrowLeft, CircleAlert, KeyRound, LoaderCircle, Save } from "lucide-react";
 
 import {
   getNexovaCurrentUser,
@@ -252,6 +252,26 @@ export default function AccountProfile() {
                 Guardar cambios
               </button>
             </form>
+
+            <div className="mt-8 border-t border-slate-200 pt-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Seguridad de la cuenta
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Gestiona la clave de acceso de tu usuario en Nexova.
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+                  href="/account/change-password"
+                >
+                  <KeyRound aria-hidden="true" size={16} />
+                  Cambiar contraseña
+                </Link>
+              </div>
+            </div>
           </section>
         ) : null}
       </div>

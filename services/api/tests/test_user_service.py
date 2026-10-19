@@ -8,11 +8,17 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
+from pydantic import SecretStr
 from tinydb import TinyDB
 from tinydb.table import Table
 
 from services.api.auth_models import ProfileUpdate, UserCreate, UserRole, UserUpdate
 from services.api.auth_storage import DEFAULT_DATABASE_PATH, get_auth_database_path
+from services.api.password_reset_service import (
+    InvalidPasswordResetTokenError,
+    issue_password_reset_token,
+    reset_password,
+)
 from services.api.passwords import verify_password
 from services.api.user_service import (
     DuplicateEmailError,
@@ -216,3 +222,54 @@ class TestUserService(unittest.TestCase):
         self.register()
         data = json.loads(self.database_path.read_text())
         self.assertEqual(set(data), {"users", "profiles", "auth_metadata"})
+
+    def test_sensitive_updates_invalidate_only_own_reset(self):
+        updates = (
+            UserUpdate(password="new-synthetic-password"),
+            UserUpdate(email="updated@example.com"),
+            UserUpdate(is_active=False),
+        )
+        other = self.register("other@example.com")
+        other_token = issue_password_reset_token(other.email)
+        for index, update in enumerate(updates):
+            with self.subTest(fields=update.model_fields_set):
+                user = self.register(f"target{index}@example.com")
+                token = issue_password_reset_token(user.email)
+                update_user(user.id, update)
+                with self.assertRaises(InvalidPasswordResetTokenError):
+                    reset_password(token, SecretStr("reset-synthetic-password"))
+        reset_password(other_token, SecretStr("reset-synthetic-password"))
+
+    def test_unrelated_updates_preserve_pending_reset(self):
+        user = self.register()
+        token = issue_password_reset_token(user.email)
+        update_user(user.id, UserUpdate())
+        update_user(user.id, UserUpdate(role="manager"))
+        update_profile(user.id, ProfileUpdate(name="Synthetic Name"))
+        reset_password(token, SecretStr("reset-synthetic-password"))
+        self.assertEqual(get_user_by_id(user.id).role, UserRole.MANAGER)
+        self.assertEqual(get_profile_by_user_id(user.id).name, "Synthetic Name")
+
+    def test_failed_sensitive_update_preserves_pending_reset(self):
+        user = self.register()
+        token = issue_password_reset_token(user.email)
+        before = self.database_path.read_bytes()
+        with patch(
+            "services.api.auth_storage.os.replace",
+            side_effect=OSError("Synthetic disk failure"),
+        ), self.assertRaises(OSError):
+            update_user(user.id, UserUpdate(password="new-synthetic-password"))
+        self.assertEqual(self.database_path.read_bytes(), before)
+        reset_password(token, SecretStr("reset-synthetic-password"))
+
+    def test_failed_deletion_preserves_pending_reset(self):
+        user = self.register()
+        token = issue_password_reset_token(user.email)
+        before = self.database_path.read_bytes()
+        with patch(
+            "services.api.auth_storage.os.replace",
+            side_effect=OSError("Synthetic disk failure"),
+        ), self.assertRaises(OSError):
+            delete_user(user.id)
+        self.assertEqual(self.database_path.read_bytes(), before)
+        reset_password(token, SecretStr("reset-synthetic-password"))

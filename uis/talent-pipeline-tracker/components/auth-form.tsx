@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, BriefcaseBusiness, LoaderCircle } from "lucide-react";
 
 import {
@@ -43,6 +43,8 @@ function getErrorMessage(error: unknown, registered: boolean): string {
 export default function AuthForm({ mode }: AuthFormProps) {
   const isRegistration = mode === "register";
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetSuccess = !isRegistration && searchParams.get("reset") === "success";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -125,6 +127,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 : "Introduce tus credenciales para acceder al pipeline de talento."}
             </p>
 
+            {resetSuccess ? (
+              <div
+                aria-live="polite"
+                className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800"
+                role="status"
+              >
+                Contraseña restablecida correctamente. Inicia sesión con tu nueva contraseña.
+              </div>
+            ) : null}
+
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               {isRegistration ? (
                 <>
@@ -186,9 +198,19 @@ export default function AuthForm({ mode }: AuthFormProps) {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium" htmlFor="password">
-                  Contraseña
-                </label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-sm font-medium" htmlFor="password">
+                    Contraseña
+                  </label>
+                  {!isRegistration ? (
+                    <Link
+                      className="text-xs font-semibold text-emerald-800 underline-offset-4 hover:underline"
+                      href="/forgot-password"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  ) : null}
+                </div>
                 <input
                   autoComplete={isRegistration ? "new-password" : "current-password"}
                   className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100"

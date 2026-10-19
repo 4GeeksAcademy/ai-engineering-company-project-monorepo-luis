@@ -14,7 +14,7 @@ from services.api.auth_models import (
     UserUpdate,
     normalize_email,
 )
-from services.api.auth_storage import open_auth_database
+from services.api.auth_storage import invalidate_password_reset_tokens, open_auth_database
 from services.api.passwords import hash_password
 
 
@@ -129,6 +129,12 @@ def update_user(user_id: int, update: UserUpdate) -> UserRecord:
                 raise DuplicateEmailError("Email already registered")
         if fields:
             users.update(fields, doc_ids=[user_id])
+        if (
+            update.password is not None
+            or update.email is not None
+            or update.is_active is False
+        ):
+            invalidate_password_reset_tokens(database, user_id)
         return _to_user(_require_user(database, user_id))
 
 
@@ -138,6 +144,7 @@ def delete_user(user_id: int) -> None:
         profile = _require_profile(database, user_id)
         database.table("profiles").remove(doc_ids=[profile.doc_id])
         database.table("users").remove(doc_ids=[user_id])
+        invalidate_password_reset_tokens(database, user_id)
 
 
 def get_profile_by_user_id(user_id: int) -> ProfileResponse:

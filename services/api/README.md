@@ -615,3 +615,269 @@ storage, environment-based JWT configuration, and the automated/live verificatio
 above. The backoffice has not been updated to send Bearer tokens; that frontend
 integration remains a separate follow-up. Its requests to the now-protected
 operational routes will receive `401` until integrated.
+
+## AUTH-03: password recovery plan
+
+Stage 1 documented the contract, stage 2 added the internal token/password domain,
+and stage 3 now exposes the three AUTH-03 endpoints and a configurable Resend
+client. **Frontend recovery pages and real email receipt are not verified yet**;
+stage 3 tests use synthetic configuration and injected transports only.
+The [requirements and seven-stage board](../../restablecimiento-contrasena.md#plan-de-trabajo-por-etapas)
+track evidence, review, commit and push separately. Work continues on the existing
+`feature/password-reset`; every commit and push requires the user's approval.
+
+### Integration and endpoints
+
+AUTH-02 already integrates Nexova login, registration and profiles in
+`uis/talent-pipeline-tracker`. Extend its `lib/nexova-api.ts` client and
+`NEXT_PUBLIC_NEXOVA_API_URL`; do not send authentication requests to the external
+candidate API configured by `NEXT_PUBLIC_API_URL`. The public website and the
+static backoffice are outside this milestone.
+
+| Method | Route | Access and behavior |
+| --- | --- | --- |
+| POST | `/auth/forgot-password` | Public; `{ email }`; identical `200` body for valid existing/unknown emails when accepted. No account-existence disclosure. |
+| POST | `/auth/reset-password` | Public; `{ token, new_password }`; invalid, missing, expired or consumed token returns generic `400`. |
+| POST | `/auth/change-password` | Bearer required; `{ current_password, new_password }`; wrong current password returns `400`, missing/invalid session `401`. No caller-supplied user ID. |
+
+Malformed email or password-policy failures use sanitized validation errors,
+without echoing input. Preserve bcrypt's minimum 8 characters, maximum 72 UTF-8
+bytes, and rejection of null bytes. New auth payloads must not leak credentials
+through FastAPI/Pydantic validation responses, logs or exception details.
+
+### Reset-token storage
+
+Use an opaque token generated with `secrets.token_urlsafe(32)` and persist only
+its SHA-256 digest, user association and minimal expiration/consumption state.
+Use secure comparison and a 30-minute default lifetime, bounded to 15-60 minutes.
+Reset tokens cannot authorize protected routes; access JWTs cannot reset passwords.
+
+Issuing another token invalidates previous links for that user. Validate and
+consume the token, update the password hash and invalidate pending resets within
+one `open_auth_database` snapshot, not separate service commits. Concurrent use
+must yield exactly one success; persistence failure must leave the password and
+token unchanged. Invalidate outstanding resets on existing password/email changes,
+deactivation and deletion too. Clean up expired records without unbounded growth.
+Reuse the existing single-process lock; multi-worker guarantees remain out of scope.
+Previously issued access JWTs retain their existing expiration behavior: this work
+does not introduce server-side session revocation or refresh tokens.
+
+### Resend configuration
+
+Stage 3 reads these settings for each forgot-password request, before accepting
+background work. No automatic `.env` loader is introduced. Missing or invalid
+configuration returns the same generic `503` for every account; it does not prevent
+JWT startup or affect login/reset/change. Existing required `JWT_SECRET_KEY` and
+`ACCESS_TOKEN_EXPIRE_MINUTES` remain unchanged. Production credentials have not been
+configured or tested during this implementation.
+
+| Variable | Purpose and validation |
+| --- | --- |
+| `RESEND_API_KEY` | Required backend-only secret, nonblank printable ASCII without spaces. Never expose through `NEXT_PUBLIC_*`, responses, logs or committed files. |
+| `RESEND_FROM_EMAIL` | Required plain email address (no display name), authorized by Resend. Verify current onboarding/domain and recipient restrictions before a real test. |
+| `NEXOVA_FRONTEND_URL` | Required trusted origin used to construct `/reset-password?token=...`, never a caller-controlled Host. HTTPS required except HTTP localhost/127.0.0.1/[::1]; reject credentials, paths, query strings, fragments and port zero. |
+| `PASSWORD_RESET_EXPIRE_MINUTES` | Optional integer, default `30`, constrained to `15` through `60`. |
+
+Use runtime environment variables. Reading or modifying `.env*`, configuring real
+credentials and connecting Resend require separate authorization. Check Git ignore
+coverage before any approved file-based setup. Stage 1 neither creates nor reads an
+environment file. Real email acceptance requires an authorized sender and test
+inbox; no real candidate data may be used.
+
+Stage 1 added root Git ignore rules for `.env` and `.env.*`, allowing
+`.env.example` templates. `git check-ignore --no-index --verbose` verified the
+API environment paths and its template exception without opening or creating them.
+Nested application rules can be stricter; verify the exact path before any approved
+template or credential setup.
+
+### Accepted local/demo delivery policy
+
+Perform account lookup, token issuance and Resend delivery in a background task,
+outside the public response path. An identical `200` means the request was accepted,
+not that email delivery succeeded. Do not hold the TinyDB lock across a network call.
+Use bounded provider timeouts and sanitized operational failures; never log a reset
+URL, token, API key, password, provider payload or recipient address.
+
+Check local configuration and task acceptance consistently regardless of the email.
+A failure before acceptance is a generic operational error, not a false success;
+malformed email remains a generic validation error. A later provider failure must
+not become an account-existence signal. The UI must distinguish a network or
+acceptance error from a successfully accepted request without claiming delivery.
+This agreed scope has no durable queue or guaranteed retries: a restart can lose
+pending work and require another request. Real email receipt remains mandatory for
+final acceptance; mocked delivery cannot satisfy it.
+
+### Stage checks
+
+From the monorepo root, establish the backend baseline:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+git diff --check
+```
+
+From `uis/talent-pipeline-tracker`, establish the frontend baseline:
+
+```bash
+npm run lint
+npm run build
+```
+
+Future backend tests use temporary databases, synthetic users, controlled clocks
+and injected email transports. Cover expiration, one-time/concurrent consumption,
+persistence failures, indistinguishable public responses, provider failures,
+cross-use of JWT/reset tokens, validation secrecy and existing endpoint regressions.
+Run focused tests before the full suite; check the uv lockfile if dependencies change.
+No Python lint/typecheck/build or frontend test script is currently declared.
+Final acceptance additionally requires a browser flow and real Resend receipt,
+with sanitized evidence and no tokens in URLs captured by logs, screenshots or traces.
+
+Stage 1 baseline on 2026-10-18: all **100 backend tests**, tracker lint and
+production build passed. The existing Starlette/httpx deprecation and Next.js
+multiple-lockfile/root-inference warnings remain nonblocking. The build loaded its
+existing local environment automatically; no environment file content was inspected,
+changed or printed. Document diff formatting passed; new local link destinations
+exist. An older AUTH-01 link to the deleted `autenticacion.md` remains historical
+and outside this change. These checks establish the starting point, not AUTH-03
+acceptance. Stage 1 was approved and published as `0ac5d4f`; its push and clean,
+synchronized branch were verified before starting stage 2.
+
+## AUTH-03 stage 2: internal password lifecycle
+
+### Internal functions, not HTTP endpoints
+
+`password_reset_service.py` adds:
+
+- `issue_password_reset_token(email, lifetime_minutes=30)`: normalizes the email,
+  returns `None` for an unknown/inactive account, otherwise returns a `SecretStr`
+  holding a fresh opaque token. Lifetime must be an actual integer from 15 to 60.
+  Environment parsing and provider settings remain for stage 3.
+- `reset_password(token, new_password)`: validates the token format, compares its
+  SHA-256 digest with `hmac.compare_digest`, and checks expiration and the live
+  active account before hashing the new password. Invalid/expired/consumed tokens
+  or missing/inactive users raise the same `InvalidPasswordResetTokenError`.
+- `change_password(user_id, current_password, new_password)`: verifies the current
+  password under the storage lock before hashing/updating. A mismatch raises
+  `CurrentPasswordMismatchError`; missing/inactive users raise `UserNotFoundError`.
+  The future router must derive the ID from `get_current_user`, not request input.
+
+The two mutators return no credential data. Invalid new passwords reuse the
+existing policy and leave both the previous password and reset token unchanged.
+At the stage 2 checkpoint no router imported these functions. Stage 3 now wires
+them as described below; access JWT revocation remains outside this milestone.
+
+### Persistence and coordinated invalidation
+
+`PasswordResetRecord` requires a positive integer user ID and timezone-aware
+expiration normalized to UTC. Its digest is `SecretStr`, excluded from repr and
+normal serialization; only the storage path explicitly persists it.
+The optional `password_reset_tokens` table in the existing auth TinyDB contains
+`user_id`, `token_digest` and `expires_at`. It stores neither raw tokens nor email
+messages/passwords. The user ID is also its document key, limiting pending records
+to one per user. New issuance replaces the old link and removes expired records.
+
+Validation, bcrypt hashing, password update and token removal share a single
+`open_auth_database` context. A consumed token is removed, so repeat or concurrent
+consumption cannot succeed. Disk failure leaves the previous snapshot unchanged,
+including its unused token. The existing `update_user` invalidates pending resets
+on password/email submissions or deactivation; `delete_user` removes them alongside
+the user/profile. Profile-only and role-only updates preserve them, and other users
+are unaffected. This remains single-process/single-worker coordination, not a
+multi-process database transaction or a durable delivery queue.
+
+### Stage 2 checks
+
+From the monorepo root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_password_reset_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_user_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+git diff --check
+```
+
+On 2026-10-18: **23 reset-domain tests**, **21 user-service tests** and **127 total
+backend tests** passed. The focused suites were repeated after the final test-only
+adjustment. Coverage includes exact expiry with a controlled clock (no sleeps),
+15/60-minute boundaries, tampering/reuse, persisted hash-only records, reopening,
+replacement/cleanup, missing/inactive users, two simultaneous resets and two
+simultaneous current-password changes, scoped invalidation, invalid password limits,
+and injected commit failures during issuance/reset/change/user update/deletion.
+All accounts/databases are synthetic and temporary. Diagnostics for the six touched
+Python files, lockfile and diff checks passed; dependencies did not change.
+The known Starlette/httpx warning remains. Frontend checks and real email testing
+did not apply to that internal-only stage. Stage 2 was approved and published as
+`1997bce`, with its push and clean branch verified before starting stage 3.
+
+## AUTH-03 stage 3: HTTP and Resend integration
+
+### HTTP contract
+
+- `POST /auth/forgot-password` accepts JSON `{ email }`. A valid accepted request
+  returns `200` with only a generic `message`; unknown/inactive accounts receive the
+  same response. Syntax failures return sanitized `422`. Missing/invalid settings
+  or task-acceptance failure return generic `503` regardless of account existence.
+- `POST /auth/reset-password` accepts `{ token, new_password }`. Invalid, absent,
+  null, expired or consumed tokens return generic `400`; other invalid payloads or
+  passwords return sanitized `422`. Success returns `200` with only a confirmation
+  message. Password persistence failure returns generic `503`, without consuming
+  the token or partially changing credentials.
+- `POST /auth/change-password` accepts `{ current_password, new_password }`, requires
+  Bearer and derives its user ID from `get_current_user`. Wrong current password
+  returns `400`; missing/invalid/expired credentials or a no-longer-active account
+  return `401` with the Bearer challenge. Extra fields (including user ID) and
+  password-policy failures return sanitized `422`; persistence failure returns
+  generic `503`. Success returns only a confirmation message.
+
+The new schemas use `SecretStr` and exclude sensitive inputs from repr/dumps.
+`main.py` sanitizes validation errors for these three routes, including malformed
+JSON, without changing prior routes' validation contracts. Login behavior and
+JWT/session policy remain unchanged. OpenAPI distinguishes public recovery from
+the Bearer-protected change operation.
+
+### Background delivery and transport
+
+`get_password_reset_settings` validates a configuration snapshot per request;
+`get_password_reset_sender` supplies the replaceable sender. `BackgroundTasks`
+performs lookup, issuance and sending after the public response body. This ordering
+is tested with ASGI response events, not inferred from TestClient timings.
+
+`email_service.py` posts to `https://api.resend.com/emails` through existing httpx,
+with the API key only in the Authorization header, a plain-text Spanish message,
+and a trusted-origin reset link. Timeouts are 10 seconds per network phase;
+redirects, environment proxy settings and automatic retries are disabled. Non-2xx
+responses and network/timeout errors become `EmailDeliveryError` without provider
+payload or credential echo. The background handler logs only a fixed operational
+failure message, with no traceback, recipient, URL, token or provider body.
+
+An accepted `200` does not certify delivery. Background work is not durable, can be
+lost on process restart and has no guaranteed retry. Later failures do not change
+the public response or disclose account existence. A real Resend inbox receipt is
+still required in the final end-to-end acceptance, after explicit authorization to
+configure credentials/sender and connect the provider. No real email was sent in
+stage 3; mocks verify integration contracts, not actual deliverability.
+
+### Stage 3 verification
+
+From the monorepo root:
+
+```bash
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_email_service.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests -p test_password_reset_api.py
+uv run --locked --project services/api python -m unittest discover -s services/api/tests
+uv lock --check --project services/api
+git diff --check
+```
+
+On 2026-10-18: **5 email tests**, **23 AUTH-03 HTTP tests** and **155 total backend
+tests** passed. Test fixtures use temporary TinyDB and synthetic keys/users; sender
+injection and `httpx.MockTransport` prevent external delivery. Coverage includes
+configuration validation, message/link construction, sanitized provider/timeout
+failures, common acceptance errors, response-before-lookup ordering, equal public
+responses, expiry/reuse, concurrent HTTP consumption, password policy, authorization,
+cross-use rejection of JWT/reset tokens, persistence rollback and existing login.
+Diagnostics for six touched Python files, lockfile and diff checks passed, with no
+new dependencies. The known Starlette/httpx warning remains. Frontend was unchanged;
+no frontend lint/build/browser or real-email acceptance is claimed. Stage 3 is ready
+for review; commit and push await the user's approval.
