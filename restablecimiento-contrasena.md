@@ -221,8 +221,8 @@ Estados: **Pendiente**, **En curso**, **En revisión**, **Publicada** o **Bloque
 | 1. Base, contratos y control | Contrastar README oficial, Git y AUTH-02; actualizar esta guía, configuración prevista y memoria; ejecutar baseline. | Publicada | 2026-10-18: baseline y revisión correctos; publicación aprobada y verificada. | `0ac5d4f` | Verificado; rama sincronizada |
 | 2. Dominio seguro | Tokens hasheados, expiración, invalidación y cambio coordinado; pruebas de uso único, concurrencia y fallo de persistencia. | Publicada | 2026-10-18: 127 tests OK; publicación aprobada y verificada. | `1997bce` | Verificado; rama sincronizada |
 | 3. API y Resend | Tres endpoints y cliente Resend integrados; pruebas HTTP y de transporte simulado, errores seguros y regresiones backend. | Publicada | 2026-10-18: 155 tests OK; publicación aprobada y verificada. Sin correo real todavía. | `a4429d2` | Verificado; rama sincronizada |
-| 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | En revisión | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | Pendiente de aprobación | Pendiente |
-| 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | Pendiente | Pendiente | Pendiente | Pendiente |
+| 4. Cliente y acceso frontend | Tipos y métodos en cliente Nexova; recovery público y cambio protegido; navegación de sesión, lint y build. | Publicada | 2026-10-18: lint/build, diagnósticos, SDK simulado y contra Uvicorn real, smoke HTTP correctos. | `c0ff844` | Verificado; rama sincronizada |
+| 5. Recuperación pública | Forgot/reset, enlace desde login, confirmación y errores accesibles; token solo en memoria y URL limpiada; verificación en navegador. | En revisión | 2026-10-19: login con enlace/feedback, pantallas forgot y reset con sanitización de URL, no-referrer, cleanup de sesión, TypeScript y build OK. | Pendiente de aprobación | Pendiente |
 | 6. Cambio autenticado | Página y acceso desde perfil, Bearer, verificación de contraseña actual, confirmación y feedback; pruebas de éxito y errores. | Pendiente | Pendiente | Pendiente | Pendiente |
 | 7. Aceptación y entrega | Recepción real de Resend, recorrido completo y regresiones; evidencias saneadas y documentación; PR a `main` previa autorización. | Pendiente | Pendiente | Pendiente | Pendiente |
 
@@ -293,4 +293,15 @@ Mensajes previstos: `docs(auth): define AUTH-03 stages and contracts`, `feat(aut
 - Next dev iniciado en `http://localhost:3000` para esta sesión, apuntando al API habitual de puerto 8000; el API efímero anterior ya no está activo. Smoke HTTP: `/login`, `/register` y `/account/profile` responden 200 con formularios/loader esperados. No hay páginas AUTH-03 nuevas todavía; la suite backend no se repitió porque su código no cambió.
 - El cliente Resend y los endpoints permanecen como en etapa 3; no se leyó/modificó `.env*` manualmente ni se enviaron emails reales. UI, interacción de navegador y recepción real siguen pendientes de etapas 5–7.
 
-**Estado de auditoría:** etapas 1–3 publicadas y 4 en revisión. Cliente AUTH-03 y política de acceso integrados, pero todavía sin pantallas de recuperación/cambio, recepción real de email, aceptación end-to-end o PR.
+### Registro de etapa 5 — 2026-10-19
+
+- **LISTO PARA REVISIÓN:** pantallas públicas de recuperación implementadas y accesibles; commit y push pendientes de aprobación. La etapa 4 se publicó con aprobación en `c0ff844`, con push verificado antes de iniciar esta etapa.
+- Página `/login` y componente `auth-form.tsx`: añadido enlace visible «¿Olvidaste tu contraseña?» apuntando a `/forgot-password`, y feedback de confirmación accesible cuando se llega tras restablecimiento exitoso (`?reset=success`). Envuelto en `Suspense` para lectura segura de parámetros de búsqueda en SSR/build.
+- Página `/forgot-password` (`forgot-password-form.tsx` y `page.tsx`): formulario accesible con validación de email, botón con spinner de carga, respuesta genérica no enumerativa («Si esa dirección está registrada, recibirás un enlace en breve»), bloqueo de formulario/botón tras envío para prevenir solicitudes duplicadas y manejo accesible de errores (503/red/422).
+- Página `/reset-password` (`reset-password-form.tsx` y `page.tsx`): captura el `token` del query param de la URL en estado de memoria y limpia inmediatamente la URL mediante `window.history.replaceState` para evitar fugas en historial, logs o proxies.
+- Política de referrer: `referrer: "no-referrer"` declarada en metadata de `/reset-password`.
+- Validación en cliente: mínimo 8 caracteres y coincidencia exacta entre contraseña nueva y confirmación antes del envío HTTP.
+- Consumo seguro y cleanup: llamada a `resetNexovaPassword({ token, new_password })`, limpieza de tokens de acceso previos mediante `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido o expirado (400) presenta mensaje claro y enlace para solicitar un nuevo enlace en `/forgot-password`.
+- Sin persistencia de contraseñas ni tokens en localStorage/logs/URL.
+
+**Estado de auditoría:** etapas 1–4 publicadas y etapa 5 en revisión. Pantallas de recuperación pública integradas; pendiente etapa 6 (cambio autenticado) y etapa 7 (recepción real de Resend, verificación end-to-end y PR).

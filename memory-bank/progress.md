@@ -285,4 +285,15 @@ Actualizado: 2026-10-18. Etapa 3 aprobada/publicada en `a4429d2`, push y árbol 
 - Prueba en memoria del SDK y ocho rutas/listener con hooks simulados: URL, payload, Bearer, errores públicos/privados/red, sin token y cleanup correctos. Arneses deben compilar con target ES2017: ES5 por defecto altera instanceof de clases Error; se verificó y corrigió solo el arnés temporal. No se añadió framework o suite frontend persistente.
 - SDK contra Uvicorn real efímero pasó solicitud genérica, reset/login/me, cambio Bearer, rechazo de actual incorrecta, contraseña anterior y reuso. Solo sender simulado, claves/cuenta/TinyDB temporales; tokens por stdin, no argumentos/logs; proceso detenido y datos limpiados. Backend no modificado ni suite global repetida.
 - Next dev disponible en puerto 3000, API configurada a puerto 8000 (API efímera ya detenida). Smoke login/register/perfil HTTP 200 con formularios/loader esperados. No páginas AUTH-03 todavía ni navegador real/Resend recibido: siguen etapas 5–7.
-- Tablero registra etapa 3 Publicada `a4429d2`, etapa 4 En revisión. Mensaje propuesto: `feat(auth-ui): add password API client and route access`.
+- Tablero registra etapa 3 Publicada `a4429d2`, etapa 4 Publicada en `c0ff844`.
+
+### Publicación de etapa 4 y etapa 5 — Pantallas públicas de recuperación
+
+Actualizado: 2026-10-19. Etapa 4 aprobada/publicada en `c0ff844`, push y árbol limpio verificados. Etapa 5 **LISTO PARA REVISIÓN**; commit y push pendientes de aprobación del usuario.
+
+- Implementadas las vistas públicas de recuperación en `uis/talent-pipeline-tracker/`:
+  - `auth-form.tsx`: enlace visible «¿Olvidaste tu contraseña?» apuntando a `/forgot-password`, y feedback de éxito `reset=success` al redirigir tras un restablecimiento exitoso. Envuelto en `Suspense` en `/login` y `/register`.
+  - `/forgot-password` (`forgot-password-form.tsx` y `page.tsx`): formulario accesible, llamada a `requestNexovaPasswordReset`, confirmación genérica no enumerativa («Si esa dirección está registrada, recibirás un enlace en breve») y desactivación de envío tras completar la solicitud.
+  - `/reset-password` (`reset-password-form.tsx` y `page.tsx`): captura de `token` del query string, sanitización inmediata de la URL con `window.history.replaceState` (sin persistencia en localStorage ni historial), metadato `referrer: "no-referrer"`, validación de coincidencia de contraseñas, llamada a `resetNexovaPassword`, limpieza de sesión residual con `clearNexovaSession()` y redirección a `/login?reset=success`. Token inválido/expirado muestra error claro y enlace de retorno.
+- Sin contraseñas ni tokens en URL, logs o almacenamiento local del navegador.
+- Tablero: etapa 4 Publicada `c0ff844`, etapa 5 En revisión. Mensaje propuesto: `feat(auth-ui): implement password recovery screens`.

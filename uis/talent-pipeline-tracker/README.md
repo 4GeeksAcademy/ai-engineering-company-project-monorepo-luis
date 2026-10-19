@@ -23,7 +23,7 @@ The Nexova API must be running with valid `JWT_SECRET_KEY` and `ACCESS_TOKEN_EXP
 |---|---|
 | `/login`, `/register` | Public |
 | `/`, `/candidates/[id]`, `/account/profile` | Client-side Nexova session guard |
-| `/forgot-password`, `/reset-password` | Public policy prepared in stage 4; pages are added in stage 5 |
+| `/forgot-password`, `/reset-password` | Public recovery pages added in stage 5 |
 | `/account/change-password` | Protected policy prepared in stage 4; page is added in stage 6 |
 
 Protected Nexova requests send `Authorization: Bearer <token>`. Only a protected `401` expires the session; `403`, network errors, and `5xx` responses do not. The guard protects the tracker UI, not candidate data returned by the external Tracker API, which does not validate Nexova JWTs. The public website in `uis/website/` is separate and has no auth guard.
@@ -77,6 +77,27 @@ Stage 4 verification on 2026-10-18:
 	unauthenticated loader. No new password pages exist in the build yet; browser
 	acceptance and real email receipt remain for later stages. Next dev is available
 	on port 3000 for this session; the ephemeral API used above has been stopped.
+
+## Stage 5 Public Recovery Screens
+
+Stage 5 implements the public password recovery flow:
+
+- `/login` ([`components/auth-form.tsx`](components/auth-form.tsx)):
+  - Added visible "¿Olvidaste tu contraseña?" link targeting `/forgot-password`.
+  - Added accessible confirmation alert on success redirection (`?reset=success`).
+- `/forgot-password` ([`app/forgot-password/page.tsx`](app/forgot-password/page.tsx), [`components/forgot-password-form.tsx`](components/forgot-password-form.tsx)):
+  - Accessible form requesting `email`.
+  - Calls `requestNexovaPasswordReset({ email })`.
+  - Generic non-enumerating confirmation: *"Si esa dirección está registrada, recibirás un enlace en breve."*
+  - Form and submit button are disabled post-submission to prevent duplicate requests.
+  - Accessible error feedback for network/service failures (503, connection loss).
+- `/reset-password` ([`app/reset-password/page.tsx`](app/reset-password/page.tsx), [`components/reset-password-form.tsx`](components/reset-password-form.tsx)):
+  - Reads `token` query parameter from the URL.
+  - Sanitizes the URL immediately using `window.history.replaceState` so the token is not leaked into history, logs, or referrers.
+  - Declares `referrer: "no-referrer"` metadata.
+  - Client-side validation: minimum 8 characters and confirmation match before calling `resetNexovaPassword`.
+  - Cleans up residual local session with `clearNexovaSession()` upon successful reset, then redirects to `/login?reset=success`.
+  - Invalid/expired tokens (HTTP 400) display a clear alert and a link to request a new link at `/forgot-password`.
 
 ## Validation
 
