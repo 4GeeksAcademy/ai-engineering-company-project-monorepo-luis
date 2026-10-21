@@ -30,8 +30,14 @@ def _to_record(document: Any) -> SupplierRecord:
 
 
 def _get_supplier_or_404(supplier_id: int) -> SupplierRecord:
-    with open_supplier_table() as table:
-        document = table.get(doc_id=supplier_id)
+    try:
+        with open_supplier_table() as table:
+            document = table.get(doc_id=supplier_id)
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error accessing supplier storage",
+        ) from None
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -44,9 +50,15 @@ def _get_supplier_or_404(supplier_id: int) -> SupplierRecord:
 def create_supplier(supplier: SupplierCreate) -> SupplierRecord:
     record = supplier.model_dump(mode="json", exclude_none=True)
     record["updated_at"] = datetime.now(timezone.utc).isoformat()
-    with open_supplier_table() as table:
-        supplier_id = table.insert(record)
-        created = table.get(doc_id=supplier_id)
+    try:
+        with open_supplier_table() as table:
+            supplier_id = table.insert(record)
+            created = table.get(doc_id=supplier_id)
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error persisting supplier",
+        ) from None
     return _to_record(created)
 
 
@@ -55,8 +67,14 @@ def list_suppliers(
     country: SupplierCountry | None = Query(default=None),
     category: SupplierCategory | None = Query(default=None),
 ) -> list[SupplierRecord]:
-    with open_supplier_table() as table:
-        documents = table.all()
+    try:
+        with open_supplier_table() as table:
+            documents = table.all()
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving suppliers from storage",
+        ) from None
 
     suppliers = []
     for document in documents:
@@ -82,9 +100,15 @@ def update_supplier_rate(
         "monthly_rate": update.monthly_rate,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    with open_supplier_table() as table:
-        updated_ids = table.update(fields, doc_ids=[supplier_id])
-        document = table.get(doc_id=supplier_id) if updated_ids else None
+    try:
+        with open_supplier_table() as table:
+            updated_ids = table.update(fields, doc_ids=[supplier_id])
+            document = table.get(doc_id=supplier_id) if updated_ids else None
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating supplier rate",
+        ) from None
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -98,12 +122,18 @@ def update_supplier_status(
     supplier_id: int,
     update: SupplierStatusUpdate,
 ) -> SupplierRecord:
-    with open_supplier_table() as table:
-        updated_ids = table.update(
-            {"status": update.status},
-            doc_ids=[supplier_id],
-        )
-        document = table.get(doc_id=supplier_id) if updated_ids else None
+    try:
+        with open_supplier_table() as table:
+            updated_ids = table.update(
+                {"status": update.status},
+                doc_ids=[supplier_id],
+            )
+            document = table.get(doc_id=supplier_id) if updated_ids else None
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating supplier status",
+        ) from None
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,8 +144,14 @@ def update_supplier_status(
 
 @router.delete("/{supplier_id}", status_code=status.HTTP_200_OK)
 def delete_supplier(supplier_id: int) -> dict[str, int | bool]:
-    with open_supplier_table() as table:
-        deleted_ids = table.remove(doc_ids=[supplier_id])
+    try:
+        with open_supplier_table() as table:
+            deleted_ids = table.remove(doc_ids=[supplier_id])
+    except OSError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error deleting supplier",
+        ) from None
     if not deleted_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

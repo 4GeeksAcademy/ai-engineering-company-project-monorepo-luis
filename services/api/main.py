@@ -94,7 +94,15 @@ async def sanitize_auth_validation_errors(
         ):
             return JSONResponse(status_code=400, content={"detail": "Invalid password reset token"})
         return JSONResponse(status_code=422, content={"detail": "Invalid password request"})
-    return JSONResponse(status_code=422, content={"detail": error.errors()})
+    sanitized = [
+        {
+            "loc": list(item.get("loc", ())),
+            "msg": item.get("msg", "Invalid value"),
+            "type": item.get("type", "value_error"),
+        }
+        for item in error.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": sanitized})
 
 
 @app.exception_handler(Exception)

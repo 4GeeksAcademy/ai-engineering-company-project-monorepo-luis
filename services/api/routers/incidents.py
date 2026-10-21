@@ -76,8 +76,14 @@ def get_incidents_summary() -> IncidentSummary:
     Returns aggregated metrics by status, category, origin, and branch.
     Responds cleanly with zero values when the storage is empty.
     """
-    with open_incident_table() as table:
-        records = table.all()
+    try:
+        with open_incident_table() as table:
+            records = table.all()
+    except OSError:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error accessing incident storage",
+        ) from None
 
     status_counts: dict[str, int] = {st: 0 for st in ALLOWED_STATUSES}
     category_counts: dict[str, int] = {cat: 0 for cat in ALLOWED_CATEGORIES}
@@ -123,9 +129,15 @@ def create_incident(incident: IncidentCreate) -> IncidentRecord:
     data["created_at"] = now_iso
     data["updated_at"] = now_iso
 
-    with open_incident_table() as table:
-        doc_id = table.insert(data)
-        document = table.get(doc_id=doc_id)
+    try:
+        with open_incident_table() as table:
+            doc_id = table.insert(data)
+            document = table.get(doc_id=doc_id)
+    except OSError:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error persisting incident",
+        ) from None
 
     return _to_incident_record(document)
 
@@ -167,8 +179,14 @@ def list_incidents(
             detail=f"Invalid category filter '{category}'. Allowed: {list(ALLOWED_CATEGORIES)}",
         )
 
-    with open_incident_table() as table:
-        docs = table.all()
+    try:
+        with open_incident_table() as table:
+            docs = table.all()
+    except OSError:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving incidents from storage",
+        ) from None
 
     results: list[IncidentRecord] = []
     for doc in docs:
@@ -195,8 +213,14 @@ def get_incident(id: int) -> IncidentRecord:
     Retrieve incident detail by primary doc_id.
     Returns HTTP 404 when not found.
     """
-    with open_incident_table() as table:
-        doc = table.get(doc_id=id)
+    try:
+        with open_incident_table() as table:
+            doc = table.get(doc_id=id)
+    except OSError:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving incident",
+        ) from None
 
     if doc is None:
         raise HTTPException(
@@ -217,28 +241,34 @@ def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRec
     Update incident status strictly according to Nexova lifecycle rules.
     Terminal states and invalid transitions are rejected with HTTP 400.
     """
-    with open_incident_table() as table:
-        doc = table.get(doc_id=id)
-        if doc is None:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail=f"Incident with ID {id} not found",
-            )
+    try:
+        with open_incident_table() as table:
+            doc = table.get(doc_id=id)
+            if doc is None:
+                raise HTTPException(
+                    status_code=http_status.HTTP_404_NOT_FOUND,
+                    detail=f"Incident with ID {id} not found",
+                )
 
-        current_status = doc.get("status")
-        new_status = update.status
+            current_status = doc.get("status")
+            new_status = update.status
 
-        try:
-            validate_status_transition(current_status, new_status)
-        except ValueError as err:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=str(err),
-            )
+            try:
+                validate_status_transition(current_status, new_status)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail=str(err),
+                )
 
-        now_iso = datetime.now(timezone.utc).isoformat()
-        table.update({"status": new_status, "updated_at": now_iso}, doc_ids=[id])
-        updated_doc = table.get(doc_id=id)
+            now_iso = datetime.now(timezone.utc).isoformat()
+            table.update({"status": new_status, "updated_at": now_iso}, doc_ids=[id])
+            updated_doc = table.get(doc_id=id)
+    except OSError:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating incident status in storage",
+        ) from None
 
     return _to_incident_record(updated_doc)
 
