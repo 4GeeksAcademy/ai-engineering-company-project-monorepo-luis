@@ -25,3 +25,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 py-modules = ["seed", "bootstrap_admin"]
+
+[tool.pytest.ini_options]
+pythonpath = ["../.."]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+]
