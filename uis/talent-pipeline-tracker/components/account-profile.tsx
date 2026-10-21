@@ -62,9 +62,9 @@ export default function AccountProfile() {
         if (active) {
           setUser(currentUser);
           setFields({
-            name: currentUser.profile.name ?? "",
-            phone: currentUser.profile.phone ?? "",
-            address: currentUser.profile.address ?? "",
+            name: currentUser.profile?.name ?? "",
+            phone: currentUser.profile?.phone ?? "",
+            address: currentUser.profile?.address ?? "",
           });
         }
       })

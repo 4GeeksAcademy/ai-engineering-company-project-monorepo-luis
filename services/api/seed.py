@@ -198,13 +198,18 @@ def seed_suppliers() -> Tuple[int, int]:
     return inserted, already_present
 
 
-def main() -> None:
-    inserted, already_present = seed_suppliers()
-    print(
-        "Supplier seed complete: "
-        f"{inserted} inserted, {already_present} already existed."
-    )
+def main() -> int:
+    try:
+        inserted, already_present = seed_suppliers()
+        print(
+            "Supplier seed complete: "
+            f"{inserted} inserted, {already_present} already existed."
+        )
+        return 0
+    except Exception as exc:
+        print(f"Error seeding suppliers: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

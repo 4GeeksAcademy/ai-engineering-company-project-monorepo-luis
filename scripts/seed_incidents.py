@@ -63,9 +63,21 @@ def seed_incidents(csv_path: Path | str | None = None) -> dict[str, int]:
     skipped_duplicate = 0
     total_processed = 0
 
-    with open(target_path, mode="r", encoding="utf-8", errors="replace") as csv_file:
-        reader = csv.DictReader(csv_file)
-        rows = list(reader)
+    try:
+        with open(target_path, mode="r", encoding="utf-8", errors="replace") as csv_file:
+            reader = csv.DictReader(csv_file)
+            headers = reader.fieldnames
+            if not headers:
+                raise ValueError(f"El archivo CSV está vacío o sin cabeceras: {target_path}")
+            required_cols = {"ticket_id", "status", "category", "description", "date"}
+            missing_cols = required_cols - set(h.strip() for h in headers if h)
+            if missing_cols:
+                raise ValueError(
+                    f"El archivo CSV carece de columnas obligatorias: {', '.join(sorted(missing_cols))}"
+                )
+            rows = list(reader)
+    except OSError as err:
+        raise OSError(f"Error al leer el archivo CSV {target_path}: {err}") from None
 
     with open_incident_database() as database:
         table = database.table("incidents")

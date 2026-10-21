@@ -193,8 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
           formFeedback.className = "status-alert error";
           formFeedback.textContent = errorMsg;
           formFeedback.style.display = "block";
-          btnSubmit.disabled = false;
-          btnSubmitText.textContent = "Guardar incidencia";
           return;
         }
 
@@ -207,17 +205,15 @@ document.addEventListener("DOMContentLoaded", () => {
         formFeedback.textContent = `✓ Incidencia #${newIncident.id} registrada con éxito.`;
         formFeedback.style.display = "block";
 
-        btnSubmit.disabled = false;
-        btnSubmitText.textContent = "Guardar incidencia";
-
         // Actualizar lista y resumen automáticamente
         loadIncidentsList();
         loadIncidentsSummary();
       } catch (err) {
         formFeedback.className = "status-alert error";
         formFeedback.textContent =
-          "Error de conexión con el servidor. Verifica que el backend esté en ejecución.";
+          "No se pudo conectar con el servidor. Verifica tu conexión e intenta nuevamente.";
         formFeedback.style.display = "block";
+      } finally {
         btnSubmit.disabled = false;
         btnSubmitText.textContent = "Guardar incidencia";
       }
@@ -276,7 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/incidents${queryString}`);
       if (!response.ok) {
-        throw new Error(`Error en el servidor (${response.status})`);
+        throw new Error("No se pudo obtener el listado de incidencias del servidor.");
       }
 
       const incidents = await response.json();
@@ -406,7 +402,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const updatedIncident = await response.json();
           select.dataset.currentStatus = updatedIncident.status;
-          select.disabled = false;
 
           showListFeedback(`✓ Incidencia #${incidentId} actualizada a '${STATUS_LABELS[newStatus]}'`, "success");
 
@@ -416,8 +411,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
           // ROLLBACK OPTIMISTA: Revertir al estado anterior y avisar al usuario
           select.value = previousStatus;
-          select.disabled = false;
           showListFeedback(`⚠️ Rollback: ${err.message}`, "error");
+        } finally {
+          select.disabled = false;
         }
       });
     });
@@ -450,6 +446,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const incidentManagerBadge = document.getElementById("incident-manager-badge");
 
   async function loadIncidentsSummary() {
+    if (summaryFeedback) {
+      summaryFeedback.className = "status-alert loading";
+      summaryFeedback.innerHTML = `
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Cargando métricas...</span>
+      `;
+      summaryFeedback.style.display = "flex";
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/incidents/summary`);
       if (!response.ok) {
@@ -464,8 +469,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (summaryFeedback) {
         summaryFeedback.className = "status-alert error";
         summaryFeedback.innerHTML = `
-          <span>Error al cargar métricas: ${err.message}</span>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-retry-summary" style="margin-left: 10px;">Reintentar</button>
+          <span>Error al cargar métricas: No se pudo conectar con el servidor.</span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-retry-summary" style="margin-left: 10px;">↻ Reintentar</button>
         `;
         summaryFeedback.style.display = "flex";
         const retry = document.getElementById("btn-retry-summary");
@@ -654,26 +659,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         if (!response.ok) {
-          let errMessage = "Error al procesar el archivo en el servidor.";
+          let errMessage = "No se pudo procesar el archivo en el servidor.";
           try {
             const errData = await response.json();
             if (errData.detail) errMessage = errData.detail;
           } catch (_) {}
           showCsvError(errMessage);
-          btnAnalyze.disabled = false;
           return;
         }
 
         const data = await response.json();
         clearCsvStatus();
         renderCsvResults(data);
-        btnAnalyze.disabled = false;
       } catch (err) {
         showCsvError(
-          "No se pudo conectar con el servidor backend (FastAPI en " +
-            API_BASE_URL +
-            "). Asegúrate de que el servicio esté iniciado con `uvicorn services.api.main:app --port 8000`."
+          "No se pudo conectar con el servidor. Comprueba tu conexión e intenta de nuevo."
         );
+      } finally {
         btnAnalyze.disabled = false;
       }
     });
@@ -801,6 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Exportar CSV
   if (btnExport) {
     btnExport.addEventListener("click", async () => {
+      btnExport.disabled = true;
       try {
         const response = await fetch(`${API_BASE_URL}/api/incidents/results/export`);
         if (!response.ok) {
@@ -817,7 +820,9 @@ document.addEventListener("DOMContentLoaded", () => {
         window.URL.revokeObjectURL(url);
         a.remove();
       } catch (e) {
-        showCsvError("Error al solicitar la exportación CSV: " + e.message);
+        showCsvError("No se pudo completar la exportación del archivo CSV. Comprueba tu conexión e intenta de nuevo.");
+      } finally {
+        btnExport.disabled = false;
       }
     });
   }
