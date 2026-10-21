@@ -322,3 +322,49 @@ Actualizado: 2026-10-19. Etapa 7 aprobada/publicada en `e473774`, push y árbol 
   - Plantilla de variables de entorno `.env.example` creada en `services/api/` documentando `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXOVA_FRONTEND_URL` y variables JWT/TinyDB.
   - Ningún secreto ni credencial real versionada en Git.
   - TypeScript y build de Next.js (`npm run build`) verificados con éxito (0 errores).
+
+
+## Gestor de Incidencias Centralizado (Hito Centralized Incident Manager)
+
+Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralized-incident-manager`.
+
+### Etapa 1 — Modelo de dominio y persistencia TinyDB
+- Creado `services/api/incident_models.py` con enums estrictos (`open`, `in_progress`, `resolved`, `discarded`; categorías y sedes oficiales de Nexova).
+- Implementada la función de validación de transiciones de ciclo de vida (`validate_status_transition`).
+- Creado `services/api/incident_storage.py` con TinyDB y bloqueo concurrente `threading.RLock`.
+- Creada suite unitaria `services/api/tests/test_incident_models.py` (11 tests OK).
+- Publicado en commit `3a05f29`.
+
+### Etapa 2 — Script de seed histórico e importación idempotente
+- Creado `scripts/seed_incidents.py` cargando `data/raw/incidents-nexova.csv` reutilizando el validador oficial `validate_row`.
+- Mapeos exactos aplicados de estado, categoría, título (primeros 120 caracteres) y fechas en UTC medianoche.
+- Deduplicación estricta por `ticket_id` (mediante tabla interna `_seed_history`) sin persistir PII ni `ticket_id` en el modelo final.
+- Creada suite de seed `services/api/tests/test_incident_seed.py` (5 tests OK): 96 válidas, 4 omitidas, distribución exacta del briefing e idempotencia verificada.
+- Publicado en commit `38ff81d`.
+
+### Etapa 3 — Endpoints de la API REST y manejo de errores
+- Implementadas rutas en `services/api/routers/incidents.py`:
+  - `POST /api/incidents`: alta con validación y código 201.
+  - `GET /api/incidents`: listado con filtros combinables y validación de parámetros (400 ante valores desconocidos).
+  - `GET /api/incidents/{id}`: detalle o 404.
+  - `PATCH /api/incidents/{id}/status`: transición auditada con código 400 ante transiciones inválidas o estados finales.
+  - `GET /api/incidents/summary`: métricas por estado, categoría, origen y sede (soporta base vacía).
+- Sanitización de errores en `main.py`: errores de validación devuelven 400 con JSON claro; excepciones no controladas devuelven 500 genérico sin stack trace.
+- Creada suite de integración `services/api/tests/test_incidents_crud_api.py` (13 tests OK).
+- Publicado en commit `5bd3f32`.
+
+### Etapa 4 — Frontend en Backoffice (`uis/backoffice/`)
+- Ampliado `uis/backoffice/index.html`, `incidents.css` y `incidents.js`:
+  - Formulario de alta con validación en cliente, bloqueo durante carga y destaque visual interactivo de la sede cuando `origin === 'branch'`.
+  - Listado con filtros combinables, cobertura de estados (carga, vacío, error/reintento) y selectores de ciclo de vida con rollback optimista.
+  - Panel de resumen en tiempo real consumiendo `/api/incidents/summary` de forma aislada.
+  - Conservación íntegra del analizador CSV helpdesk previo.
+- Publicado en commit `fc7d567`.
+
+### Etapa 5 — Verificación integral, capturas y entrega
+- Suite completa ejecutada: 57 tests automatizados pasando al 100% sin regresiones.
+- Creado script `scripts/capture_screenshots.py` con Playwright y Edge para generar las 3 capturas oficiales del PR en `docs/screenshots/`:
+  - `incident-form-validation.png` (formulario con error visible)
+  - `incident-list.png` (listado con datos cargados)
+  - `incident-summary.png` (resumen con métricas operativas)
+- Documentación de entrega completa creada en `docs/DELIVERY_CENTRALIZED_INCIDENT_MANAGER.md`.

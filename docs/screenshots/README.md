@@ -1,6 +1,6 @@
 # Capturas de la entrega Nexova
 
-Evidencia visual generada localmente con Playwright 1.50.1 y Chromium para la revisión del hito. No contiene registros de candidatos ni información personal.
+Evidencia visual generada localmente para la revisión del proyecto. No contiene registros de candidatos ni información personal.
 
 - `website-desktop.png`: landing pública a 1440 × 900.
 - `website-mobile.png`: landing pública a 390 × 844.
@@ -11,6 +11,8 @@ Evidencia visual generada localmente con Playwright 1.50.1 y Chromium para la re
 - `supplier-filter-api.png`: respuesta real de Swagger UI para `country=Spain` y `category=background_check`; `200` con lista vacía, sin datos de proveedores.
 - `supplier-seed-output.png`: salida real de dos ejecuciones de `uv run seed` en una TinyDB temporal aislada; muestra 15 inserciones y 0 duplicados.
 
-Las capturas representan el estado de las páginas servidas localmente el 25 de septiembre de 2026. No sustituyen pruebas de validación funcional del formulario.
+### Gestor Centralizado de Incidencias (Entrega Oficial)
 
-Las evidencias del directorio se generaron el 13 de octubre de 2026. Las capturas de UI usan un fixture sintético; el flujo de alta, actualización de tarifa y suspensión se probó contra la API real con registros temporales eliminados al terminar.
+- `incident-form-validation.png`: formulario de registro en `uis/backoffice` mostrando errores de validación en cliente (campos obligatorios y mensajes legibles).
+- `incident-list.png`: listado de incidencias con datos históricos del seed cargados, barra de filtros combinables y controles de ciclo de vida con transiciones válidas.
+- `incident-summary.png`: panel de resumen de métricas operativas (`/api/incidents/summary`) con totales exactos por estado, categoría, origen y sede.

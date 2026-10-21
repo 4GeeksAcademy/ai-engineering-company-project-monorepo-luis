@@ -256,104 +256,307 @@
             <div id="supplier-list" class="supplier-list" aria-busy="true"></div>
           </section>
 
-          <!-- Sección Analizador de Incidencias -->
+          <!-- Sección Gestor Centralizado de Incidencias -->
           <section id="incidencias" class="section-panel incidents-section" aria-labelledby="incidencias-title">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">HELP DESK OUTSOURCING / PROCESAMIENTO SEGURO</p>
-                <h2 id="incidencias-title">Analizador de incidencias</h2>
+                <p class="eyebrow">HELP DESK & OPERACIONES / GESTOR CENTRALIZADO</p>
+                <h2 id="incidencias-title">Gestor de incidencias</h2>
               </div>
-              <span class="count-label">PRIVACIDAD GARANTIZADA</span>
+              <span class="count-label" id="incident-manager-badge">EN TIEMPO REAL</span>
             </div>
 
             <p class="section-intro">
-              Carga exportaciones mensuales en formato CSV del servicio de helpdesk para obtener métricas agregadas de volumen, resolución y satisfacción.
-              <strong>Los correos electrónicos y datos personales sensibles jamás se exponen, registran ni almacenan.</strong>
+              Registro, seguimiento y control del ciclo de vida de incidencias de clientes, sedes y equipos internos.
             </p>
 
-            <div class="upload-zone" id="upload-dropzone" tabindex="0" role="region" aria-label="Zona de carga de archivo CSV">
-              <input type="file" id="incident-file-input" class="upload-input" accept=".csv" aria-label="Seleccionar archivo CSV de incidencias" />
-              <span class="upload-icon" aria-hidden="true">📁</span>
-              <p class="upload-prompt">Arrastra aquí el archivo <code>.csv</code> o haz clic para explorar</p>
-              <p class="upload-help">Formato requerido: CSV con encabezados de tickets de Nexova (UTF-8)</p>
-            </div>
-
-            <div id="selected-file-info" class="selected-file-info" style="display: none;">
-              <span>Archivo seleccionado: <strong id="selected-file-name"></strong></span>
-              <span class="notice-mark" aria-hidden="true">✓</span>
-            </div>
-
-            <div class="btn-row">
-              <button type="button" id="btn-analyze-incidents" class="btn btn-primary" disabled>
-                <span>Procesar y analizar incidencias</span>
-              </button>
-            </div>
-
-            <div id="status-container"></div>
-
-            <!-- Panel de Resultados (se muestra dinámicamente) -->
-            <div id="analysis-results" class="analysis-results-panel" style="display: none;">
-              <h3 style="font-size: 18px; margin-bottom: 16px;">Resultados del análisis</h3>
-
-              <div class="kpi-grid">
-                <article class="kpi-card">
-                  <p class="kpi-title">Total de registros</p>
-                  <p class="kpi-value" id="kpi-total">0</p>
-                  <p class="kpi-subtitle">Filas procesadas del CSV</p>
-                </article>
-                <article class="kpi-card kpi-valid">
-                  <p class="kpi-title">Registros válidos</p>
-                  <p class="kpi-value" id="kpi-valid">0</p>
-                  <p class="kpi-subtitle">Cumplen todas las reglas</p>
-                </article>
-                <article class="kpi-card kpi-invalid">
-                  <p class="kpi-title">Registros inválidos</p>
-                  <p class="kpi-value" id="kpi-invalid">0</p>
-                  <p class="kpi-subtitle">Excluidos de los KPIs</p>
-                </article>
-                <article class="kpi-card kpi-score">
-                  <p class="kpi-title">Satisfacción promedio</p>
-                  <p class="kpi-value" id="kpi-score">0.00</p>
-                  <p class="kpi-subtitle" id="kpi-score-count">0 tickets puntuados</p>
-                </article>
-              </div>
-
-              <div class="details-grid">
-                <div class="data-card">
-                  <h3>Distribución por categoría (válidos)</h3>
-                  <div id="category-breakdown-list"></div>
-                </div>
-
-                <div class="data-card">
-                  <h3>Distribución por estado (válidos)</h3>
-                  <div id="status-breakdown-list"></div>
-                </div>
-              </div>
-
-              <div class="details-grid">
-                <div class="data-card">
-                  <h3>Desglose de registros inválidos (sin PII)</h3>
-                  <p class="upload-help" style="margin-bottom: 12px;">Reglas activadas que impidieron incluir la fila en métricas operativas.</p>
-                  <ul class="invalid-list" id="invalid-breakdown-list"></ul>
-                </div>
-
-                <div class="data-card">
-                  <h3>Distribución de satisfacción (tickets cerrados)</h3>
-                  <p class="upload-help" style="margin-bottom: 12px;">Puntuación asignada por el cliente final del 1 al 5.</p>
-                  <div id="score-distribution-list"></div>
-                </div>
-              </div>
-
-              <div class="export-section">
+            <!-- 1. Panel de Resumen de Métricas (Consumo de /api/incidents/summary) -->
+            <div class="incident-summary-container" id="incident-summary-panel">
+              <div class="summary-header">
                 <div>
-                  <strong>Exportación de resumen de auditoría</strong>
-                  <p class="upload-help" style="margin: 2px 0 0;">Descarga el archivo <code>results.csv</code> con una métrica por fila, listo para informes.</p>
+                  <h3 class="subsection-title">Resumen operativo centralizado</h3>
+                  <p class="upload-help" style="margin: 0;">Métricas agregadas en tiempo real por estado, categoría, origen y sede.</p>
                 </div>
-                <button type="button" id="btn-export-csv" class="btn btn-secondary">
-                  <span>⬇ Descargar results.csv</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-summary" title="Actualizar métricas">
+                  <span>↻ Actualizar métricas</span>
                 </button>
               </div>
+
+              <div id="summary-feedback" class="status-alert" style="display: none;" role="status"></div>
+
+              <div class="kpi-grid" id="summary-kpi-grid">
+                <article class="kpi-card">
+                  <p class="kpi-title">Total registradas</p>
+                  <p class="kpi-value" id="sum-total">0</p>
+                  <p class="kpi-subtitle">Incidencias en el sistema</p>
+                </article>
+                <article class="kpi-card kpi-open">
+                  <p class="kpi-title">Abiertas (Open)</p>
+                  <p class="kpi-value" id="sum-open">0</p>
+                  <p class="kpi-subtitle">Pendientes de atención</p>
+                </article>
+                <article class="kpi-card kpi-progress">
+                  <p class="kpi-title">En progreso</p>
+                  <p class="kpi-value" id="sum-in-progress">0</p>
+                  <p class="kpi-subtitle">En gestión activa</p>
+                </article>
+                <article class="kpi-card kpi-valid">
+                  <p class="kpi-title">Resueltas (Final)</p>
+                  <p class="kpi-value" id="sum-resolved">0</p>
+                  <p class="kpi-subtitle">Cerradas con éxito</p>
+                </article>
+                <article class="kpi-card kpi-invalid">
+                  <p class="kpi-title">Descartadas (Final)</p>
+                  <p class="kpi-value" id="sum-discarded">0</p>
+                  <p class="kpi-subtitle">Rechazadas o duplicadas</p>
+                </article>
+              </div>
+
+              <div class="details-grid" style="margin-top: 14px;">
+                <div class="data-card">
+                  <h3>Por Categoría</h3>
+                  <div id="summary-by-category" class="breakdown-list"></div>
+                </div>
+                <div class="data-card">
+                  <h3>Por Sede y Origen</h3>
+                  <div id="summary-by-branch-origin" class="breakdown-list"></div>
+                </div>
+              </div>
             </div>
+
+            <!-- 2. Formulario de Registro de Incidencias -->
+            <details class="incident-create-box" open>
+              <summary>Registrar nueva incidencia</summary>
+              <form id="incident-create-form" class="incident-form" novalidate>
+                <div id="create-form-feedback" class="status-alert" style="display: none;" role="status"></div>
+
+                <div class="form-grid">
+                  <label class="form-field form-field-full">
+                    <span>Título de la incidencia <strong class="req">*</strong></span>
+                    <input type="text" id="inc-title" name="title" required maxlength="120" placeholder="Ej. Fallo de autenticación en ATS Workable" />
+                    <span class="field-error" id="err-title" aria-live="polite"></span>
+                  </label>
+
+                  <label class="form-field form-field-full">
+                    <span>Descripción detallada <strong class="req">*</strong></span>
+                    <textarea id="inc-description" name="description" rows="3" required placeholder="Describe los síntomas, usuarios afectados y contexto relevante..."></textarea>
+                    <span class="field-error" id="err-description" aria-live="polite"></span>
+                  </label>
+
+                  <label class="form-field">
+                    <span>Categoría <strong class="req">*</strong></span>
+                    <select id="inc-category" name="category" required>
+                      <option value="">Selecciona categoría</option>
+                      <option value="technical_failure">Fallo de sistemas / herramientas</option>
+                      <option value="process_error">Error de procesos operativos</option>
+                      <option value="client_complaint">Queja de cliente corporativo</option>
+                      <option value="candidate_issue">Problema de candidato</option>
+                      <option value="staff_issue">Incidencia interna de RR. HH.</option>
+                      <option value="sla_breach">Incumplimiento de SLA</option>
+                      <option value="data_quality">Error o inconsistencia de datos</option>
+                      <option value="other">Otra incidencia</option>
+                    </select>
+                    <span class="field-error" id="err-category" aria-live="polite"></span>
+                  </label>
+
+                  <label class="form-field">
+                    <span>Origen del reporte <strong class="req">*</strong></span>
+                    <select id="inc-origin" name="origin" required>
+                      <option value="customer">Cliente corporativo</option>
+                      <option value="branch">Sede Nexova</option>
+                      <option value="internal">Interno (Tecnología / Dirección)</option>
+                    </select>
+                    <span class="field-error" id="err-origin" aria-live="polite"></span>
+                  </label>
+
+                  <!-- Campo Sede con resaltado si origen es branch -->
+                  <div class="form-field form-field-branch" id="branch-field-wrapper">
+                    <label for="inc-branch">
+                      <span>Sede responsable <strong class="req">*</strong></span>
+                    </label>
+                    <select id="inc-branch" name="branch" required>
+                      <option value="central">Central — Sede Valencia</option>
+                      <option value="valencia_operations">Valencia — Operaciones</option>
+                      <option value="miami_office">Miami Office</option>
+                      <option value="remote">Remoto (empleado sin sede fija)</option>
+                    </select>
+                    <p class="branch-highlight-hint" id="branch-hint" style="display: none;">
+                      ⚠️ Reporte desde oficina: confirma la sede exacta que genera el reporte.
+                    </p>
+                    <span class="field-error" id="err-branch" aria-live="polite"></span>
+                  </div>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" id="btn-submit-incident" class="btn btn-primary">
+                    <span id="btn-submit-text">Guardar incidencia</span>
+                  </button>
+                  <button type="reset" id="btn-reset-incident" class="btn btn-secondary">
+                    <span>Limpiar campos</span>
+                  </button>
+                </div>
+              </form>
+            </details>
+
+            <!-- 3. Listado y Seguimiento de Incidencias con Filtros -->
+            <div class="incidents-list-section">
+              <div class="section-heading" style="margin-bottom: 12px; margin-top: 24px;">
+                <div>
+                  <h3 class="subsection-title">Listado y seguimiento de incidencias</h3>
+                  <p class="upload-help" style="margin: 0;">Consulta y actualiza el ciclo de vida de incidencias en tiempo real.</p>
+                </div>
+                <button type="button" id="btn-refresh-list" class="btn btn-secondary btn-sm">
+                  <span>↻ Actualizar lista</span>
+                </button>
+              </div>
+
+              <!-- Barra de herramientas con filtros -->
+              <div class="incident-toolbar" aria-label="Filtros de incidencias">
+                <label class="incident-filter">
+                  <span>Estado</span>
+                  <select id="filter-status">
+                    <option value="">Todos los estados</option>
+                    <option value="open">Abierta (open)</option>
+                    <option value="in_progress">En progreso (in_progress)</option>
+                    <option value="resolved">Resuelta (resolved)</option>
+                    <option value="discarded">Descartada (discarded)</option>
+                  </select>
+                </label>
+                <label class="incident-filter">
+                  <span>Origen</span>
+                  <select id="filter-origin">
+                    <option value="">Todos los orígenes</option>
+                    <option value="customer">Cliente corporativo</option>
+                    <option value="branch">Sede Nexova</option>
+                    <option value="internal">Interno</option>
+                  </select>
+                </label>
+                <label class="incident-filter">
+                  <span>Sede</span>
+                  <select id="filter-branch">
+                    <option value="">Todas las sedes</option>
+                    <option value="central">Central — Sede Valencia</option>
+                    <option value="valencia_operations">Valencia — Operaciones</option>
+                    <option value="miami_office">Miami Office</option>
+                    <option value="remote">Remoto</option>
+                  </select>
+                </label>
+                <label class="incident-filter">
+                  <span>Categoría</span>
+                  <select id="filter-category">
+                    <option value="">Todas las categorías</option>
+                    <option value="technical_failure">Fallo de sistemas</option>
+                    <option value="process_error">Error de proceso</option>
+                    <option value="client_complaint">Queja de cliente</option>
+                    <option value="candidate_issue">Problema de candidato</option>
+                    <option value="staff_issue">Incidencia RR. HH.</option>
+                    <option value="sla_breach">Incumplimiento SLA</option>
+                    <option value="data_quality">Error de datos</option>
+                    <option value="other">Otra</option>
+                  </select>
+                </label>
+              </div>
+
+              <!-- Feedback para acciones de actualización / rollback -->
+              <div id="list-action-feedback" class="status-alert" style="display: none;" role="status"></div>
+
+              <!-- Contenedor dinámico del listado (cargando, error, vacío, tabla) -->
+              <div id="incidents-container" class="incidents-container" aria-live="polite"></div>
+            </div>
+
+            <!-- 4. Analizador de Archivos CSV (Herramienta Helpdesk histórica) -->
+            <details class="csv-analyzer-accordion">
+              <summary>📂 Analizador histórico de ficheros CSV (Outsourcing Helpdesk)</summary>
+
+              <p class="section-intro" style="margin-top: 14px;">
+                Carga exportaciones mensuales en formato CSV del servicio de helpdesk para obtener métricas agregadas de volumen, resolución y satisfacción.
+                <strong>Los correos electrónicos y datos personales sensibles jamás se exponen, registran ni almacenan.</strong>
+              </p>
+
+              <div class="upload-zone" id="upload-dropzone" tabindex="0" role="region" aria-label="Zona de carga de archivo CSV">
+                <input type="file" id="incident-file-input" class="upload-input" accept=".csv" aria-label="Seleccionar archivo CSV de incidencias" />
+                <span class="upload-icon" aria-hidden="true">📁</span>
+                <p class="upload-prompt">Arrastra aquí el archivo <code>.csv</code> o haz clic para explorar</p>
+                <p class="upload-help">Formato requerido: CSV con encabezados de tickets de Nexova (UTF-8)</p>
+              </div>
+
+              <div id="selected-file-info" class="selected-file-info" style="display: none;">
+                <span>Archivo seleccionado: <strong id="selected-file-name"></strong></span>
+                <span class="notice-mark" aria-hidden="true">✓</span>
+              </div>
+
+              <div class="btn-row">
+                <button type="button" id="btn-analyze-incidents" class="btn btn-primary" disabled>
+                  <span>Procesar y analizar incidencias</span>
+                </button>
+              </div>
+
+              <div id="status-container"></div>
+
+              <!-- Panel de Resultados del CSV -->
+              <div id="analysis-results" class="analysis-results-panel" style="display: none;">
+                <h3 style="font-size: 18px; margin-bottom: 16px;">Resultados del análisis</h3>
+
+                <div class="kpi-grid">
+                  <article class="kpi-card">
+                    <p class="kpi-title">Total de registros</p>
+                    <p class="kpi-value" id="kpi-total">0</p>
+                    <p class="kpi-subtitle">Filas procesadas del CSV</p>
+                  </article>
+                  <article class="kpi-card kpi-valid">
+                    <p class="kpi-title">Registros válidos</p>
+                    <p class="kpi-value" id="kpi-valid">0</p>
+                    <p class="kpi-subtitle">Cumplen todas las reglas</p>
+                  </article>
+                  <article class="kpi-card kpi-invalid">
+                    <p class="kpi-title">Registros inválidos</p>
+                    <p class="kpi-value" id="kpi-invalid">0</p>
+                    <p class="kpi-subtitle">Excluidos de los KPIs</p>
+                  </article>
+                  <article class="kpi-card kpi-score">
+                    <p class="kpi-title">Satisfacción promedio</p>
+                    <p class="kpi-value" id="kpi-score">0.00</p>
+                    <p class="kpi-subtitle" id="kpi-score-count">0 tickets puntuados</p>
+                  </article>
+                </div>
+
+                <div class="details-grid">
+                  <div class="data-card">
+                    <h3>Distribución por categoría (válidos)</h3>
+                    <div id="category-breakdown-list"></div>
+                  </div>
+
+                  <div class="data-card">
+                    <h3>Distribución por estado (válidos)</h3>
+                    <div id="status-breakdown-list"></div>
+                  </div>
+                </div>
+
+                <div class="details-grid">
+                  <div class="data-card">
+                    <h3>Desglose de registros inválidos (sin PII)</h3>
+                    <p class="upload-help" style="margin-bottom: 12px;">Reglas activadas que impidieron incluir la fila en métricas operativas.</p>
+                    <ul class="invalid-list" id="invalid-breakdown-list"></ul>
+                  </div>
+
+                  <div class="data-card">
+                    <h3>Distribución de satisfacción (tickets cerrados)</h3>
+                    <p class="upload-help" style="margin-bottom: 12px;">Puntuación asignada por el cliente final del 1 al 5.</p>
+                    <div id="score-distribution-list"></div>
+                  </div>
+                </div>
+
+                <div class="export-section">
+                  <div>
+                    <strong>Exportación de resumen de auditoría</strong>
+                    <p class="upload-help" style="margin: 2px 0 0;">Descarga el archivo <code>results.csv</code> con una métrica por fila, listo para informes.</p>
+                  </div>
+                  <button type="button" id="btn-export-csv" class="btn btn-secondary">
+                    <span>⬇ Descargar results.csv</span>
+                  </button>
+                </div>
+              </div>
+            </details>
           </section>
 
           <footer class="page-footer">
