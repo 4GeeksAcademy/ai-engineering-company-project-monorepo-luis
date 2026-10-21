@@ -72,6 +72,7 @@ export default function CandidateDetailPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [statusLoading, setStatusLoading] = useState(false);
   const [stageLoading, setStageLoading] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
@@ -120,7 +121,7 @@ export default function CandidateDetailPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reloadTrigger]);
 
   async function handleStatusChange(nextStatus: Status) {
     if (!candidate || candidate.status === nextStatus) {
@@ -259,13 +260,22 @@ export default function CandidateDetailPage() {
           <CircleAlert className="mx-auto text-red-600" size={28} />
           <h1 className="mt-4 text-2xl font-semibold">No se pudo cargar el perfil</h1>
           <p className="mt-2 text-sm text-slate-600">{error ?? "El candidato no existe."}</p>
-          <Link
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-            href="/"
-          >
-            <ArrowLeft size={16} />
-            Volver a la lista
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => setReloadTrigger((prev) => prev + 1)}
+              type="button"
+            >
+              ↻ Reintentar
+            </button>
+            <Link
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+              href="/"
+            >
+              <ArrowLeft size={16} />
+              Volver a la lista
+            </Link>
+          </div>
         </div>
       </main>
     );

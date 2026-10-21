@@ -98,6 +98,7 @@ export default function CandidateList() {
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const rawStatus = searchParams.get("status");
@@ -143,7 +144,7 @@ export default function CandidateList() {
     return () => {
       active = false;
     };
-  }, [queryString, searchParams, selectedStage, selectedStatus]);
+  }, [queryString, searchParams, selectedStage, selectedStatus, reloadTrigger]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -304,7 +305,7 @@ export default function CandidateList() {
               </div>
               <button
                 className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
-                onClick={() => router.refresh()}
+                onClick={() => setReloadTrigger((prev) => prev + 1)}
                 type="button"
               >
                 Intentar de nuevo

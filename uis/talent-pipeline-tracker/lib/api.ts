@@ -14,24 +14,39 @@ const API_URL =
   "https://playground.4geeks.com/tracker/api/v1";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  } catch {
+    throw new Error(
+      "No se pudo conectar con el servicio de talento. Comprueba tu conexión a internet e inténtalo de nuevo.",
+    );
+  }
 
   if (!response.ok) {
-    let message = `La solicitud falló (${response.status})`;
+    let message = "La solicitud no pudo completarse. Inténtalo de nuevo más tarde.";
 
     try {
-      const error = (await response.json()) as { message?: string };
-      if (error.message) {
+      const error = (await response.json()) as { message?: string; detail?: string };
+      if (typeof error.message === "string" && error.message.trim()) {
         message = error.message;
+      } else if (typeof error.detail === "string" && error.detail.trim()) {
+        message = error.detail;
       }
     } catch {
-      message = response.statusText || message;
+      if (response.status === 404) {
+        message = "El registro solicitado no fue encontrado o ya no está disponible.";
+      } else if (response.status === 401 || response.status === 403) {
+        message = "No tienes permisos suficientes para realizar esta acción.";
+      } else if (response.status >= 500) {
+        message = "El servidor encontró un error temporal. Inténtalo de nuevo más tarde.";
+      }
     }
 
     throw new Error(message);

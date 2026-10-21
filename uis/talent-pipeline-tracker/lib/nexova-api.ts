@@ -84,23 +84,39 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${NEXOVA_API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${NEXOVA_API_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new NexovaApiError(
+      "No se pudo conectar con el servicio de autenticación. Comprueba tu conexión e inténtalo de nuevo.",
+      0,
+    );
+  }
 
   if (!response.ok) {
-    let message = `La solicitud a Nexova falló (${response.status}).`;
+    let message = "La solicitud no pudo procesarse correctamente.";
 
     try {
       const error = (await response.json()) as { detail?: unknown; message?: unknown };
-      if (typeof error.detail === "string") {
+      if (typeof error.detail === "string" && error.detail.trim()) {
         message = error.detail;
-      } else if (typeof error.message === "string") {
+      } else if (typeof error.message === "string" && error.message.trim()) {
         message = error.message;
       }
     } catch {
-      message = response.statusText || message;
+      if (response.status === 401) {
+        message = "Inicia sesión para continuar.";
+      } else if (response.status === 403) {
+        message = "No tienes permisos suficientes para realizar esta acción.";
+      } else if (response.status === 404) {
+        message = "El recurso solicitado no fue encontrado.";
+      } else if (response.status >= 500) {
+        message = "El servicio de Nexova no está disponible temporalmente. Inténtalo más tarde.";
+      }
     }
 
     if (authentication === "required" && response.status === 401) {
