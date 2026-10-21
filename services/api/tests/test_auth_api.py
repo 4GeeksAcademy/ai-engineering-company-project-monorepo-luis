@@ -131,6 +131,7 @@ class TestAuthAPI(unittest.TestCase):
         self.assertNotIn("hashed_password", str(schema))
         self.assertEqual(self.client.get("/health").status_code, 200)
 
+    @unittest.skipIf(sys.platform == "win32", "pass_fds not supported on Windows")
     def test_real_uvicorn_process_serves_login_and_me(self):
         with socket.socket() as server_socket:
             server_socket.bind(("127.0.0.1", 0))
