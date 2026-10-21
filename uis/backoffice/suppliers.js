@@ -43,19 +43,35 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (errorData.detail) return String(errorData.detail);
     } catch (_) {
-      return "No se pudo leer la respuesta de error del servidor.";
+      // Sin JSON estructurado en la respuesta
     }
-    return `La solicitud falló (${response.status}).`;
+
+    if (response.status === 401 || response.status === 403) {
+      return "No tienes autorización para realizar esta operación.";
+    }
+    if (response.status === 404) {
+      return "El proveedor solicitado no fue encontrado.";
+    }
+    if (response.status >= 500) {
+      return "El servicio no está disponible temporalmente. Inténtalo de nuevo más tarde.";
+    }
+    return "La solicitud no pudo completarse. Revisa los datos e intenta nuevamente.";
   }
 
   async function requestJson(path, options = {}) {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      ...options,
-      headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...options.headers,
-      },
-    });
+    let response;
+    try {
+      response = await fetch(`${apiBaseUrl}${path}`, {
+        ...options,
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...options.headers,
+        },
+      });
+    } catch (_) {
+      throw new Error("No se pudo conectar con el servidor. Comprueba tu conexión e intenta de nuevo.");
+    }
+
     if (!response.ok) throw new Error(await getErrorMessage(response));
     return response.json();
   }
@@ -167,6 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveRateButton = makeTextElement("button", "supplier-button supplier-button-primary", "Guardar tarifa");
     saveRateButton.type = "submit";
     rateForm.append(rateLabel, saveRateButton);
+
     rateForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!rateForm.reportValidity()) return;
@@ -181,6 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadSuppliers();
       } catch (error) {
         setFeedback(error.message, true);
+      } finally {
         saveRateButton.disabled = false;
       }
     });
@@ -195,6 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "aria-label",
       `${supplier.status === "active" ? "Suspender" : "Activar"} ${supplier.name}`,
     );
+
     statusButton.addEventListener("click", async () => {
       statusButton.disabled = true;
       setFeedback("");
@@ -209,6 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadSuppliers();
       } catch (error) {
         setFeedback(error.message, true);
+      } finally {
         statusButton.disabled = false;
       }
     });
@@ -258,7 +278,22 @@ document.addEventListener("DOMContentLoaded", () => {
       suppliers.forEach((supplier) => supplierList.appendChild(renderSupplier(supplier)));
     } catch (error) {
       supplierCount.textContent = "No disponible";
-      supplierList.appendChild(makeTextElement("p", "supplier-empty", "No se pudo cargar el directorio."));
+      const errorWrapper = document.createElement("div");
+      errorWrapper.className = "supplier-empty";
+      errorWrapper.style.padding = "24px 16px";
+      errorWrapper.style.textAlign = "center";
+      const errorMsg = makeTextElement("p", "", "No se pudo cargar el directorio de proveedores.");
+      errorMsg.style.margin = "0 0 12px 0";
+      errorWrapper.appendChild(errorMsg);
+
+      const retryBtn = makeTextElement("button", "supplier-button supplier-button-secondary", "↻ Reintentar");
+      retryBtn.type = "button";
+      retryBtn.addEventListener("click", () => {
+        loadSuppliers();
+      });
+      errorWrapper.appendChild(retryBtn);
+
+      supplierList.replaceChildren(errorWrapper);
       setFeedback(error.message, true);
     } finally {
       supplierList.setAttribute("aria-busy", "false");
