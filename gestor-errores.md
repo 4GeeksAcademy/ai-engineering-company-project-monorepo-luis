@@ -59,42 +59,42 @@ Por cada hallazgo incluye: severidad, ruta y línea/rango, categoría, descripci
 
 ### Frontend — Next.js / TypeScript
 
-- [ ] Localizar todas las llamadas `fetch` o llamadas a API del frontend; envolver cada operación susceptible de fallo en un `try/catch` **específico y acotado**.
-- [ ] Para cada operación asíncrona que carga datos, mostrar los tres estados: **cargando** (spinner/skeleton), **éxito** (datos) y **error** (mensaje legible con una acción).
-- [ ] Reemplazar errores crudos —por ejemplo `Error 500` o `Unexpected token`— por explicaciones comprensibles para el usuario.
-- [ ] Incluir una acción útil en cada estado de error: botón para reintentar, enlace a inicio o indicación para contactar soporte.
-- [ ] Usar optional chaining (`?.`) para propiedades anidadas que puedan ser `undefined`.
-- [ ] Proporcionar defaults/fallbacks seguros para valores `null` o `undefined` al renderizar.
-- [ ] Usar `finally` para limpiar estados de carga, independientemente del resultado.
+- [x] Localizar todas las llamadas `fetch` o llamadas a API del frontend; envolver cada operación susceptible de fallo en un `try/catch` **específico y acotado**.
+- [x] Para cada operación asíncrona que carga datos, mostrar los tres estados: **cargando** (spinner/skeleton), **éxito** (datos) y **error** (mensaje legible con una acción).
+- [x] Reemplazar errores crudos —por ejemplo `Error 500` o `Unexpected token`— por explicaciones comprensibles para el usuario.
+- [x] Incluir una acción útil en cada estado de error: botón para reintentar, enlace a inicio o indicación para contactar soporte.
+- [x] Usar optional chaining (`?.`) para propiedades anidadas que puedan ser `undefined`.
+- [x] Proporcionar defaults/fallbacks seguros para valores `null` o `undefined` al renderizar.
+- [x] Usar `finally` para limpiar estados de carga, independientemente del resultado.
 
 ### Backend — Python / FastAPI
 
-- [ ] Revisar cada handler y capturar excepciones en el ámbito correcto; evitar un único bloque amplio que oculte causas distintas.
-- [ ] Devolver códigos apropiados (`400`, `404`, `422`, `500`) y cuerpos JSON limpios y estructurados, sin tracebacks crudos.
-- [ ] No exponer en respuestas de error cadenas de conexión, rutas internas, claves, secretos ni datos sensibles.
-- [ ] Manejar fallos de todas las llamadas a APIs o servicios externos usados por el backend.
+- [x] Revisar cada handler y capturar excepciones en el ámbito correcto; evitar un único bloque amplio que oculte causas distintas.
+- [x] Devolver códigos apropiados (`400`, `404`, `422`, `500`) y cuerpos JSON limpios y estructurados, sin tracebacks crudos.
+- [x] No exponer en respuestas de error cadenas de conexión, rutas internas, claves, secretos ni datos sensibles.
+- [x] Manejar fallos de todas las llamadas a APIs o servicios externos usados por el backend.
 
 ### Scripts — Python
 
-- [ ] Manejar errores de lectura/escritura y parseo CSV con `try/except` acotados y mensajes informativos en `stderr`.
-- [ ] Terminar con código distinto de cero (por ejemplo `sys.exit(1)`) cuando haya un fallo crítico.
-- [ ] Validar datos faltantes o malformados antes de iniciar el procesamiento.
+- [x] Manejar errores de lectura/escritura y parseo CSV con `try/except` acotados y mensajes informativos en `stderr`.
+- [x] Terminar con código distinto de cero (por ejemplo `sys.exit(1)`) cuando haya un fallo crítico.
+- [x] Validar datos faltantes o malformados antes de iniciar el procesamiento.
 
 ### Revisión general
 
-- [ ] Revisar `console.error` y `print` para asegurar que no expongan información interna sensible; eliminar o sustituir las salidas inseguras.
-- [ ] No introducir nuevas funcionalidades ni refactorizar partes ajenas al manejo de errores. Mantener el alcance en resiliencia y comunicación de errores del código existente.
+- [x] Revisar `console.error` y `print` para asegurar que no expongan información interna sensible; eliminar o sustituir las salidas inseguras.
+- [x] No introducir nuevas funcionalidades ni refactorizar partes ajenas al manejo de errores. Mantener el alcance en resiliencia y comunicación de errores del código existente.
 
 ## Qué vamos a evaluar
 
-- [ ] Todas las operaciones asíncronas del frontend presentan cargando / éxito / error.
-- [ ] Los mensajes de error al usuario son legibles e incluyen una acción clara.
-- [ ] `try/catch` y `try/except` se limitan a operaciones concretas y no envuelven funciones enteras.
-- [ ] `finally` limpia correctamente los estados de carga.
-- [ ] Optional chaining y fallbacks previenen fallos de renderizado ante `undefined`/`null` donde corresponda.
-- [ ] Las rutas backend devuelven respuestas de error limpias, estructuradas y con códigos HTTP correctos.
-- [ ] Ningún error enviado al cliente filtra información sensible.
-- [ ] Los scripts Python manejan errores de I/O y usan códigos de salida adecuados ante fallos.
+- [x] Todas las operaciones asíncronas del frontend presentan cargando / éxito / error.
+- [x] Los mensajes de error al usuario son legibles e incluyen una acción clara.
+- [x] `try/catch` y `try/except` se limitan a operaciones concretas y no envuelven funciones enteras.
+- [x] `finally` limpia correctamente los estados de carga.
+- [x] Optional chaining y fallbacks previenen fallos de renderizado ante `undefined`/`null` donde corresponda.
+- [x] Las rutas backend devuelven respuestas de error limpias, estructuradas y con códigos HTTP correctos.
+- [x] Ningún error enviado al cliente filtra información sensible.
+- [x] Los scripts Python manejan errores de I/O y usan códigos de salida adecuados ante fallos.
 
 La evaluación prioriza la **corrección y consistencia** de estos patrones, no la cantidad de funcionalidades añadidas.
 
