@@ -96,3 +96,4 @@ Durante la auditoría inicial se identificaron con asistencia de IA las siguient
    - La IA identificó la rama donde un usuario posee un token JWT válido pero su registro de perfil fue borrado o no existe en la base de datos (`ProfileNotFoundError` -> `404 Not Found`), escenario límite crucial para la resiliencia de la API.
 3. **Mitigación de Enumeración de Usuarios en `/auth/forgot-password`**:
    - Se confirmó que la respuesta ante emails inexistentes debe ser idéntica a la de emails válidos para evitar fugas de información (*timing & status code user enumeration*).
+
