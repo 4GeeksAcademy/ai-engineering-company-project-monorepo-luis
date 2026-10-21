@@ -128,3 +128,4 @@ Las capturas requeridas se encuentran ubicadas en `docs/screenshots/`:
 1. `incident-form-validation.png`: Formulario con error de validación visible por campos requeridos y mensaje claro.
 2. `incident-list.png`: Listado con datos cargados, filtros reactivos y selectores de ciclo de vida.
 3. `incident-summary.png`: Panel de resumen con métricas operativas por estado, categoría, origen y sede.
+
