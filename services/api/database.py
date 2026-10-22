@@ -65,7 +65,7 @@ def init_db(target_engine: Optional[Engine] = None) -> None:
     """
     # Import inventory models dynamically to ensure registration in SQLModel.metadata
     try:
-        import services.api.inventory_models  # noqa: F401
+        import services.api.models  # noqa: F401
     except ImportError:
         pass
 
@@ -78,3 +78,4 @@ def get_db() -> Generator[Session, None, None]:
     engine = get_engine()
     with Session(engine) as session:
         yield session
+

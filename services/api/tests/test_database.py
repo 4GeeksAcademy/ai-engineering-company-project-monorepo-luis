@@ -80,3 +80,4 @@ def test_get_db_session_lifecycle():
             next(session_gen)
     finally:
         set_engine(original_engine)
+
