@@ -307,3 +307,4 @@ def test_list_assets_and_list_orders(session: Session):
         assert order.asset_name in ["Portátil 14\" Business", "Hub USB-C"]
         assert order.asset_sku in ["NXV-IT-001", "NXV-PER-002"]
         assert order.user_uuid in ["10", "11"]
+

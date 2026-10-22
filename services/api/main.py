@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 from services.api.database import init_db
 from services.api.routers.auth import router as auth_router
 from services.api.routers.incidents import router as incidents_router
+from services.api.routers.inventory import router as inventory_router
 from services.api.routers.profiles import router as profiles_router
 from services.api.routers.suppliers import router as suppliers_router
 from services.api.routers.users import router as users_router
@@ -61,6 +62,7 @@ app.include_router(suppliers_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(profiles_router)
+app.include_router(inventory_router)
 
 
 @app.exception_handler(RequestValidationError)

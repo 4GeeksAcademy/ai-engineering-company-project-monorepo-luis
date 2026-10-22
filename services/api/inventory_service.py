@@ -289,3 +289,4 @@ def list_orders(session: Session) -> List[OrderItemRead]:
     # Sort combined movements by created_at descending
     orders.sort(key=lambda o: (o.created_at, o.id), reverse=True)
     return orders
+
