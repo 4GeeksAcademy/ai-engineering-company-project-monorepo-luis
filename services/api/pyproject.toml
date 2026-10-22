@@ -8,9 +8,11 @@ dependencies = [
     "fastapi>=0.110.0",
     "httpx>=0.27.0",
     "libpass[bcrypt]>=1.9.3",
+    "psycopg2-binary>=2.9.13",
     "pydantic>=2.6,<3",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.9",
+    "sqlmodel>=0.0.48",
     "tinydb>=4.8,<5",
     "uvicorn>=0.28.0",
 ]
