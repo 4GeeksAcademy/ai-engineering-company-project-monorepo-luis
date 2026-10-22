@@ -111,3 +111,4 @@ def post_outbound_order(
 def get_orders(session: Session = Depends(get_db)) -> List[OrderItemRead]:
     """Retrieve all inventory movements with parent asset details without N+1 queries."""
     return list_orders(session)
+

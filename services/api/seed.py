@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from services.api.inventory_seed import seed_inventory
 from services.api.supplier_models import SupplierCreate
 from services.api.supplier_storage import open_supplier_table
 
@@ -205,6 +206,11 @@ def main() -> int:
             "Supplier seed complete: "
             f"{inserted} inserted, {already_present} already existed."
         )
+        try:
+            a, e, x = seed_inventory()
+            print(f"Inventory seed complete: {a} assets, {e} entries, {x} exits.")
+        except Exception as inv_exc:
+            print(f"Warning: could not seed inventory ({inv_exc})", file=sys.stderr)
         return 0
     except Exception as exc:
         print(f"Error seeding suppliers: {exc}", file=sys.stderr)
