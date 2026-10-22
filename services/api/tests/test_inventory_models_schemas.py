@@ -249,3 +249,4 @@ def test_sqlmodel_entries_and_exits_relationships(in_memory_session: Session):
     assert asset.exits[0].quantity == 2
     assert asset.exits[0].exit_type == "allocation"
     assert asset.exits[0].assigned_to == "Carlos Dev"
+

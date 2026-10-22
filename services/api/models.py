@@ -70,3 +70,4 @@ class AssetExit(SQLModel, table=True):
 
     # Relationship to the parent asset
     asset: Optional[Asset] = Relationship(back_populates="exits")
+

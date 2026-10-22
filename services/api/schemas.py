@@ -133,3 +133,4 @@ class OrderItemRead(BaseModel):
     user_uuid: str
 
     model_config = ConfigDict(from_attributes=True)
+
