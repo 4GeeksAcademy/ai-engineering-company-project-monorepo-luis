@@ -29,13 +29,13 @@ Prioridades de esta herramienta interna: claridad, rapidez, accesibilidad, estad
 La inspección del repo y el código local muestra diferencias importantes respecto al supuesto del README oficial. Resolverlas antes de iniciar implementación funcional:
 
 1. **Stack del backoffice:** el README oficial dice que `uis/backoffice` es una aplicación **Next.js** existente. En este monorepo, al auditarlo el 2026-10-22, `uis/backoffice/` contiene `index.html`, CSS y JavaScript estáticos; no hay `package.json`, estructura de rutas Next ni pantalla de login. Su README prescribe `npx --yes serve uis/backoffice -l 5502`.
-2. **Inventario backend:** el README oficial presupone endpoints `/inventory` activos. La API local `services/api/main.py` registra routers de auth, users, profiles, suppliers e incidents; no registra un router de inventario y no se encontraron modelos/rutas de inventario en `services/api/` al auditar. La guía `backend-db.md` describe el contrato/plan de backend, pero no prueba que el código esté implementado.
+2. **Inventario backend:** al revisar inicialmente la copia local no aparecían los endpoints `/inventory`; mientras se preparaba esta guía, la rama remota avanzó con los commits `7261edc`, `07e8cc1`, `ab134d7`, `5124248` y `d1560b1`. Tras sincronizarla, la versión publicada ya contiene modelos/servicio, `routers/inventory.py`, su registro en `main.py` y tests. El estado real de la rama al publicar esta guía sí incluye la API; verificar los schemas, configuración y OpenAPI actuales antes de implementar el frontend.
 3. **Autenticación frontend:** FastAPI tiene login y autenticación Bearer existentes (`/auth/login`, `get_current_user`), pero la UI estática auditada no tiene patrón de login ni protección de rutas. La política oficial requiere login en las cuatro vistas.
-4. **Contrato exacto:** el README usa términos genéricos “products”, pero el briefing Nexova del hito de backend especifica las entidades `Asset`, `AssetEntry` y `AssetExit`. Antes de integrar, contrastar las respuestas reales de OpenAPI y el briefing; no renombrar ni inventar campos.
+4. **Contrato exacto:** el README usa términos genéricos “products”, pero el backend sincronizado implementa los nombres Nexova `Asset`, `AssetEntry` y `AssetExit`. Antes de integrar, contrastar respuestas/esquemas reales de OpenAPI y briefing; no renombrar ni inventar campos.
 
 **Decisión de arquitectura pendiente:** confirmar cómo se alineará la app estática actual con el requisito oficial de Next.js y con la autenticación, sin crear un segundo backoffice ni sustituir funcionalidades ajenas al hito. El `AGENTS.md` raíz ordena detenerse y pedir aclaración si la arquitectura o las fuentes se contradicen. Esta guía conserva la ubicación `uis/backoffice/` y prohíbe crear una app paralela; la conversión/migración de stack no debe darse por aprobada por el mero hecho de escribir estas instrucciones.
 
-**Precondición del frontend:** confirmar que los endpoints `/inventory` existen, están accesibles y cumplen el contrato; si no, completar o coordinar primero el hito backend. No codificar contra mocks como si fueran API real. Los endpoint de lectura también deben confirmar en OpenAPI si exigen token; las cuatro páginas sí requieren sesión según el brief.
+**Precondición del frontend:** arrancar el backend con la configuración local requerida y confirmar en `/openapi.json` que los endpoints `/inventory` están accesibles y sus schemas coinciden con los formularios. La rama sincronizada ya implementa estos endpoints. No codificar contra mocks como si fueran API real. Los endpoints de lectura también deben confirmarse en OpenAPI para saber si exigen token; las cuatro páginas sí requieren sesión según el brief.
 
 ## Configuración y reglas de seguridad
 
@@ -130,7 +130,7 @@ Usar nombres y campos de dominio del briefing y de la API real. El contrato del 
 
 - [ ] Leer este archivo, `AGENTS.md`, `uis/backoffice/README.md`, briefing Nexova y README oficial del hito.
 - [ ] Revisar `git status --short --branch` y diff actual; no asumir una rama ni un árbol limpio.
-- [ ] Resolver la incompatibilidad documentada entre README oficial (Next.js), app existente (estática), login ausente en frontend e inventario backend no hallado.
+- [ ] Resolver la incompatibilidad documentada entre README oficial (Next.js), app existente (estática) y login ausente en frontend. El backend de inventario sí está presente en la rama sincronizada; validar su contrato/runtime en OpenAPI.
 - [ ] Verificar `/openapi.json` de la API local y confirmar rutas, schemas, auth de cada endpoint y errores antes de construir formularios.
 
 ### Implementación
