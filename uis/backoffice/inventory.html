@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventario – Backoffice Nexova</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./auth.css" />
+    <link rel="stylesheet" href="./inventory.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+    <div class="app-shell">
+      <!-- Re‑use the same rail navigation as index.html (omitted for brevity) -->
+      <aside class="rail" aria-label="Navegación del backoffice">
+        <!-- navigation markup could be copied from index.html if needed -->
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <p class="breadcrumb">Nexova <span aria-hidden="true">/</span> Inventario</p>
+          <div class="topbar-actions">
+            <div id="auth-status-container" class="auth-status-container" aria-live="polite"></div>
+            <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          </div>
+        </header>
+
+        <main id="contenido" class="content">
+          <section id="inventory-catalog" class="page-heading" aria-labelledby="inventory-title">
+            <h1 id="inventory-title">Catálogo de Activos</h1>
+            <div class="filters">
+              <label for="office-filter">Oficina:</label>
+              <select id="office-filter"><option value="">Todas</option></select>
+
+              <label for="category-filter">Categoría:</label>
+              <select id="category-filter"><option value="">Todas</option></select>
+            </div>
+            <div id="catalog-container" class="catalog-container">
+              <!-- Table will be injected here -->
+            </div>
+            <div id="catalog-feedback" class="catalog-feedback" role="status" aria-live="polite" hidden></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Auth modal (same as index.html) -->
+    <dialog id="auth-dialog" class="auth-dialog">
+      <form method="dialog" class="auth-form">
+        <h2>Iniciar sesión</h2>
+        <label for="username">Usuario</label>
+        <input type="text" id="username" name="username" required />
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" name="password" required />
+        <div class="auth-actions">
+          <button type="submit" class="auth-submit">Entrar</button>
+          <button type="button" class="auth-cancel" data-action="close">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./inventory-api.js"></script>
+    <script src="./auth.js"></script>
+    <script src="./inventory-view.js" type="module"></script>
+  </body>
+</html>
