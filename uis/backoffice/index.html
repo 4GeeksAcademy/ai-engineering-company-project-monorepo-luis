@@ -11,6 +11,7 @@
       content="Vista interna del contexto de negocio y las etapas de talento de Nexova."
     />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./auth.css" />
     <link rel="stylesheet" href="./incidents.css" />
     <link rel="stylesheet" href="./suppliers.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -66,7 +67,10 @@
       <div class="workspace">
         <header class="topbar">
           <p class="breadcrumb">Nexova <span aria-hidden="true">/</span> Operaciones</p>
-          <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          <div class="topbar-actions">
+            <div id="auth-status-container" class="auth-status-container" aria-live="polite"></div>
+            <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          </div>
         </header>
 
         <main id="contenido" class="content">
@@ -566,6 +570,54 @@
         </main>
       </div>
     </div>
+    <!-- Dialog de autenticación accesible -->
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-modal-title">
+      <div class="auth-modal-card">
+        <div class="auth-modal-header">
+          <div>
+            <h2 id="auth-modal-title" class="auth-modal-title">Acceso de personal</h2>
+            <p class="auth-modal-subtitle">Inicia sesión para operar en el inventario de Nexova.</p>
+          </div>
+          <button type="button" id="auth-close-btn" class="btn-modal-close" aria-label="Cerrar modal de acceso">✕</button>
+        </div>
+
+        <div id="auth-feedback" class="auth-feedback" role="alert" aria-live="polite" hidden></div>
+
+        <form id="auth-login-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Correo electrónico</label>
+            <input
+              type="email"
+              id="auth-email"
+              class="auth-input"
+              placeholder="nombre@nexova.com"
+              required
+              autocomplete="username"
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Contraseña</label>
+            <input
+              type="password"
+              id="auth-password"
+              class="auth-input"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+            />
+          </div>
+
+          <div class="auth-actions">
+            <button type="button" id="auth-cancel-btn" class="btn-auth-cancel">Cancelar</button>
+            <button type="submit" id="auth-submit-btn" class="btn-auth-submit">Ingresar al sistema</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <script src="./inventory-api.js" defer></script>
+    <script src="./auth.js" defer></script>
     <script src="./incidents.js" defer></script>
     <script src="./suppliers.js" defer></script>
   </body>
