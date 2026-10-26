@@ -28,3 +28,7 @@
 ---
 
 *Este informe será versionado en `docs/auditoria-inicial.md` y sirve como base para las siguientes etapas.*
+
+
+## Decisión tomada
+- Se optó por la **Opción A**: servir los UI estáticos con un servidor simple (ej.: `http-server` o `nginx`).
