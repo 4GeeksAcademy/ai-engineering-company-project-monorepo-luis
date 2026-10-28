@@ -19,3 +19,4 @@ EXPOSE 8000
 
 # Default command runs Uvicorn with hot‑reload for development
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+

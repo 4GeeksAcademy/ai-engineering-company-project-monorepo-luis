@@ -21,3 +21,4 @@ EXPOSE 3000 3001
 
 # Default command runs the start script
 CMD ["./start.sh"]
+

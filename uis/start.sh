@@ -14,3 +14,4 @@ BACKOFFICE_PID=$!
 
 # Wait for both processes to exit (container stops when any exits)
 wait $WEBSITE_PID $BACKOFFICE_PID
+
