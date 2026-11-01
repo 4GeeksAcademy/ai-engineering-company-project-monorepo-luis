@@ -73,7 +73,7 @@ Verificado después con el backend local (`uvicorn services.api.main:app` con `J
 - **Login:** el modal de `inventory.html` inicia sesión con una cuenta local de prueba y muestra el usuario y "Cerrar sesión". La sesión persiste al navegar a `order-history.html` e `inventory-forms.html`.
 - **Bug corregido:** los modales de `inventory.html`, `order-history.html` e `inventory-forms.html` usaban un formulario legacy (`method="dialog"`, campos `username`/`password`) sin handler, así que el login no hacía nada. Se reemplazó por el mismo markup de `index.html` (`auth-login-form`), que `auth.js` ya maneja.
 
-**Pendiente:** `inventory-forms.html` referencia `inventory-form.css` e `inventory-form.js`, que no existen en el repo (404). Es un problema previo y no se corrigió en esta rama.
+- **Formularios de movimientos:** `inventory-forms.html` referenciaba `inventory-form.css` e `inventory-form.js`, que no existían (404), y los botones Entrada/Salida solo mostraban un `alert`. Se crearon ambos archivos: los dialogs envían `POST /inventory/orders/inbound` y `/outbound`, muestran los errores del backend (p. ej. stock insuficiente) y recargan la tabla. En `inventory.html`, que no tiene dialogs, los botones llevan a `inventory-forms.html`. Verificado en navegador: entrada +2, salida rechazada por stock y salida −2, sin 404 en consola.
 
 ## Balance global
 

@@ -1,0 +1,106 @@
+/* inventory-form.css – inbound/outbound movement dialogs */
+
+.form-dialog {
+  width: min(420px, calc(100vw - 32px));
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: 0 20px 40px rgba(23, 40, 33, 0.22);
+}
+
+.form-dialog::backdrop {
+  background: rgba(23, 40, 33, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.form-content {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+}
+
+.form-content h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.form-content label {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.form-content input,
+.form-content select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  font: inherit;
+  color: var(--ink);
+}
+
+.form-content input[readonly] {
+  color: var(--muted);
+}
+
+.form-content input:focus-visible,
+.form-content select:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 1px;
+}
+
+.form-content [hidden] {
+  display: none;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.form-submit,
+.form-cancel {
+  padding: 10px 16px;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.form-submit {
+  border: none;
+  background: var(--forest);
+  color: var(--white);
+}
+
+.form-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.form-cancel {
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+}
+
+.form-feedback {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: var(--blue-soft);
+  color: var(--ink);
+}
+
+.form-feedback[data-type="error"] {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
