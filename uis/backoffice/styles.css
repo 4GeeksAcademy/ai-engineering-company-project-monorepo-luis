@@ -1,15 +1,13 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
-
 :root {
   color-scheme: light;
   --ink: #172821;
-  --muted: #69786f;
+  --muted: #526158;
   --line: #e1e8e2;
   --paper: #f2f5f1;
   --white: #ffffff;
   --forest: #173d30;
   --forest-soft: #e5f1eb;
-  --coral: #d96951;
+  --coral: #bf4e37;
   --coral-soft: #fbebe7;
   --blue: #4973a5;
   --blue-soft: #e9f0f8;
@@ -130,7 +128,7 @@ a {
 
 .nav-heading {
   padding: 0 12px 10px;
-  color: #91ad9d;
+  color: #b8dcce;
 }
 
 .primary-nav {
@@ -162,7 +160,7 @@ a {
 }
 
 .nav-index {
-  color: #99b9a6;
+  color: #b8dcce;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
@@ -783,4 +781,15 @@ h2 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+backoffice-rail {
+  display: block;
+  width: 244px;
+  min-width: 244px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--forest);
 }

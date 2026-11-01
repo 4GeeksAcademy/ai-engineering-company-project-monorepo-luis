@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inventario – Backoffice Nexova</title>
+    <meta name="description" content="Catálogo y gestión de activos del inventario de Nexova." />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./auth.css" />
     <link rel="stylesheet" href="./inventory.css" />
@@ -14,10 +15,7 @@
   <body>
     <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
     <div class="app-shell">
-      <!-- Re‑use the same rail navigation as index.html (omitted for brevity) -->
-      <aside class="rail" aria-label="Navegación del backoffice">
-        <!-- navigation markup could be copied from index.html if needed -->
-      </aside>
+      <backoffice-rail current="catalogo"></backoffice-rail>
 
       <div class="workspace">
         <header class="topbar">
@@ -62,6 +60,7 @@
       </form>
     </dialog>
 
+    <script src="./shared-nav.js" defer></script>
     <script src="./inventory-api.js"></script>
     <script src="./auth.js"></script>
     <script src="./inventory-view.js" type="module"></script>
