@@ -67,7 +67,13 @@ Verificado en navegador con Playwright sobre el servidor de desarrollo:
 - **Backoffice** (`index.html` e `inventory.html`): navegación lateral, botón de inicio de sesión y estructura de catálogo renderizadas. Los errores de consola corresponden a la ausencia del backend.
 - **Test automatizado:** `node uis/backoffice/tests/test_inventory_api.mjs` pasa 7 de 7.
 
-**Pendiente:** no se pudo probar el catálogo con datos reales ni el flujo de login. El backend (`services/api`) no arrancó en este entorno por variables de entorno requeridas, y Docker Desktop no quedó operativo a tiempo. Esta verificación debe completarse antes de fusionar el PR.
+Verificado después con el backend local (`uvicorn services.api.main:app` con `JWT_SECRET_KEY` y `ACCESS_TOKEN_EXPIRE_MINUTES` definidas en la sesión, sin Docker):
+
+- **Catálogo:** `inventory.html` carga los 6 activos desde `/inventory/products`.
+- **Login:** el modal de `inventory.html` inicia sesión con una cuenta local de prueba y muestra el usuario y "Cerrar sesión". La sesión persiste al navegar a `order-history.html` e `inventory-forms.html`.
+- **Bug corregido:** los modales de `inventory.html`, `order-history.html` e `inventory-forms.html` usaban un formulario legacy (`method="dialog"`, campos `username`/`password`) sin handler, así que el login no hacía nada. Se reemplazó por el mismo markup de `index.html` (`auth-login-form`), que `auth.js` ya maneja.
+
+**Pendiente:** `inventory-forms.html` referencia `inventory-form.css` e `inventory-form.js`, que no existen en el repo (404). Es un problema previo y no se corrigió en esta rama.
 
 ## Balance global
 
