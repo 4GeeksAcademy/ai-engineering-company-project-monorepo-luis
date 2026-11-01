@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventario – Formularios</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./auth.css" />
+    <link rel="stylesheet" href="./inventory.css" />
+    <link rel="stylesheet" href="./inventory-form.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Navegación del backoffice"></aside>
+      <div class="workspace">
+        <header class="topbar">
+          <p class="breadcrumb">Nexova <span aria-hidden="true">/</span> Inventario</p>
+          <div class="topbar-actions">
+            <div id="auth-status-container" class="auth-status-container" aria-live="polite"></div>
+            <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          </div>
+        </header>
+        <main id="contenido" class="content">
+          <section id="inventory-catalog" class="page-heading" aria-labelledby="inventory-title">
+            <h1 id="inventory-title">Catálogo de Activos</h1>
+            <div class="filters">
+              <label for="office-filter">Oficina:</label>
+              <select id="office-filter"><option value="">Todas</option></select>
+              <label for="category-filter">Categoría:</label>
+              <select id="category-filter"><option value="">Todas</option></select>
+            </div>
+            <div id="catalog-container" class="catalog-container"></div>
+            <div id="catalog-feedback" class="catalog-feedback" role="status" aria-live="polite" hidden></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Auth modal (same as index.html) -->
+    <dialog id="auth-dialog" class="auth-dialog">
+      <form method="dialog" class="auth-form">
+        <h2>Iniciar sesión</h2>
+        <label for="username">Usuario</label>
+        <input type="text" id="username" name="username" required />
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" name="password" required />
+        <div class="auth-actions">
+          <button type="submit" class="auth-submit">Entrar</button>
+          <button type="button" class="auth-cancel" data-action="close">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Inbound form modal -->
+    <dialog id="inbound-dialog" class="form-dialog" aria-labelledby="inbound-title">
+      <form id="inbound-form" class="form-content">
+        <h2 id="inbound-title">Registrar Entrada</h2>
+        <label for="inbound-sku">SKU</label>
+        <input type="text" id="inbound-sku" name="sku" required readonly />
+        <label for="inbound-quantity">Cantidad</label>
+        <input type="number" id="inbound-quantity" name="quantity" min="1" required />
+        <label for="inbound-supplier">Proveedor</label>
+        <input type="text" id="inbound-supplier" name="supplier" required />
+        <label for="inbound-office">Oficina</label>
+        <select id="inbound-office" name="office" required>
+          <option value="">Selecciona</option>
+        </select>
+        <div class="form-actions">
+          <button type="submit" class="form-submit">Crear Entrada</button>
+          <button type="button" class="form-cancel" data-action="close">Cancelar</button>
+        </div>
+        <div class="form-feedback" role="status" aria-live="polite" hidden></div>
+      </form>
+    </dialog>
+
+    <!-- Outbound form modal -->
+    <dialog id="outbound-dialog" class="form-dialog" aria-labelledby="outbound-title">
+      <form id="outbound-form" class="form-content">
+        <h2 id="outbound-title">Registrar Salida</h2>
+        <label for="outbound-sku">SKU</label>
+        <input type="text" id="outbound-sku" name="sku" required readonly />
+        <label for="outbound-quantity">Cantidad</label>
+        <input type="number" id="outbound-quantity" name="quantity" min="1" required />
+        <label for="outbound-type">Tipo de salida</label>
+        <select id="outbound-type" name="type" required>
+          <option value="allocation">Asignación</option>
+          <option value="consumption">Consumo</option>
+        </select>
+        <label for="outbound-assigned" id="outbound-assigned-label">Asignado a</label>
+        <input type="text" id="outbound-assigned" name="assigned_to" />
+        <label for="outbound-office">Oficina</label>
+        <select id="outbound-office" name="office" required>
+          <option value="">Selecciona</option>
+        </select>
+        <div class="form-actions">
+          <button type="submit" class="form-submit">Crear Salida</button>
+          <button type="button" class="form-cancel" data-action="close">Cancelar</button>
+        </div>
+        <div class="form-feedback" role="status" aria-live="polite" hidden></div>
+      </form>
+    </dialog>
+
+    <script src="./inventory-api.js"></script>
+    <script src="./auth.js"></script>
+    <script src="./inventory-view.js" type="module"></script>
+    <script src="./inventory-form.js" type="module"></script>
+  </body>
+</html>
+
