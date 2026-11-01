@@ -38,19 +38,36 @@
       </div>
     </div>
 
-    <!-- Auth modal (same as index.html) -->
-    <dialog id="auth-dialog" class="auth-dialog">
-      <form method="dialog" class="auth-form">
-        <h2>Iniciar sesión</h2>
-        <label for="username">Usuario</label>
-        <input type="text" id="username" name="username" required />
-        <label for="password">Contraseña</label>
-        <input type="password" id="password" name="password" required />
-        <div class="auth-actions">
-          <button type="submit" class="auth-submit">Entrar</button>
-          <button type="button" class="auth-cancel" data-action="close">Cancelar</button>
+    <!-- Dialog de autenticación accesible (mismo markup que index.html) -->
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-modal-title">
+      <div class="auth-modal-card">
+        <div class="auth-modal-header">
+          <div>
+            <h2 id="auth-modal-title" class="auth-modal-title">Acceso de personal</h2>
+            <p class="auth-modal-subtitle">Inicia sesión para operar en el inventario de Nexova.</p>
+          </div>
+          <button type="button" id="auth-close-btn" class="btn-modal-close" aria-label="Cerrar modal de acceso">✕</button>
         </div>
-      </form>
+
+        <div id="auth-feedback" class="auth-feedback" role="alert" aria-live="polite" hidden></div>
+
+        <form id="auth-login-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Correo electrónico</label>
+            <input type="email" id="auth-email" class="auth-input" placeholder="nombre@nexova.com" required autocomplete="username" />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Contraseña</label>
+            <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div class="auth-actions">
+            <button type="button" id="auth-cancel-btn" class="btn-auth-cancel">Cancelar</button>
+            <button type="submit" id="auth-submit-btn" class="btn-auth-submit">Ingresar al sistema</button>
+          </div>
+        </form>
+      </div>
     </dialog>
 
     <!-- Inbound form modal -->
