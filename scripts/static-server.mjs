@@ -105,3 +105,4 @@ if (process.argv[1] === __filename) {
     process.exit(1);
   });
 }
+
