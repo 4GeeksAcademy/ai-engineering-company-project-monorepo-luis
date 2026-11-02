@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventario – Formularios</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./auth.css" />
+    <link rel="stylesheet" href="./inventory.css" />
+    <link rel="stylesheet" href="./inventory-form.css" />
+    <script src="./shared-nav.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+    <div class="app-shell">
+      <backoffice-rail current="movimientos"></backoffice-rail>
+      <div class="workspace">
+        <header class="topbar">
+          <p class="breadcrumb">Nexova <span aria-hidden="true">/</span> Inventario</p>
+          <div class="topbar-actions">
+            <div id="auth-status-container" class="auth-status-container" aria-live="polite"></div>
+            <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          </div>
+        </header>
+        <main id="contenido" class="content">
+          <section id="inventory-catalog" class="page-heading" aria-labelledby="inventory-title">
+            <h1 id="inventory-title">Catálogo de Activos</h1>
+            <div class="filters">
+              <label for="office-filter">Oficina:</label>
+              <select id="office-filter"><option value="">Todas</option></select>
+              <label for="category-filter">Categoría:</label>
+              <select id="category-filter"><option value="">Todas</option></select>
+            </div>
+            <div id="catalog-container" class="catalog-container"></div>
+            <div id="catalog-feedback" class="catalog-feedback" role="status" aria-live="polite" hidden></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Dialog de autenticación accesible (mismo markup que index.html) -->
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-modal-title">
+      <div class="auth-modal-card">
+        <div class="auth-modal-header">
+          <div>
+            <h2 id="auth-modal-title" class="auth-modal-title">Acceso de personal</h2>
+            <p class="auth-modal-subtitle">Inicia sesión para operar en el inventario de Nexova.</p>
+          </div>
+          <button type="button" id="auth-close-btn" class="btn-modal-close" aria-label="Cerrar modal de acceso">✕</button>
+        </div>
+
+        <div id="auth-feedback" class="auth-feedback" role="alert" aria-live="polite" hidden></div>
+
+        <form id="auth-login-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Correo electrónico</label>
+            <input type="email" id="auth-email" class="auth-input" placeholder="nombre@nexova.com" required autocomplete="username" />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Contraseña</label>
+            <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div class="auth-actions">
+            <button type="button" id="auth-cancel-btn" class="btn-auth-cancel">Cancelar</button>
+            <button type="submit" id="auth-submit-btn" class="btn-auth-submit">Ingresar al sistema</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- Inbound form modal -->
+    <dialog id="inbound-dialog" class="form-dialog" aria-labelledby="inbound-title">
+      <form id="inbound-form" class="form-content">
+        <h2 id="inbound-title">Registrar Entrada</h2>
+        <label for="inbound-sku">SKU</label>
+        <input type="text" id="inbound-sku" name="sku" required readonly />
+        <label for="inbound-quantity">Cantidad</label>
+        <input type="number" id="inbound-quantity" name="quantity" min="1" required />
+        <label for="inbound-supplier">Proveedor</label>
+        <input type="text" id="inbound-supplier" name="supplier" required />
+        <label for="inbound-office">Oficina</label>
+        <select id="inbound-office" name="office" required>
+          <option value="">Selecciona</option>
+        </select>
+        <div class="form-actions">
+          <button type="submit" class="form-submit">Crear Entrada</button>
+          <button type="button" class="form-cancel" data-action="close">Cancelar</button>
+        </div>
+        <div class="form-feedback" role="status" aria-live="polite" hidden></div>
+      </form>
+    </dialog>
+
+    <!-- Outbound form modal -->
+    <dialog id="outbound-dialog" class="form-dialog" aria-labelledby="outbound-title">
+      <form id="outbound-form" class="form-content">
+        <h2 id="outbound-title">Registrar Salida</h2>
+        <label for="outbound-sku">SKU</label>
+        <input type="text" id="outbound-sku" name="sku" required readonly />
+        <label for="outbound-quantity">Cantidad</label>
+        <input type="number" id="outbound-quantity" name="quantity" min="1" required />
+        <label for="outbound-type">Tipo de salida</label>
+        <select id="outbound-type" name="type" required>
+          <option value="allocation">Asignación</option>
+          <option value="consumption">Consumo</option>
+        </select>
+        <label for="outbound-assigned" id="outbound-assigned-label">Asignado a</label>
+        <input type="text" id="outbound-assigned" name="assigned_to" />
+        <label for="outbound-office">Oficina</label>
+        <select id="outbound-office" name="office" required>
+          <option value="">Selecciona</option>
+        </select>
+        <div class="form-actions">
+          <button type="submit" class="form-submit">Crear Salida</button>
+          <button type="button" class="form-cancel" data-action="close">Cancelar</button>
+        </div>
+        <div class="form-feedback" role="status" aria-live="polite" hidden></div>
+      </form>
+    </dialog>
+
+    <script src="./inventory-api.js"></script>
+    <script src="./auth.js"></script>
+    <script src="./inventory-view.js" type="module"></script>
+    <script src="./inventory-form.js" type="module"></script>
+  </body>
+</html>
+

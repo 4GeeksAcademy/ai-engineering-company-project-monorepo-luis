@@ -24,45 +24,7 @@
   <body>
     <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
     <div class="app-shell">
-      <aside class="rail" aria-label="Navegación del backoffice">
-        <a class="brand" href="./" aria-label="Nexova, resumen del backoffice">
-          <span class="brand-mark" aria-hidden="true">N</span>
-          <span class="brand-name">Nexova<span>PEOPLE OPERATIONS</span></span>
-        </a>
-
-        <nav class="primary-nav" aria-label="Principal">
-          <p class="nav-heading">ESPACIO DE TRABAJO</p>
-          <a class="nav-link is-current" href="#resumen" aria-current="page">
-            <span class="nav-index">01</span>
-            Resumen
-          </a>
-          <a class="nav-link" href="#talento">
-            <span class="nav-index">02</span>
-            Proceso de talento
-          </a>
-          <a class="nav-link" href="#servicios">
-            <span class="nav-index">03</span>
-            Líneas de negocio
-          </a>
-          <a class="nav-link" href="#ubicaciones">
-            <span class="nav-index">04</span>
-            Ubicaciones
-          </a>
-          <a class="nav-link" href="#proveedores">
-            <span class="nav-index">05</span>
-            Proveedores
-          </a>
-          <a class="nav-link" href="#incidencias">
-            <span class="nav-index">06</span>
-            Incidencias
-          </a>
-        </nav>
-
-        <div class="rail-footer">
-          <span class="rail-status"><span aria-hidden="true"></span> Entorno local</span>
-          <p>Directorio comercial<br />Solo demo/local</p>
-        </div>
-      </aside>
+      <backoffice-rail current="resumen"></backoffice-rail>
 
       <div class="workspace">
         <header class="topbar">
@@ -616,6 +578,7 @@
       </div>
     </dialog>
 
+    <script src="./shared-nav.js" defer></script>
     <script src="./inventory-api.js" defer></script>
     <script src="./auth.js" defer></script>
     <script src="./incidents.js" defer></script>

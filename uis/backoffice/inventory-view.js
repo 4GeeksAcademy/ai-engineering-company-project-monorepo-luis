@@ -70,11 +70,15 @@ function renderTable(products) {
     btnIn.className = 'action-btn inbound-btn';
     btnIn.textContent = 'Entrada';
     btnIn.dataset.sku = p.sku;
+    btnIn.dataset.id = p.id;
+    btnIn.dataset.office = p.office ?? '';
     const btnOut = document.createElement('button');
     btnOut.type = 'button';
     btnOut.className = 'action-btn outbound-btn';
     btnOut.textContent = 'Salida';
     btnOut.dataset.sku = p.sku;
+    btnOut.dataset.id = p.id;
+    btnOut.dataset.office = p.office ?? '';
     tdActions.appendChild(btnIn);
     tdActions.appendChild(document.createTextNode(' '));
     tdActions.appendChild(btnOut);
@@ -144,16 +148,22 @@ function init() {
   document.getElementById('category-filter').addEventListener('change', loadAndRender);
   // Delegated click handling for action buttons
   document.getElementById('catalog-container').addEventListener('click', (e) => {
-    if (e.target.matches('.inbound-btn')) {
-      const sku = e.target.dataset.sku;
-      // TODO: open inbound form (Etapa 3). For now just alert.
-      alert(`Registrar entrada para SKU ${sku}`);
-    } else if (e.target.matches('.outbound-btn')) {
-      const sku = e.target.dataset.sku;
-      // TODO: open outbound form (Etapa 3).
-      alert(`Registrar salida para SKU ${sku}`);
+    const btn = e.target.closest('.inbound-btn, .outbound-btn');
+    if (!btn) return;
+    const mode = btn.classList.contains('inbound-btn') ? 'inbound' : 'outbound';
+    const { id, sku, office } = btn.dataset;
+    // Pages without the form dialogs (inventory.html) link to the movements page instead.
+    if (!document.getElementById(`${mode}-dialog`)) {
+      window.location.href = './inventory-forms.html';
+      return;
     }
+    document.dispatchEvent(
+      new CustomEvent('inventory:open-form', {
+        detail: { mode, assetId: Number(id), sku, office },
+      })
+    );
   });
+  document.addEventListener('inventory:changed', loadAndRender);
   populateFilters().finally(loadAndRender);
 }
 

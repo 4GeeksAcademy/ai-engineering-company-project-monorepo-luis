@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventario – Historial de Órdenes</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./auth.css" />
+    <link rel="stylesheet" href="./inventory.css" />
+    <link rel="stylesheet" href="./order-history.css" />
+    <script src="./shared-nav.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+    <div class="app-shell">
+      <backoffice-rail current="historial"></backoffice-rail>
+      <div class="workspace">
+        <header class="topbar">
+          <p class="breadcrumb">Nexova <span aria-hidden="true">/</span> Inventario</p>
+          <div class="topbar-actions">
+            <div id="auth-status-container" class="auth-status-container" aria-live="polite"></div>
+            <a class="topbar-link" href="https://nexova.com/" target="_blank" rel="noopener noreferrer">Sitio público <span aria-hidden="true">↗</span></a>
+          </div>
+        </header>
+        <main id="contenido" class="content">
+          <section id="order-history" class="page-heading" aria-labelledby="order-history-title">
+            <h1 id="order-history-title">Histórico de Órdenes</h1>
+            <div id="history-feedback" class="catalog-feedback" role="status" aria-live="polite" hidden></div>
+            <div id="history-container" class="catalog-container"></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Dialog de autenticación accesible (mismo markup que index.html) -->
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-modal-title">
+      <div class="auth-modal-card">
+        <div class="auth-modal-header">
+          <div>
+            <h2 id="auth-modal-title" class="auth-modal-title">Acceso de personal</h2>
+            <p class="auth-modal-subtitle">Inicia sesión para operar en el inventario de Nexova.</p>
+          </div>
+          <button type="button" id="auth-close-btn" class="btn-modal-close" aria-label="Cerrar modal de acceso">✕</button>
+        </div>
+
+        <div id="auth-feedback" class="auth-feedback" role="alert" aria-live="polite" hidden></div>
+
+        <form id="auth-login-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Correo electrónico</label>
+            <input type="email" id="auth-email" class="auth-input" placeholder="nombre@nexova.com" required autocomplete="username" />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Contraseña</label>
+            <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div class="auth-actions">
+            <button type="button" id="auth-cancel-btn" class="btn-auth-cancel">Cancelar</button>
+            <button type="submit" id="auth-submit-btn" class="btn-auth-submit">Ingresar al sistema</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <script src="./inventory-api.js"></script>
+    <script src="./auth.js"></script>
+    <script src="./order-history.js" type="module"></script>
+  </body>
+</html>
+
