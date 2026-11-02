@@ -34,7 +34,7 @@ Los routers usan estos prefijos en `main.py`. Confirmar la lista final con OpenA
 | Método y ruta | Propósito | Estado estático inicial | Observación que se debe validar |
 |---|---|---|---|
 | `GET /health` | Estado del servicio | ❌ | Devuelve un dict con `status` y `service`, sin `response_model`. Definir un esquema pequeño estable. |
-| `POST /auth/login` | Inicio de sesión; token Bearer | ✅ | Tiene `TokenResponse`. Comprobar en ejecución ambos modos de entrada soportados (JSON/OAuth2) y que ninguna credencial se filtra. |
+| `POST /auth/login` | Inicio de sesión; token de acceso | ✅ | Tiene `TokenResponse`. Comprobar en ejecución ambos modos de entrada soportados (JSON/OAuth2) y que ninguna credencial se filtra. |
 | `GET /auth/me` | Identidad y perfil del usuario autenticado | ✅ | Tiene `AuthMeResponse`; el email del propio llamante sí está permitido por el README. Revisar proyección del perfil y campos necesarios en UI. |
 | `POST /auth/forgot-password` | Solicitar restablecimiento | ✅ | Tiene `AuthActionResponse`; verificar mensaje genérico, sin revelar si el email existe ni repetirlo en la respuesta. |
 | `POST /auth/reset-password` | Cambiar contraseña con token de recuperación | ✅ | Tiene `AuthActionResponse`; el token y contraseña nueva no deben aparecer en la salida ni logs. |
@@ -67,6 +67,27 @@ Los routers usan estos prefijos en `main.py`. Confirmar la lista final con OpenA
 | `DELETE /api/suppliers/{supplier_id}` | Eliminar proveedor | ❌ | No declara `response_model`; retorna `{"id": ..., "deleted": true}`. Definir modelo de confirmación explícito o respuesta 204 documentada y probada. |
 
 **Nota de conteo:** la tabla enumera 32 operaciones del código inspeccionado (incluye endpoints CSV). Confirmar el inventario real con OpenAPI y con las rutas montadas cuando se ejecute el proyecto; si el conteo cambia, documentar por qué.
+
+### Etapa 1 — Inventario contrastado (2026-11-02)
+
+El inventario, los campos actuales/objetivo, consumidores, errores, decisiones y
+tablero de ocho etapas están en [docs/serialization-audit.md](docs/serialization-audit.md).
+Base: `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`, rama `docs/auditoria-back`.
+`GET /openapi.json` mediante TestClient sin lifespan confirmó 32 operaciones.
+No se cambiaron contratos ni se ejecutaron pruebas de negocio en esta etapa.
+
+Precisiones respecto a esta tabla preliminar:
+
+- Los DELETE infieren un esquema genérico de su anotación de retorno, pero no
+  declaran un modelo Pydantic explícito con las claves obligatorias `id`/`deleted`.
+- El CSV se anuncia como JSON vacío en OpenAPI: documentar su contenido real y
+  confirmar con el instructor la excepción al requisito literal de `response_model`.
+- El consumidor sí usa descripción de incidentes, contacto/notas de proveedores
+  y autor/destino de movimientos; no eliminarlos por intuición.
+- El historial espera alias diferentes de `movement_type`, `asset_name` y
+  `asset_sku`; registrar y alinear el consumidor durante la etapa 7.
+- Las clasificaciones finales siguen pendientes; el entregable conserva estado
+  original y objetivo por endpoint sin presentar la implementación como terminada.
 
 ## Hallazgos estáticos iniciales a comprobar
 

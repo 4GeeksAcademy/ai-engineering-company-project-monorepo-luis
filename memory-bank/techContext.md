@@ -1,5 +1,25 @@
 # Tech Context
 
+## Auditoria de serializacion — 2026-11-02
+
+- Referencia del hito: `auditoria-back.md`; entregable y tablero de ocho etapas:
+  `docs/serialization-audit.md`. Rama dedicada `docs/auditoria-back`, base
+  `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`.
+- FastAPI registra auth, users, profiles, incidents, suppliers e inventory mas
+  health: 32 operaciones confirmadas por OpenAPI/TestClient sin lifespan.
+- Auth/perfiles, incidentes y proveedores usan TinyDB; inventario usa SQLModel
+  con proyecciones explicitas y stock calculado. No confundir las persistencias.
+- La etapa 1 es documental: cuatro respuestas JSON requieren contrato explicito
+  de campos (incluidos DELETE con dict inferido); export mantiene CSV y necesita
+  documentacion OpenAPI correcta. Implementacion/verificacion pendientes.
+- Consumidores principales: backoffice y autenticacion del tracker. La API
+  externa de candidatos del tracker queda fuera del alcance de serializacion.
+- No retirar `user_uuid`, `assigned_to`, descripcion o contacto/notas sin
+  justificar su uso observado. El historial debe alinearse con nombres
+  canonicos de `OrderItemRead` en etapa 7, sin modificar permisos de inventario.
+- Validacion por etapa: tests focalizados existentes; suite backend completa
+  solo en cierre final. Sin lint/typecheck/build Python declarados ni tooling nuevo.
+
 ## Fuentes de verdad
 
 - `autenticacion.md`: guía del hito AUTH-01; el README oficial de 4Geeks enlazado allí prevalece ante discrepancias. Las referencias temporales `ingenieria-ia.md` y `base-dato-ligero.md` fueron retiradas al completar su función; el directorio de proveedores existente se documenta en el README de la API.

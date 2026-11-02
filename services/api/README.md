@@ -2,6 +2,21 @@
 
 Centralized FastAPI backend service for Nexova operations and incident analysis.
 
+## Backend serialization audit
+
+The current audit baseline and eight-stage delivery plan are documented in
+[docs/serialization-audit.md](../../docs/serialization-audit.md), with
+[auditoria-back.md](../../auditoria-back.md) as the contextual assignment guide.
+Work stays on `docs/auditoria-back`; each completed stage includes documentation,
+relevant verification, one commit and a push.
+
+Stage 1 (2026-11-02) confirmed 32 operations through OpenAPI and source/consumer
+inspection. It changes documentation only: implementation and business-response
+verification remain pending. Existing JSON dictionaries need explicit field
+contracts; the CSV export must retain its real format and receive accurate
+OpenAPI documentation. Historical stage descriptions below are not a statement
+that the current API lacks authentication.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

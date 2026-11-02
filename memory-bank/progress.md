@@ -2,6 +2,36 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 1
+
+Actualizado: 2026-11-02. Rama `docs/auditoria-back`; base limpia en
+`6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`. Esta entrada no reemplaza ni declara
+vigentes las ramas/estados historicos de los hitos anteriores.
+
+- Creado `docs/serialization-audit.md`: 32 operaciones con entrada, forma actual,
+  origen, consumidor, clasificacion inicial, objetivo y etapa de verificacion.
+- Confirmado OpenAPI con GET 200 mediante TestClient sin lifespan, sin JWT,
+  bases reales, seeds ni lectura de `.env*`. Python existente de la API; sin
+  instalaciones. Consulta corregida para incluir las rutas de routers.
+- 27 operaciones declaran modelos Pydantic; dos DELETE infieren diccionario
+  generico sin claves fijas; health/analisis carecen de esquema fijo y el export
+  CSV se anuncia incorrectamente como JSON. No se cambiaron contratos.
+- Registro devuelve email y el formulario tracker descarta el body: propuesta
+  de confirmacion separada y ajuste coordinado del tipo del cliente en etapa 2.
+- Consumidores usan descripcion, contacto/notas y autor/destino; justificar
+  cualquier reduccion. Historial inventario espera alias diferentes de los
+  campos canonicos publicados: alinear en etapa 7.
+- Tablero de ocho etapas y flujo de cierre por commit/push documentados.
+  Excepcion CSV requiere confirmar aceptacion del instructor para entrega final.
+- Corregida fila malformada de login en `auditoria-back.md`; enlazado entregable
+  oficial desde guia y README API. Sin nuevas pruebas ni suite de negocio en
+  etapa documental; Swagger/UI y verificacion integral pendientes.
+- Validacion documental satisfactoria: 32 filas numeradas coinciden con OpenAPI;
+  recuentos de clasificacion, enlaces y referencias comprobados. La fila de login
+  coincide con las cuatro columnas del encabezado; `git diff --check` correcto.
+- Publicacion de etapa 1: verificar commit/push al cierre; registrar el hash
+  publicado al comenzar etapa 2. No abrir PR final ni avanzar sin autorizacion.
+
 ## Estado inicial observado
 
 - Revisión documental de la etapa 1 completada para `ingenieria-ia.md`, `CONTEXT.md`, `SPEC.md` y README relevantes.
