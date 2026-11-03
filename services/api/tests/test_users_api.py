@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from services.api.auth_models import UserCreate, UserRole, UserUpdate
 from services.api.auth_storage import open_auth_database
 from services.api.main import app
-from services.api.user_service import create_user, get_profile_by_user_id, update_user
+from services.api.user_service import create_user, get_profile_by_user_id, get_user_by_email, update_user
 
 
 class TestUsersAPI(unittest.TestCase):
@@ -44,7 +44,11 @@ class TestUsersAPI(unittest.TestCase):
             "address": f"synthetic-{name.lower()}-address",
         })
         self.assertEqual(response.status_code, 201, response.text)
-        return response.json()
+        self.assertEqual(response.json(), {"message": "User registered successfully"})
+        user = get_user_by_email(email)
+        if user is None:
+            self.fail("Registered user was not persisted")
+        return user.model_dump(mode="json")
 
     def token(self, email, password="synthetic-password"):
         response = self.client.post("/auth/login", json={"email": email, "password": password})
@@ -57,14 +61,23 @@ class TestUsersAPI(unittest.TestCase):
     def test_public_registration_creates_default_user_and_profile_without_secrets(self):
         response = self.client.post("/users", json={"email": "new@example.com", "password": "synthetic-password"})
         self.assertEqual(response.status_code, 201)
-        body = response.json()
-        self.assertEqual(body["role"], "user")
-        self.assertTrue(body["is_active"])
+        self.assertEqual(response.json(), {"message": "User registered successfully"})
+        self.assertNotIn("new@example.com", response.text)
         self.assertNotIn("hashed_password", response.text)
         self.assertNotIn("synthetic-password", response.text)
-        profile = get_profile_by_user_id(body["id"])
+        user = get_user_by_email("new@example.com")
+        if user is None:
+            self.fail("Registered user was not persisted")
+        self.assertEqual(user.role, UserRole.USER)
+        self.assertTrue(user.is_active)
+        profile = get_profile_by_user_id(user.id)
         self.assertIsNone(profile.name)
-        self.assertEqual(profile.user_id, body["id"])
+        self.assertEqual(profile.user_id, user.id)
+        login = self.client.post("/auth/login", json={
+            "email": "new@example.com", "password": "synthetic-password",
+        })
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(set(login.json()), {"access_token", "token_type"})
 
     def test_registration_rejects_role_escalation_and_sanitizes_password_errors(self):
         for payload in (
@@ -109,6 +122,8 @@ class TestUsersAPI(unittest.TestCase):
         response = self.client.get("/users", headers=self.headers(self.admin))
         self.assertEqual(response.status_code, 200)
         self.assertGreaterEqual(len(response.json()), 4)
+        for user in response.json():
+            self.assertEqual(set(user), {"id", "email", "is_active", "role", "created_at"})
         self.assertTrue(all("hashed_password" not in user for user in response.json()))
         self.assertNotIn("hashed_password", str(self.client.get("/openapi.json").json()))
 
@@ -116,9 +131,11 @@ class TestUsersAPI(unittest.TestCase):
         headers = self.headers(self.owner)
         response = self.client.get(f"/users/{self.owner['id']}", headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {"id", "email", "is_active", "role", "created_at"})
         self.assertNotIn("hashed_password", response.text)
         updated = self.client.put(f"/users/{self.owner['id']}", json={"email": "OWNER-NEW@example.com"}, headers=headers)
         self.assertEqual(updated.status_code, 200)
+        self.assertEqual(set(updated.json()), {"id", "email", "is_active", "role", "created_at"})
         self.assertEqual(updated.json()["email"], "owner-new@example.com")
         updated = self.client.put(f"/users/{self.owner['id']}", json={"password": "new-synthetic-password"}, headers=headers)
         self.assertEqual(updated.status_code, 200)
@@ -173,11 +190,15 @@ class TestUsersAPI(unittest.TestCase):
         headers = self.headers(self.owner)
         profile = self.client.get("/profiles/me", headers=headers)
         self.assertEqual(profile.status_code, 200)
+        self.assertEqual(set(profile.json()), {"id", "user_id", "name", "phone", "address"})
         self.assertEqual(profile.json()["user_id"], self.owner["id"])
         updated = self.client.put("/profiles/me", json={"name": "Updated Owner", "phone": None}, headers=headers)
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.json()["name"], "Updated Owner")
         self.assertIsNone(updated.json()["phone"])
+        self.assertEqual(updated.json()["address"], profile.json()["address"])
+        self.assertEqual(updated.json()["id"], profile.json()["id"])
+        self.assertEqual(updated.json()["user_id"], self.owner["id"])
         self.assertEqual(self.client.get("/auth/me", headers=headers).json()["profile"]["name"], "Updated Owner")
         self.assertEqual(self.client.get(f"/profiles/{self.other['id']}", headers=headers).status_code, 404)
 
@@ -229,6 +250,11 @@ class TestUsersAPI(unittest.TestCase):
         registration_name = registration_ref.rsplit("/", 1)[-1]
         registration_schema = schema["components"]["schemas"][registration_name]
         self.assertNotIn("role", registration_schema["properties"])
+        response_ref = paths["/users"]["post"]["responses"]["201"]["content"]["application/json"]["schema"]["$ref"]
+        response_schema = schema["components"]["schemas"][response_ref.rsplit("/", 1)[-1]]
+        self.assertEqual(set(response_schema["properties"]), {"message"})
+        self.assertEqual(response_schema["required"], ["message"])
+        self.assertFalse(response_schema["additionalProperties"])
         self.assertNotIn("hashed_password", str(schema))
 
 

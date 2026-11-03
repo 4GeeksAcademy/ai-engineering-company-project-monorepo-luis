@@ -111,6 +111,9 @@ class TestAuthLoginEndpoint(BaseAuthAPITestCase):
         response = self.login()
         self.assertEqual(response.status_code, 200)
         data = response.json()
+        self.assertEqual(set(data), {"access_token", "token_type"})
+        self.assertNotIn("login@example.com", response.text)
+        self.assertNotIn("synthetic-password", response.text)
         self.assertEqual(data.get("token_type"), "bearer")
         self.assertIn("access_token", data)
 
@@ -129,7 +132,9 @@ class TestAuthLoginEndpoint(BaseAuthAPITestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("access_token", response.json())
+        self.assertEqual(set(response.json()), {"access_token", "token_type"})
+        self.assertNotIn("login@example.com", response.text)
+        self.assertNotIn("synthetic-password", response.text)
 
     def test_login_edge_case_content_type_with_charset(self):
         """Edge case: Content-Type header with extra parameters (charset) is supported."""
@@ -206,6 +211,8 @@ class TestAuthMeEndpoint(BaseAuthAPITestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["email"], "login@example.com")
+        self.assertEqual(set(data), {"email", "role", "profile"})
+        self.assertEqual(set(data["profile"]), {"id", "user_id", "name", "phone", "address"})
         self.assertEqual(data["role"], "user")
         self.assertEqual(data["profile"]["name"], "Synthetic Name")
         self.assertEqual(data["profile"]["user_id"], self.user.id)

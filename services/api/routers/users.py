@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from services.api.auth_dependencies import get_current_user
 from services.api.auth_models import (
+    AuthActionResponse,
     UserCreate,
     UserRecord,
     UserRegistration,
@@ -43,10 +44,10 @@ def _raise_duplicate_email() -> None:
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered") from None
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_user(registration: UserRegistration) -> UserResponse:
+@router.post("", response_model=AuthActionResponse, status_code=status.HTTP_201_CREATED)
+def register_user(registration: UserRegistration) -> AuthActionResponse:
     try:
-        user = create_user(
+        create_user(
             UserCreate(
                 email=registration.email,
                 password=registration.password,
@@ -59,7 +60,7 @@ def register_user(registration: UserRegistration) -> UserResponse:
         _raise_duplicate_email()
     except RegistrationRoleError:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid registration role") from None
-    return user
+    return AuthActionResponse(message="User registered successfully")
 
 
 @router.get("", response_model=list[UserResponse])

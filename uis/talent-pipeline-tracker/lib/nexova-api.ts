@@ -9,7 +9,6 @@ import type {
   NexovaRegistrationInput,
   NexovaResetPasswordInput,
   NexovaTokenResponse,
-  NexovaUser,
 } from "@/types/auth";
 
 const ACCESS_TOKEN_KEY = "nexova_access_token";
@@ -135,8 +134,8 @@ async function request<T>(
 
 export function registerNexovaUser(
   input: NexovaRegistrationInput,
-): Promise<NexovaUser> {
-  return request<NexovaUser>(
+): Promise<NexovaAuthActionResponse> {
+  return request<NexovaAuthActionResponse>(
     "/users",
     { method: "POST", body: JSON.stringify(input) },
     "public",

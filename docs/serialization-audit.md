@@ -5,6 +5,10 @@
 Etapa 1: auditoria inicial y plan documentados el **2026-11-02**. No se han
 implementado cambios funcionales ni certificado los contratos finales.
 
+Esta descripcion y las formas "actuales" del inventario conservan la fotografia
+del commit de partida. Los cambios posteriores se registran por etapa abajo;
+no sobrescribir el estado original con el contrato nuevo.
+
 - Rama: `docs/auditoria-back`, siguiendo `origin/docs/auditoria-back`.
 - Commit de partida: `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`.
 - Arbol limpio al iniciar. API: FastAPI, version declarada `1.0.0`.
@@ -61,11 +65,13 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
 - **SIN** = falta un contrato de salida explicito con campos definidos.
 - **SIN/CSV** = excepcion no JSON todavia mal documentada.
 - Estado final **P** = pendiente de implementacion/verificacion; no es aprobacion.
+- **V2** = contrato de etapa 2 verificado mediante tests y checks focalizados.
+  La aceptacion global, Swagger manual y suite completa siguen en etapa 8.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
 
-### Catalogo de formas actuales y objetivo
+### Catalogo de formas actuales y objetivo (base de etapa 1)
 
 Los campos enumerados son nombres de contrato, nunca valores reales. `[]` indica
 lista; nullable no equivale a campo omitido. Preservar esta distincion al implementar.
@@ -114,18 +120,18 @@ Evidencia: routers [auth](../services/api/routers/auth.py),
 
 | # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
 |---|---|---|---|---|---|---|
-| 1 | `POST /auth/login`: iniciar sesion | `LoginRequest`; JSON u OAuth2 form | Modelo T, 200; JWT creado desde usuario TinyDB | Tracker y cliente backoffice: T; ambos formatos y credenciales invalidas deben conservarse | YA | 2 / P |
-| 2 | `GET /auth/me`: identidad propia | Bearer; sin body | Modelo M, 200; usuario/perfil TinyDB | Tracker y backoffice: M; email propio permitido, perfil anidado intencional | PARCIAL | 2 / P |
-| 3 | `POST /auth/forgot-password`: solicitar recuperacion | `ForgotPasswordRequest` | Modelo A, 200; confirmacion/background task | Cliente tracker: A; mismo mensaje exista o no usuario | YA | 2 / P |
-| 4 | `POST /auth/reset-password`: restablecer | `ResetPasswordRequest` | Modelo A, 200; servicio de recuperacion TinyDB | Cliente tracker: A; no repetir token ni nueva clave | YA | 2 / P |
-| 5 | `POST /auth/change-password`: cambiar clave propia | `ChangePasswordRequest`, Bearer | Modelo A, 200; servicio de credenciales TinyDB | Cliente tracker: A; no incluir email/credenciales | YA | 2 / P |
-| 6 | `POST /users`: registro publico | `UserRegistration` | Modelo U, 201; usuario/perfil creados en TinyDB | Formulario tracker descarta respuesta; U debe pasar a R y cambiar tipo de retorno del cliente | PARCIAL | 2 / P |
-| 7 | `GET /users`: listado admin | Bearer; sin body | Modelo U[], 200; proyecciones TinyDB | Sin UI identificada; Swagger/tests. Justificar campos para admin, no reducir sin caso de uso | PARCIAL | 2 / P |
-| 8 | `GET /users/{user_id}`: detalle propietario/admin | Path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U autorizado, sin hash | YA | 2 / P |
-| 9 | `PUT /users/{user_id}`: actualizar usuario | `UserUpdate`, path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U y autorizacion admin para rol/estado | YA | 2 / P |
+| 1 | `POST /auth/login`: iniciar sesion | `LoginRequest`; JSON u OAuth2 form | Modelo T, 200; JWT creado desde usuario TinyDB | Tracker y cliente backoffice: T; ambos formatos y credenciales invalidas deben conservarse | YA | 2 / V2 |
+| 2 | `GET /auth/me`: identidad propia | Bearer; sin body | Modelo M, 200; usuario/perfil TinyDB | Tracker y backoffice: M; email propio permitido, perfil anidado intencional | PARCIAL | 2 / V2 |
+| 3 | `POST /auth/forgot-password`: solicitar recuperacion | `ForgotPasswordRequest` | Modelo A, 200; confirmacion/background task | Cliente tracker: A; mismo mensaje exista o no usuario | YA | 2 / V2 |
+| 4 | `POST /auth/reset-password`: restablecer | `ResetPasswordRequest` | Modelo A, 200; servicio de recuperacion TinyDB | Cliente tracker: A; no repetir token ni nueva clave | YA | 2 / V2 |
+| 5 | `POST /auth/change-password`: cambiar clave propia | `ChangePasswordRequest`, Bearer | Modelo A, 200; servicio de credenciales TinyDB | Cliente tracker: A; no incluir email/credenciales | YA | 2 / V2 |
+| 6 | `POST /users`: registro publico | `UserRegistration` | Modelo U, 201; usuario/perfil creados en TinyDB | Formulario tracker descarta respuesta; U debe pasar a R y cambiar tipo de retorno del cliente | PARCIAL | 2 / V2 |
+| 7 | `GET /users`: listado admin | Bearer; sin body | Modelo U[], 200; proyecciones TinyDB | Sin UI identificada; Swagger/tests. Justificar campos para admin, no reducir sin caso de uso | PARCIAL | 2 / V2 |
+| 8 | `GET /users/{user_id}`: detalle propietario/admin | Path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U autorizado, sin hash | YA | 2 / V2 |
+| 9 | `PUT /users/{user_id}`: actualizar usuario | `UserUpdate`, path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U y autorizacion admin para rol/estado | YA | 2 / V2 |
 | 10 | `DELETE /users/{user_id}`: borrar usuario/perfil | Path, Bearer | Dict D, 200; confirmacion del servicio | Swagger/tests; fijar D con modelo, no 204 | SIN | 3 / P |
-| 11 | `GET /profiles/me`: perfil propio | Bearer; sin body | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; decision explicita sobre IDs pendientes | PARCIAL | 2 / P |
-| 12 | `PUT /profiles/me`: actualizar contacto | `ProfileUpdate`, Bearer | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; conservar campos omitidos frente a null | PARCIAL | 2 / P |
+| 11 | `GET /profiles/me`: perfil propio | Bearer; sin body | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; decision explicita sobre IDs en cierre de etapa 2 | PARCIAL | 2 / V2 |
+| 12 | `PUT /profiles/me`: actualizar contacto | `ProfileUpdate`, Bearer | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; conservar campos omitidos frente a null | PARCIAL | 2 / V2 |
 
 ### Incidentes y analisis - 7 operaciones
 
@@ -181,7 +187,8 @@ Evidencia: [router](../services/api/routers/suppliers.py) y
 
 Clasificacion inicial de este inventario: **14 YA, 13 PARCIAL, 4 SIN y 1 SIN/CSV**.
 Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
-tabla preliminar de la guia. Las 32 verificaciones finales siguen pendientes.
+tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
+pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
 
 ## Hallazgos, causas, impacto y decisiones
 
@@ -263,7 +270,7 @@ solo por escribir esta justificacion.
 | Etapa | Alcance / condicion de cierre | Dependencias | Estado | Commit previsto / evidencia |
 |---|---|---|---|---|
 | 1 | Inventario, campos, consumidores, decisiones y plan; guia/memoria actualizadas | Ninguna | Completada (alcance documental) | `docs: establish serialization audit baseline`; OpenAPI 200, 32 operaciones; commit/push se verifican al publicar |
-| 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Pendiente | `feat(api): refine auth and user response contracts` |
+| 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
 | 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Pendiente | `feat(api): type health and deletion responses` |
 | 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Pendiente | `feat(api): define analysis and CSV export contracts` |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Pendiente | `feat(api): audit incident serialization contracts` |
@@ -330,4 +337,113 @@ tracker, usar sus checks existentes, no ejecutar checks frontend ajenos.
 | Swagger interactivo / UI | No ejecutados; pendientes |
 | Datos / dependencias | Sin datos reales, seeds, lectura de `.env*` ni instalaciones |
 | Implementacion / PR | Etapas 2-8 pendientes; PR no abierta |
-| Commit/push de etapa 1 | Verificacion al publicar; consultar `git log` y cierre de etapa, registrar hash en etapa 2 |
+| Commit/push de etapa 1 | Publicado y sincronizado: `3c6de178eeaf1360ca346dd4bd8443a344b7968f` |
+
+## Etapa 2 — Autenticacion, usuarios y perfiles
+
+Fecha: 2026-11-02. Base publicada de etapa 1:
+`3c6de178eeaf1360ca346dd4bd8443a344b7968f`. Sin cambios preexistentes al comenzar.
+
+### Cambios y decisiones aplicadas
+
+| Operacion | Original | Contrato de etapa 2 / justificacion |
+|---|---|---|
+| `POST /users` | U, incluido email | HTTP 201, `AuthActionResponse` con solo `message: "User registered successfully"`. Reutiliza el esquema existente de confirmacion, separado de entrada y gestion de usuarios; no crea modelos duplicados. Usuario/perfil y errores se preservan. |
+| `POST /auth/login` | T | Sin cambios: token de acceso publico y `token_type`, sin email ni credenciales. Probados JSON y OAuth2. |
+| `GET /auth/me` | M con P anidado | Sin cambios: email del propio llamante, rol y proyeccion de perfil; no retorna `UserRecord`. UI usa email/rol/contacto. |
+| `POST /auth/forgot-password` | A | Sin cambios: mismo mensaje generico para usuario existente/desconocido/inactivo; no incluye email ni token de recuperacion. |
+| `POST /auth/reset-password` | A | Sin cambios: confirmacion de una clave; token invalido/reutilizado y errores conservados. |
+| `POST /auth/change-password` | A | Sin cambios: confirmacion; exige Bearer y clave actual. Errores no se convierten en exitos. |
+| `GET /users` | U[] | Mantener lista plana con ID/email/rol/estado/fecha. No hay UI administrativa identificada; Swagger/tests consumen el contrato. ID sirve para rutas de gestion, email identifica cuenta, rol/estado gestion autorizada, fecha preserva metadata de creacion. No existe evidencia de un listado diferente que justifique duplicar modelos. |
+| `GET /users/{user_id}` | U | Mantener proyeccion explicita de gestion; propietario/admin, sin hash ni perfil/contactos anidados. |
+| `PUT /users/{user_id}` | U | Mantener U; solo admin modifica rol/estado. Entrada separada, null y campos no autorizados rechazados. |
+| `GET /profiles/me` | P | Mantener ID del perfil y ID relacionado del usuario: identidad explicita del recurso/vinculo ya declarado por SDK y comprobado por contratos HTTP. La UI no los renderiza; se conservan por compatibilidad de la API, no se afirma que sean indispensables para esa vista. No se anida un usuario completo ni credenciales. |
+| `PUT /profiles/me` | P | Mantener la misma identidad y contacto; ID/vinculo no editables. Campo omitido conserva dato y null lo limpia. |
+
+El cliente tracker cambia `registerNexovaUser` a
+`Promise<NexovaAuthActionResponse>`. El formulario ya descartaba el cuerpo de
+registro y sigue iniciando sesion con su input, sin nuevas pantallas ni estado.
+`NexovaUser` sigue describiendo la forma de gestion U, no la confirmacion publica.
+El backoffice usa login/me, no `/users`: no necesita adaptar su registro.
+
+Se actualizaron **tests existentes**, sin archivos de pruebas o frameworks nuevos:
+fixtures recuperan la cuenta desde el servicio interno de pruebas, no desde una
+respuesta publica que ya no debe incluir identidad. El caso de registro comprueba
+confirmacion exacta, ausencia de email/credenciales, creacion de usuario/perfil y
+login posterior. Listado/detalle/actualizacion, perfil, login JSON/OAuth2 y me
+comprueban campos exactos; OpenAPI exige solo `message` y rechaza propiedades extra
+en el esquema de respuesta de registro.
+
+### Evidencia de etapa 2
+
+- Backend: `uv run --locked --project services\api python -m unittest
+  services.api.tests.test_users_api services.api.tests.test_auth_api
+  services.api.tests.test_password_reset_api services.api.tests.test_auth_models -v`.
+  **84 tests descubiertos: 83 pasan y 1 omitido** por `pass_fds` no disponible en
+  Windows; primera ejecucion de 53.736 segundos. Confirmados nuevamente el
+  2026-11-03 con los mismos cuatro modulos y `-q`: 84 descubiertos, 83 pasan,
+  1 omitido, 50.672 segundos. No es la suite backend completa.
+- Inventario SQL aislado con `DATABASE_URL=sqlite:///:memory:` en el proceso de
+  validacion. Fixtures usan TinyDB temporal, claves sinteticas y sender inyectado:
+  sin email real, seeds, datos reales ni lectura de `.env*`.
+- Casos existentes comprueban permisos propietario/admin, 401/403/404/409/422,
+  validacion saneada, recuperacion/cambio, fallos de persistencia/configuracion,
+  ausencia de secretos y contratos de OpenAPI. El caso de proceso Uvicorn omitido
+  no se presenta como verificacion de servidor real.
+- Bloqueo inicial de frontend (2026-11-02, resuelto para validacion el 2026-11-03):
+  `npm` de PowerShell no pudo
+  arrancar por politica de scripts; `npm.cmd` inicia el CLI sin modificarla.
+  ESLint falla con `Cannot find module` para
+  `node_modules\zod\v4\index.cjs`, antes de analizar el archivo del cliente.
+- Dos intentos de restauracion desde lockfile, sin cambios de versiones:
+  `npm.cmd ci --ignore-scripts --no-audit --no-fund` se detuvo tras mas de diez
+  minutos sin avanzar desde `idealTree buildDeps`. El intento
+  `npm.cmd ci --offline --ignore-scripts --no-audit --no-fund --loglevel=verbose
+  --fetch-retries=0 --fetch-timeout=30000` obtuvo cache hits, pero no termino tras
+  varios minutos y se detuvo. El registro publico respondio HTTP 200. No se
+  diagnostico la causa exacta; las dependencias locales pueden quedar incompletas.
+- Los procesos de restauracion fallidos fueron detenidos; la solucion y sus
+  limites se registran a continuacion, sin presentar esos intentos como exitos.
+- Swagger/UI manuales y suite completa siguen reservados para etapa 8.
+- La divergencia preexistente de documentacion OpenAPI de errores (F07) no cambia
+  los errores HTTP, que se verifican con los tests existentes. Su documentacion
+  integral no se declara resuelta por el nuevo modelo de registro.
+
+### Cierre de validacion — 2026-11-03
+
+- Medicion de filesystem con cinco escrituras/borrados sinteticos: C: 18 ms;
+  E: 9.098 ms. Una nueva restauracion en E: seguia extrayendo archivos muy
+  lentamente. Mismo lockfile restaurado en C: con `npm.cmd ci --prefer-offline
+  --ignore-scripts --no-audit --no-fund --fetch-retries=0 --fetch-timeout=30000`:
+  **597 paquetes en 34 segundos**. Manifiestos/lockfiles originales sin cambios.
+- Lint focalizado `npm.cmd run lint -- lib\nexova-api.ts` pasa, tanto con
+  dependencias enlazadas al checkout como en la replica de validacion.
+- Next/Webpack en E: con dependencias enlazadas a C: fallo con ruta
+  `./C:/.../next/dist/client/next.js`. El alias del proyecto no evito que Next
+  resolviera su ruta real. Las opciones oficiales de Node para conservar enlaces
+  corrigieron la ruta, pero produjeron identidades duplicadas de SWC
+  (`bindings not loaded yet`). No se parcheo Next ni su configuracion.
+- Se intento copia fisica paralela autorizada; se detuvo por lentitud tras
+  comprobar 13.784 archivos de los 35.881. No se declaro restauracion completa.
+- Solucion de verificacion: replica local en C: de los **44 archivos versionados
+  actuales del tracker**, incluidos los cambios sin commit, con comparacion
+  SHA-256 archivo por archivo. Sin leer/copiar `.env*`, `node_modules`, `.next`
+  ni datos locales del checkout. Dependencias restauradas del lockfile identico,
+  ubicadas en la misma unidad. Sin opciones especiales de Node en el build exitoso.
+- `npm.cmd run build` **pasa** en esa replica: webpack compila (7.7 segundos),
+  TypeScript termina (3.3 segundos), diez paginas estaticas generadas y trazas
+  completas. Se verifica el codigo exacto de la etapa, no una version anterior
+  ni una variante de configuracion. No se afirma que el build directo desde E:
+  con enlaces entre unidades este arreglado: es una limitacion local del entorno.
+- Backend: warning Starlette/httpx y ResourceWarning de conexiones SQLite de
+  fixtures al finalizar, sin fallos de tests. Los mensajes de persistencia son
+  esperados en casos que inyectan errores; no se enviaron correos reales.
+- Los contratos de las 11 operaciones se marcan V2, preservando la fotografia
+  inicial. La aceptacion global/manual de etapa 8 no se adelanta.
+- Replica temporal, aliases y copias parciales eliminados tras verificar.
+  Cache de dependencias completa conservada en C: y enlazada desde
+  `node_modules` del tracker; sin cambios de configuracion versionada ni procesos
+  auxiliares activos. Para un build directo se requieren fuentes y dependencias
+  reales en la misma unidad, como en la validacion exitosa.
+- Cierre con un commit y push de etapa 2; hash publicado verificable en `git log`
+  y reporte de cierre, a registrar en etapa 3. No comenzar etapa 3 automaticamente.

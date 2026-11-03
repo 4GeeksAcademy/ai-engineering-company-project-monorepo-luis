@@ -19,6 +19,15 @@
   canonicos de `OrderItemRead` en etapa 7, sin modificar permisos de inventario.
 - Validacion por etapa: tests focalizados existentes; suite backend completa
   solo en cierre final. Sin lint/typecheck/build Python declarados ni tooling nuevo.
+- Etapa 2: `POST /users` cambia de `UserResponse` a `AuthActionResponse` con
+  `message` (201), sin email ni campos de usuario. Cliente tracker usa el tipo de
+  confirmacion; login posterior conserva el input del formulario. No cambios de
+  permisos, TinyDB ni respuestas de gestion/perfil o `/auth/me`.
+- Etapa 2 validada el 2026-11-03: 83 tests pasan/1 omitido Windows; lint y build
+  TypeScript del tracker pasan en replica C: de los 44 archivos actuales cotejados
+  por SHA-256. Dependencias exactas del lockfile. E: tiene escritura extremadamente
+  lenta; Next/Webpack no tolera aqui dependencias enlazadas entre C: y E:. No
+  confundir build verificado en replica identica con resolver ese limite del entorno.
 
 ## Fuentes de verdad
 

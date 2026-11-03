@@ -17,6 +17,22 @@ contracts; the CSV export must retain its real format and receive accurate
 OpenAPI documentation. Historical stage descriptions below are not a statement
 that the current API lacks authentication.
 
+Stage 2 separates public registration from authenticated user management:
+`POST /users` still returns HTTP 201, now with
+`{"message": "User registered successfully"}` using `AuthActionResponse`.
+It does not echo email, user metadata, contact fields or credentials. Clients
+should log in using their registration input and retrieve their own identity
+through `/auth/me`, which still includes the caller's email, role and profile.
+Registration errors and account/profile creation are unchanged.
+
+Authenticated user list/detail/update responses retain `UserResponse`.
+The admin list stays flat; user IDs identify management routes, email identifies
+the account, role/activation describe the managed state and `created_at` preserves
+the established creation metadata. Self-profile responses retain their explicit
+profile ID and related user ID; these are read-only identifiers, not writable
+ownership fields. Contact updates preserve omitted versus null semantics.
+No permissions, storage or login/password-recovery behavior changes in this stage.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

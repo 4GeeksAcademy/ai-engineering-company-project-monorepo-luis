@@ -32,6 +32,56 @@ vigentes las ramas/estados historicos de los hitos anteriores.
 - Publicacion de etapa 1: verificar commit/push al cierre; registrar el hash
   publicado al comenzar etapa 2. No abrir PR final ni avanzar sin autorizacion.
 
+### Etapa 2 — Autenticacion, usuarios y perfiles
+
+2026-11-02. Base publicada de etapa 1:
+`3c6de178eeaf1360ca346dd4bd8443a344b7968f`; rama limpia `docs/auditoria-back`.
+
+- Registro publico conserva 201 y creacion de usuario/perfil; respuesta separada
+  de `UserResponse`: `AuthActionResponse` con solo `message`, sin email ni
+  metadata/credenciales. Reutiliza esquema existente, sin modelo duplicado.
+- Cliente tracker devuelve `Promise<NexovaAuthActionResponse>` en registro.
+  Formulario sigue haciendo login con su input; no cambio de UX ni API externa.
+- Se mantienen login JSON/OAuth2, me (email propio/rol/perfil), recuperacion,
+  permisos de gestion, listado plano U y perfiles con IDs explicitos read-only.
+  Justificacion y campos originales/cambios registrados en la auditoria.
+- Tests existentes actualizados, sin nueva suite/archivos: confirmacion/OpenAPI,
+  campos exactos, creacion interna y login tras registro, perfil omitido/null.
+- Validacion focalizada: 84 descubiertos, 83 pasan y 1 omitido en Windows.
+  SQLite en memoria, TinyDB temporal y sender inyectado; sin datos/email reales.
+- Bloqueo inicial de etapa 2 (resuelto para validacion el 2026-11-03):
+  `npm` no arranca por politica PowerShell; `npm.cmd` inicia
+  ESLint pero falla `Cannot find module` en `node_modules\zod\v4\index.cjs`.
+  Lint/build del tracker no aprobados; el error precede al analisis de codigo.
+- Dos restauraciones desde lockfile detenidas por falta de finalizacion: online
+  mas de diez minutos en `idealTree buildDeps`; offline encontro cache hits pero
+  no termino tras varios minutos. Registro publico respondio 200; causa exacta
+  no determinada, dependencias locales pueden quedar incompletas. Procesos
+  detenidos, sin cambios de versiones/manifiestos ni nuevos servicios activos.
+- En ese punto se detuvo sin staging/commit/push; cierre posterior abajo.
+- Swagger/UI manuales, documentacion integral de errores OpenAPI y suite completa
+  no declarados completados; permanecen para cierre del hito.
+
+#### Cierre de etapa 2 — 2026-11-03
+
+- E: extremadamente lenta: cinco escrituras/borrados en 9.098 ms frente a 18 ms
+  en C:. Restauracion identica en C: completa, 597 paquetes en 34 segundos; sin
+  cambios de manifiestos/lockfiles. Copia paralela fisica a E: autorizada, pero
+  detenida por lentitud; los enlaces entre unidades exponen errores de Next/SWC.
+- Lint del cliente pasa. Build estandar y TypeScript pasan sobre replica en C:
+  de los 44 archivos actuales versionados del tracker, todos cotejados por SHA-256;
+  sin leer/copiar `.env*` ni parchear codigo/configuracion/dependencias.
+- El build directo del checkout E: con dependencias enlazadas a C: sigue siendo
+  una limitacion del entorno, no se presenta como resuelto. La replica verifica
+  el codigo exacto que se publica, no una variante ni codigo anterior.
+- Backend confirmado otra vez: mismos cuatro modulos focalizados, 84 descubiertos,
+  83 pasan, 1 omitido Windows, 50.672 s; inventario en memoria y auth temporal.
+  Avisos Starlette/httpx y conexiones SQLite de fixtures, sin fallos.
+- Auditoria marca 11 operaciones V2 y etapa 2 completada, conserva estado inicial,
+  justifica campos/relaciones y deja aceptacion manual/global para etapa 8.
+- Commit/push de etapa 2 al cierre, con hash local/remoto verificado; registrar
+  hash publicado al comenzar etapa 3. No avanzar sin autorizacion.
+
 ## Estado inicial observado
 
 - Revisión documental de la etapa 1 completada para `ingenieria-ia.md`, `CONTEXT.md`, `SPEC.md` y README relevantes.

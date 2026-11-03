@@ -19,6 +19,15 @@ The Nexova API must be running with valid `JWT_SECRET_KEY` and `ACCESS_TOKEN_EXP
 
 ## Authentication Routes
 
+Public registration (`POST /users`) returns HTTP 201 with a typed confirmation:
+`{"message": "User registered successfully"}`. `registerNexovaUser` therefore
+returns `Promise<NexovaAuthActionResponse>`, not `NexovaUser`. The existing form
+continues to log in with the submitted email/password after registration; it
+does not read email or an ID from the registration response. `/auth/me` still
+provides the authenticated caller's email, role and explicit profile projection.
+See the [serialization audit](../../docs/serialization-audit.md) for the original
+and updated contracts.
+
 | Route | Access |
 |---|---|
 | `/login`, `/register` | Public |
