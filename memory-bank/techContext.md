@@ -2,6 +2,14 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-04, etapa 4: analisis usa `IncidentAnalysisResponse`
+completo con `AnalysisSatisfactionResponse`; modelos en `incident_models.py`,
+distintos de enums/metricas CRUD. Export permanece `Response` CSV, ahora
+documentado explicitamente como texto en OpenAPI, con errores JSON. Superficie:
+32 operaciones, 31 modelos JSON y una excepcion CSV (aceptacion instructor
+pendiente). 26 tests focalizados y 20 casos invalidos comprobados. Sin cambios
+de calculos, consumidor, biblioteca, permisos o persistencia.
+
 Actualizacion 2026-11-04, etapa 3: `response_models.py` define `HealthResponse`
 y `DeletionResponse` compartido por usuarios/proveedores. Health y ambos DELETE
 mantienen HTTP 200/shape, ahora con contratos explicitos de campos. 28 tests

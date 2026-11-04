@@ -47,6 +47,40 @@ Stage 3 verification: 28 focused tests passed, including authorization/deletion,
 health and the explicit OpenAPI schemas. The API still has 32 operations;
 analysis JSON and CSV export remain for stage 4, not part of this delivery.
 
+Stage 4 (2026-11-04) completes the analysis/export success contracts:
+
+- `POST /api/incidents/analyze` retains multipart upload (`file`) and now
+  declares `IncidentAnalysisResponse`. Required fields: `total_records`,
+  `valid_records`, `invalid_records`, `category_counts`, `status_counts`,
+  `invalid_breakdown`, `satisfaction`, `errors_count`. Counts are nonnegative;
+  satisfaction contains `scored_tickets`, `total_closed_tickets`,
+  `average_score` (null when no scores, otherwise 1-5), and
+  `score_distribution` (keys `"1"` through `"5"` in JSON).
+  `errors_count` counts rule violations, not invalid rows.
+  The response excludes raw rows and `row_errors`; all existing consumer fields
+  remain. The aggregate is validated before replacing the latest export result.
+- Analysis errors remain JSON: 400 invalid CSV/multipart (including field/message
+  validation issues when applicable), 401 authentication, 413 files above 25 MiB,
+  500 analysis/internal failure. OpenAPI documents a `4XX` fallback so it does not
+  incorrectly infer a 422 validation response; the actual handlers are unchanged.
+- `GET /api/incidents/results/export` remains HTTP 200
+  `text/csv; charset=utf-8`, attachment `results.csv`, `Cache-Control: no-cache`.
+  OpenAPI now documents only `text/csv` for success, with columns `metric,value`;
+  authentication/no-result/internal errors are JSON (401/404/500).
+  Metrics retain totals, `category_<lowercase category>`,
+  `status_<lowercase status>`, `satisfaction_scored_tickets`,
+  `satisfaction_total_closed`, `satisfaction_average_score`,
+  `satisfaction_score_1` through `satisfaction_score_5`, and
+  `invalid_reason_<normalized rule label>`. Average scores use two decimals or
+  `N/A`; rule labels are lowercased with spaces/slashes replaced by underscores.
+
+Stage 4 verification: 26 focused HTTP/domain/analyzer tests passed, including
+empty datasets, missing scores, multiple errors per row, unchanged fixture
+metrics, privacy and real CSV responses through TestClient. All 32 operations
+have explicit success documentation: 31 JSON models and one non-JSON CSV
+exception. Swagger manual acceptance/full regression remain in stage 8; confirm
+the assignment's acceptance of the CSV exception with the instructor.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

@@ -27,12 +27,15 @@ from services.api.incident_models import (
     ALLOWED_ORIGINS,
     ALLOWED_STATUSES,
     IncidentCreate,
+    IncidentAnalysisResponse,
     IncidentRecord,
     IncidentStatusUpdate,
     IncidentSummary,
+    IncidentValidationErrorResponse,
     validate_status_transition,
 )
 from services.api.incident_storage import open_incident_table
+from services.api.response_models import DetailErrorResponse
 
 router = APIRouter(
     prefix="/api/incidents",
@@ -280,11 +283,29 @@ def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRec
 
 @router.post(
     "/analyze",
+    response_model=IncidentAnalysisResponse,
     summary="Analyze an uploaded CSV file of incident tickets",
     response_description="Aggregated metrics and breakdown without customer PII",
     dependencies=[Depends(get_current_user)],
+    responses={
+        400: {
+            "model": DetailErrorResponse | IncidentValidationErrorResponse,
+            "description": "Invalid CSV or multipart request; validation errors use HTTP 400.",
+        },
+        401: {
+            "model": DetailErrorResponse,
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {"WWW-Authenticate": {"schema": {"type": "string", "const": "Bearer"}}},
+        },
+        413: {"model": DetailErrorResponse, "description": "CSV exceeds the 25 MiB limit."},
+        500: {"model": DetailErrorResponse, "description": "Analysis or internal server error."},
+        "4XX": {
+            "model": DetailErrorResponse,
+            "description": "Other client errors. Request validation is documented as HTTP 400, not 422.",
+        },
+    },
 )
-async def analyze_incidents(file: UploadFile = File(...)):
+async def analyze_incidents(file: UploadFile = File(...)) -> IncidentAnalysisResponse:
     """
     Accepts a multipart/form-data CSV file.
     Validates file headers and formats, runs deterministic analysis,
@@ -337,19 +358,54 @@ async def analyze_incidents(file: UploadFile = File(...)):
             detail="An error occurred while analyzing the incident file.",
         )
 
+    response = IncidentAnalysisResponse.model_validate(analysis_result.to_dict())
+
     # Store latest result in memory for export
     set_latest_result(analysis_result)
 
-    return analysis_result.to_dict()
+    return response
 
 
 @router.get(
     "/results/export",
+    response_class=Response,
+    response_model=None,
     summary="Export the latest analysis results as a summary CSV",
     response_description="A CSV file containing aggregated metrics (one metric per row)",
     dependencies=[Depends(get_current_user)],
+    responses={
+        200: {
+            "description": (
+                "UTF-8 CSV with header metric,value and one aggregate per row. "
+                "Metrics: total_records, valid_records, invalid_records; category_<lowercase category>; "
+                "status_<lowercase status>; satisfaction_scored_tickets, satisfaction_total_closed, "
+                "satisfaction_average_score (two decimals or N/A); satisfaction_score_1 through "
+                "satisfaction_score_5; invalid_reason_<normalized rule label>. "
+                "No raw tickets, row errors or personal data."
+            ),
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string"},
+                    "example": "metric,value\ntotal_records,0\nvalid_records,0\ninvalid_records,0\n",
+                }
+            },
+            "headers": {
+                "Content-Disposition": {
+                    "schema": {"type": "string", "const": 'attachment; filename="results.csv"'}
+                },
+                "Cache-Control": {"schema": {"type": "string", "const": "no-cache"}},
+            },
+        },
+        401: {
+            "model": DetailErrorResponse,
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {"WWW-Authenticate": {"schema": {"type": "string", "const": "Bearer"}}},
+        },
+        404: {"model": DetailErrorResponse, "description": "No completed analysis is available."},
+        500: {"model": DetailErrorResponse, "description": "Export or internal server error."},
+    },
 )
-async def export_latest_results():
+async def export_latest_results() -> Response:
     """
     Downloads the results of the most recent analysis execution.
     Contains only aggregated metrics without raw tickets or emails.

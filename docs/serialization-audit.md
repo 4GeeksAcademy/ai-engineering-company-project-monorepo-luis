@@ -69,6 +69,9 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
   La aceptacion global, Swagger manual y suite completa siguen en etapa 8.
 - **V3** = contrato de etapa 3 verificado mediante tests y OpenAPI; misma
   condicion de aceptacion global pendiente que V2.
+- **V4** = contrato JSON de analisis verificado en etapa 4.
+- **V4-CSV** = contrato CSV real verificado y documentado; excepcion tecnica
+  no JSON pendiente de aceptacion del instructor, no aprobacion academica final.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -147,8 +150,8 @@ Evidencia: [router](../services/api/routers/incidents.py),
 | 15 | `GET /api/incidents`: listar/filtrar | Query `status`, `origin`, `branch`, `category` | Modelo I[], 200; documentos TinyDB proyectados | Tabla usa ID, titulo, descripcion, dimensiones, estado, fecha; evaluar solo campos restantes | PARCIAL | 5 / P |
 | 16 | `GET /api/incidents/{id}`: detalle | Path | Modelo I, 200; documento TinyDB proyectado | Sin detalle UI identificado; Swagger/tests: I | YA | 5 / P |
 | 17 | `PATCH /api/incidents/{id}/status`: transicion | `IncidentStatusUpdate`, path | Modelo I, 200; documento actualizado | Selector backoffice; revisar necesidad de I completo sin romper contrato existente | PARCIAL | 5 / P |
-| 18 | `POST /api/incidents/analyze`: analizar CSV | Multipart, `UploadFile` campo `file` | Dict X, 200; dataclass del analizador | Dashboard CSV: X completo tipado, no `row_errors` ni PII | SIN | 4 / P |
-| 19 | `GET /api/incidents/results/export`: descargar | Sin body | `Response` C, 200; ultimo agregado global en memoria | Descarga backoffice: C, no JSON; documentar errores y media type real | SIN/CSV | 4 / P |
+| 18 | `POST /api/incidents/analyze`: analizar CSV | Multipart, `UploadFile` campo `file` | Dict X, 200; dataclass del analizador | Dashboard CSV: X completo tipado, no `row_errors` ni PII | SIN | 4 / V4 |
+| 19 | `GET /api/incidents/results/export`: descargar | Sin body | `Response` C, 200; ultimo agregado global en memoria | Descarga backoffice: C, no JSON; documentar errores y media type real | SIN/CSV | 4 / V4-CSV |
 
 ### Inventario - 6 operaciones
 
@@ -191,8 +194,9 @@ Clasificacion inicial de este inventario: **14 YA, 13 PARCIAL, 4 SIN y 1 SIN/CSV
 Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
 tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
 pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
-Otras tres operaciones tienen evidencia V3; 18 operaciones siguen pendientes de
-las etapas siguientes. Las formas y clasificaciones originales no se sobrescriben.
+Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
+16 operaciones siguen pendientes de las etapas siguientes. Las formas y
+clasificaciones originales no se sobrescriben.
 
 ## Hallazgos, causas, impacto y decisiones
 
@@ -276,7 +280,7 @@ solo por escribir esta justificacion.
 | 1 | Inventario, campos, consumidores, decisiones y plan; guia/memoria actualizadas | Ninguna | Completada (alcance documental) | `docs: establish serialization audit baseline`; OpenAPI 200, 32 operaciones; commit/push se verifican al publicar |
 | 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
 | 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
-| 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Pendiente | `feat(api): define analysis and CSV export contracts` |
+| 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); aceptacion de excepcion CSV pendiente | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Pendiente | `feat(api): audit incident serialization contracts` |
 | 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Pendiente | `feat(api): refine supplier serialization contracts` |
 | 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Pendiente | `feat(api): refine inventory serialization contracts` |
@@ -504,3 +508,91 @@ El modelo compartido evita respuestas de confirmacion divergentes entre recursos
   errores, suite completa y aceptacion global siguen para etapa 8.
 - Un commit/push al cerrar etapa 3; hash verificado al publicar y a registrar al
   comenzar etapa 4. No avanzar a analisis/CSV en este cierre.
+
+## Etapa 4 — Analisis JSON y exportacion CSV
+
+Fecha: 2026-11-04. Base publicada de etapa 3:
+`2ddfb6fa993101ff3b96bc4e129218327a50b57f`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend, libreria compartida
+del analizador ni reglas de validacion del CSV.
+
+### Contratos implementados y compatibilidad
+
+| Operacion | Estado original | Cambio y evidencia |
+|---|---|---|
+| `POST /api/incidents/analyze` | Dict X sin esquema fijo | `IncidentAnalysisResponse` explicito con los ocho campos X obligatorios. `AnalysisSatisfactionResponse` fija los cuatro campos anidados. Se valida la proyeccion `to_dict()`, nunca la dataclass con filas/errores individuales. |
+| `GET /api/incidents/results/export` | CSV real anunciado como JSON vacio | `response_class=Response`, `response_model=None` intencional y exito OpenAPI exclusivamente `text/csv` con esquema string, columnas/metricas/ejemplo y cabeceras. No se convierte CSV a JSON ni se aplica Pydantic a su texto. |
+
+- Contadores no negativos; categorias helpdesk `TECHNICAL`, `BILLING`, `ACCESS`,
+  `HR_QUERY`, `COMPLAINT`, distintas de las del CRUD de incidentes. Estados
+  helpdesk `OPEN`, `CLOSED`, `DISCARDED`. Satisfaccion media nullable o finita
+  entre 1 y 5; distribucion por puntuacion 1-5.
+- Las claves de distribucion son enteros en el analizador y strings en JSON.
+  Primera ejecucion detecto que `Literal[1,...,5]` rechazaba la revalidacion de
+  claves JSON; se corrigio a enteros acotados con conversion estandar Pydantic.
+  La forma publicada no cambia y el test verifica ida/vuelta desde el JSON real.
+- `invalid_breakdown` contiene etiquetas fijas de reglas y sus contadores.
+  `errors_count` puede superar `invalid_records` porque una fila viola varias
+  reglas. No se incluyen `row_errors`, email, compania ni descripcion originales.
+- La proyeccion se valida antes de reemplazar el ultimo resultado en memoria;
+  solo un agregado valido queda disponible para exportacion. No cambia la
+  propiedad global en memoria, los calculos, orden/columnas CSV ni persistencia.
+- CSV: HTTP 200, `text/csv; charset=utf-8`, cabeceras
+  `Content-Disposition: attachment; filename="results.csv"` y
+  `Cache-Control: no-cache`. Header `metric,value`, dos columnas por fila;
+  promedio a dos decimales o `N/A`; metricas enumeradas en README/OpenAPI.
+- Entrada multipart y codigos existentes conservados. OpenAPI describe 400
+  (CSV invalido o validacion con `detail` y `errors[field,message]`), 401,
+  413 y 500 para analisis; 401/404/500 JSON para export.
+  `DetailErrorResponse` comparte la forma `detail` de errores; no reemplaza los
+  handlers. Un fallback OpenAPI `4XX` evita el 422 automatico incorrecto de
+  FastAPI: validacion de este router sigue siendo 400. No se afirma que esto
+  resuelva F07 para todas las familias de la API.
+
+### Evidencia de verificacion
+
+Desde raiz, con SQLite de inventario en memoria solo en el proceso:
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_api services.api.tests.test_incident_models packages.incident_analyzer.tests.test_analyzer -v
+```
+
+- **26 tests pasan, sin omitidos**, en 4.001 segundos tras una correccion del tipo
+  de claves de puntuacion. No se repitio la suite completa ni se crearon archivos
+  de tests/frameworks: se ampliaron casos de HTTP existentes.
+- Contrato de ocho campos y satisfaccion completa, metricas del fixture
+  existente (100 total, 96 validas, 4 invalidas, media 3.84), CSV de dos columnas,
+  cabeceras/media type y descarga conservados.
+- Casos sinteticos: solo encabezado (cero filas), una fila abierta sin score
+  (media null/CSV `N/A`), todas las filas invalidas y cinco infracciones en una
+  misma fila. Categorias/estados y cinco puntuaciones conservan claves con ceros.
+  Respuestas JSON/CSV excluyen email/descripcion sinteticos y errores por fila.
+- Errores HTTP ejercitados: 401 sin credenciales/credenciales invalidas, 404 sin
+  analisis, 400 extension/vacio/encabezado/multipart sin archivo, 413 (umbral
+  temporal reducido en el test para comprobar la rama sin cargar 25 MiB) y
+  500 del analizador con mensaje generico, sin detalle interno inyectado.
+  No se presenta ese caso de 413 como prueba de carga del limite real.
+- Comprobacion adicional ejecutada en memoria: **20 formas invalidas** rechazadas
+  (campos obligatorios omitidos, contadores negativos, campos extra de filas/PII,
+  puntuaciones fuera de 1-5, medias fuera de rango/NaN/infinito).
+- OpenAPI confirma **32 operaciones: 31 contratos JSON con modelo y un CSV
+  explicito**, ningun esquema JSON de exito vacio. Exito CSV no anuncia
+  `application/json`; errores si lo anuncian. Multipart y seguridad preservados.
+- Pylance: sin errores de sintaxis en modelos/router; diagnosticos de los cuatro
+  archivos Python modificados sin errores. `git diff --check` correcto.
+- Solo bases temporales de auth/incidentes e inventario en memoria. Sin `.env*`,
+  correo real ni datos de produccion. Avisos preexistentes Starlette/httpx,
+  alias de constante HTTP 413 y conexiones SQLite de fixtures, sin fallos.
+- No checks frontend porque no hay cambios frontend. Swagger manual, prueba
+  manual de descarga y suite global permanecen en etapa 8: TestClient verifica
+  HTTP/contenido, no se presenta como uso manual del navegador.
+
+### Cierre y limite de aceptacion
+
+Etapa tecnica completada: V4 para analisis, V4-CSV para exportacion. Mantener
+pendiente la confirmacion del instructor sobre la excepcion CSV del requisito
+literal de `response_model`; no declarar aprobacion academica ni cerrar la
+aceptacion global con esta evidencia. El README/guia ya identificaban esta decision.
+
+Un commit/push al cerrar; hash publicado verificable en `git log` y reporte de
+cierre, a registrar en etapa 5. No comenzar CRUD de incidentes automaticamente.

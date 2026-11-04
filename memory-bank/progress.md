@@ -2,6 +2,36 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 4
+
+2026-11-04. Base publicada de etapa 3:
+`2ddfb6fa993101ff3b96bc4e129218327a50b57f`; rama limpia `docs/auditoria-back`.
+
+- Analisis declara `IncidentAnalysisResponse` completo (ocho campos y esquema
+  anidado de satisfaccion). Se valida `to_dict()` antes de actualizar ultimo
+  resultado; no publicar dataclass/filas/row_errors. Biblioteca/CSV sin cambios.
+- Contadores no negativos, media null o finita 1-5, categorias/estados helpdesk
+  y claves score 1-5. Un fallo de revalidacion de claves JSON se corrigio con
+  conversion estandar de enteros acotados; payload JSON existente preservado.
+- Export conserva texto CSV y documenta `text/csv`, columnas `metric,value`,
+  metricas, cabeceras y errores JSON en OpenAPI. `response_model=None` intencional,
+  no fingir JSON. Excepcion pendiente de aceptacion del instructor, no bloqueo
+  tecnico ni aprobacion academica final.
+- Errores existentes preservados/documentados: analisis 400/401/413/500 y
+  export 401/404/500. `4XX` en OpenAPI evita 422 automatico incompatible con
+  handler de validacion 400; handlers y permisos no cambiados.
+- 26 tests focalizados pasan sin omitidos, 4.001 s: HTTP analisis/export,
+  modelos incidentes y analizador compartido. Tests existentes ampliados con
+  shape/OpenAPI, header-only, sin puntuaciones, varias infracciones/fila, privacidad,
+  limite de tamano simulado, multipart faltante y fallo interno saneado.
+- Verificacion adicional: 20 agregados invalidos rechazados y 32 operaciones
+  con contratos de exito (31 JSON + 1 CSV), sin JSON de exito vacio.
+  Pylance/diagnosticos y diff correctos; avisos conocidos sin fallo.
+- Auditoria marca V4/V4-CSV, conserva original y documenta evidencia/limites.
+  Swagger manual y suite completa en etapa 8; sin checks frontend ajenos.
+- Cierre con commit/push verificado; registrar hash al iniciar etapa 5.
+  No avanzar a CRUD incidentes sin autorizacion.
+
 ## Auditoria de serializacion backend — Etapa 3
 
 2026-11-04. Base publicada de etapa 2:

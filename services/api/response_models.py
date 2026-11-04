@@ -17,3 +17,7 @@ class DeletionResponse(BaseModel):
 
     id: int = Field(gt=0, strict=True)
     deleted: Literal[True]
+
+
+class DetailErrorResponse(BaseModel):
+    detail: str
