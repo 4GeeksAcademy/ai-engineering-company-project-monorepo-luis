@@ -2,6 +2,12 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-04, etapa 3: `response_models.py` define `HealthResponse`
+y `DeletionResponse` compartido por usuarios/proveedores. Health y ambos DELETE
+mantienen HTTP 200/shape, ahora con contratos explicitos de campos. 28 tests
+focalizados y OpenAPI verificados; 32 operaciones, 30 modelos declarados y solo
+analisis/CSV pendientes de etapa 4. No cambios de permisos/frontend/dependencias.
+
 - Referencia del hito: `auditoria-back.md`; entregable y tablero de ocho etapas:
   `docs/serialization-audit.md`. Rama dedicada `docs/auditoria-back`, base
   `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`.

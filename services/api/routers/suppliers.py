@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from services.api.auth_dependencies import get_current_user
+from services.api.response_models import DeletionResponse
 from services.api.supplier_models import (
     SupplierCategory,
     SupplierCountry,
@@ -142,8 +143,8 @@ def update_supplier_status(
     return _to_record(document)
 
 
-@router.delete("/{supplier_id}", status_code=status.HTTP_200_OK)
-def delete_supplier(supplier_id: int) -> dict[str, int | bool]:
+@router.delete("/{supplier_id}", response_model=DeletionResponse, status_code=status.HTTP_200_OK)
+def delete_supplier(supplier_id: int) -> DeletionResponse:
     try:
         with open_supplier_table() as table:
             deleted_ids = table.remove(doc_ids=[supplier_id])
@@ -157,4 +158,4 @@ def delete_supplier(supplier_id: int) -> dict[str, int | bool]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Supplier not found",
         )
-    return {"id": supplier_id, "deleted": True}
+    return DeletionResponse(id=supplier_id, deleted=True)

@@ -7,8 +7,10 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from services.api.main import app
+from services.api.response_models import DeletionResponse
 from services.api.seed import seed_suppliers
 
 
@@ -218,7 +220,30 @@ class TestSuppliersAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"id": supplier_id, "deleted": True})
         self.assertEqual(missing.status_code, 404)
+        self.assertEqual(missing.json(), {"detail": "Supplier not found"})
         self.assertEqual(detail.status_code, 404)
+        schema = self.client.get("/openapi.json").json()
+        operation = schema["paths"]["/api/suppliers/{supplier_id}"]["delete"]
+        reference = operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        self.assertTrue(reference.endswith("/DeletionResponse"))
+        contract = schema["components"]["schemas"]["DeletionResponse"]
+        self.assertEqual(set(contract["properties"]), {"id", "deleted"})
+        self.assertEqual(set(contract["required"]), {"id", "deleted"})
+        self.assertFalse(contract["additionalProperties"])
+        self.assertEqual(contract["properties"]["id"]["exclusiveMinimum"], 0)
+        self.assertIs(contract["properties"]["deleted"]["const"], True)
+        for payload in (
+            {"id": 0, "deleted": True},
+            {"id": -1, "deleted": True},
+            {"id": "1", "deleted": True},
+            {"id": True, "deleted": True},
+            {"id": 1},
+            {"deleted": True},
+            {"id": 1, "deleted": False},
+            {"id": 1, "deleted": True, "internal": "hidden"},
+        ):
+            with self.subTest(payload=payload), self.assertRaises(ValidationError):
+                DeletionResponse.model_validate(payload)
 
 
 if __name__ == "__main__":

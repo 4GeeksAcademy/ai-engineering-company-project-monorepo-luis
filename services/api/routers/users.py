@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from services.api.auth_dependencies import get_current_user
+from services.api.response_models import DeletionResponse
 from services.api.auth_models import (
     AuthActionResponse,
     UserCreate,
@@ -97,8 +98,8 @@ def put_user(
         _raise_duplicate_email()
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
-def remove_user(user_id: int, current_user: UserRecord = Depends(get_current_user)) -> dict[str, int | bool]:
+@router.delete("/{user_id}", response_model=DeletionResponse, status_code=status.HTTP_200_OK)
+def remove_user(user_id: int, current_user: UserRecord = Depends(get_current_user)) -> DeletionResponse:
     _authorize_owner_or_admin(user_id, current_user)
     try:
         delete_user(user_id)
@@ -106,4 +107,4 @@ def remove_user(user_id: int, current_user: UserRecord = Depends(get_current_use
         _raise_user_not_found()
     except ProfileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found") from None
-    return {"id": user_id, "deleted": True}
+    return DeletionResponse(id=user_id, deleted=True)

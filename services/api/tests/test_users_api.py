@@ -255,6 +255,14 @@ class TestUsersAPI(unittest.TestCase):
         self.assertEqual(set(response_schema["properties"]), {"message"})
         self.assertEqual(response_schema["required"], ["message"])
         self.assertFalse(response_schema["additionalProperties"])
+        deletion_ref = paths["/users/{user_id}"]["delete"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        self.assertTrue(deletion_ref.endswith("/DeletionResponse"))
+        deletion_schema = schema["components"]["schemas"]["DeletionResponse"]
+        self.assertEqual(set(deletion_schema["properties"]), {"id", "deleted"})
+        self.assertEqual(set(deletion_schema["required"]), {"id", "deleted"})
+        self.assertFalse(deletion_schema["additionalProperties"])
+        self.assertEqual(deletion_schema["properties"]["id"]["exclusiveMinimum"], 0)
+        self.assertIs(deletion_schema["properties"]["deleted"]["const"], True)
         self.assertNotIn("hashed_password", str(schema))
 
 

@@ -67,6 +67,8 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
 - Estado final **P** = pendiente de implementacion/verificacion; no es aprobacion.
 - **V2** = contrato de etapa 2 verificado mediante tests y checks focalizados.
   La aceptacion global, Swagger manual y suite completa siguen en etapa 8.
+- **V3** = contrato de etapa 3 verificado mediante tests y OpenAPI; misma
+  condicion de aceptacion global pendiente que V2.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -129,7 +131,7 @@ Evidencia: routers [auth](../services/api/routers/auth.py),
 | 7 | `GET /users`: listado admin | Bearer; sin body | Modelo U[], 200; proyecciones TinyDB | Sin UI identificada; Swagger/tests. Justificar campos para admin, no reducir sin caso de uso | PARCIAL | 2 / V2 |
 | 8 | `GET /users/{user_id}`: detalle propietario/admin | Path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U autorizado, sin hash | YA | 2 / V2 |
 | 9 | `PUT /users/{user_id}`: actualizar usuario | `UserUpdate`, path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U y autorizacion admin para rol/estado | YA | 2 / V2 |
-| 10 | `DELETE /users/{user_id}`: borrar usuario/perfil | Path, Bearer | Dict D, 200; confirmacion del servicio | Swagger/tests; fijar D con modelo, no 204 | SIN | 3 / P |
+| 10 | `DELETE /users/{user_id}`: borrar usuario/perfil | Path, Bearer | Dict D, 200; confirmacion del servicio | Swagger/tests; fijar D con modelo, no 204 | SIN | 3 / V3 |
 | 11 | `GET /profiles/me`: perfil propio | Bearer; sin body | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; decision explicita sobre IDs en cierre de etapa 2 | PARCIAL | 2 / V2 |
 | 12 | `PUT /profiles/me`: actualizar contacto | `ProfileUpdate`, Bearer | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; conservar campos omitidos frente a null | PARCIAL | 2 / V2 |
 
@@ -177,18 +179,20 @@ Evidencia: [router](../services/api/routers/suppliers.py) y
 | 28 | `GET /api/suppliers/{supplier_id}`: detalle | Path | Modelo F, 200; documento TinyDB proyectado | Swagger/tests; F compatible, datos comerciales solo en alcance local/demo | YA | 6 / P |
 | 29 | `PATCH /api/suppliers/{supplier_id}/rate`: tarifa | `SupplierRateUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; valorar proyeccion menor o justificar F compatible | PARCIAL | 6 / P |
 | 30 | `PATCH /api/suppliers/{supplier_id}/status`: estado | `SupplierStatusUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; conservar semantica del timestamp | PARCIAL | 6 / P |
-| 31 | `DELETE /api/suppliers/{supplier_id}`: borrar | Path | Dict D, 200; confirmacion TinyDB | No hay accion UI; Swagger/tests: D explicito, no 204 | SIN | 3 / P |
+| 31 | `DELETE /api/suppliers/{supplier_id}`: borrar | Path | Dict D, 200; confirmacion TinyDB | No hay accion UI; Swagger/tests: D explicito, no 204 | SIN | 3 / V3 |
 
 ### Salud - 1 operacion
 
 | # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
 |---|---|---|---|---|---|---|
-| 32 | `GET /health`: estado del servicio | Sin body | Dict H, 200; constantes | Smoke checks/Swagger: H estable y tipado | SIN | 3 / P |
+| 32 | `GET /health`: estado del servicio | Sin body | Dict H, 200; constantes | Smoke checks/Swagger: H estable y tipado | SIN | 3 / V3 |
 
 Clasificacion inicial de este inventario: **14 YA, 13 PARCIAL, 4 SIN y 1 SIN/CSV**.
 Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
 tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
 pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
+Otras tres operaciones tienen evidencia V3; 18 operaciones siguen pendientes de
+las etapas siguientes. Las formas y clasificaciones originales no se sobrescriben.
 
 ## Hallazgos, causas, impacto y decisiones
 
@@ -271,7 +275,7 @@ solo por escribir esta justificacion.
 |---|---|---|---|---|
 | 1 | Inventario, campos, consumidores, decisiones y plan; guia/memoria actualizadas | Ninguna | Completada (alcance documental) | `docs: establish serialization audit baseline`; OpenAPI 200, 32 operaciones; commit/push se verifican al publicar |
 | 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
-| 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Pendiente | `feat(api): type health and deletion responses` |
+| 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
 | 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Pendiente | `feat(api): define analysis and CSV export contracts` |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Pendiente | `feat(api): audit incident serialization contracts` |
 | 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Pendiente | `feat(api): refine supplier serialization contracts` |
@@ -447,3 +451,56 @@ en el esquema de respuesta de registro.
   reales en la misma unidad, como en la validacion exitosa.
 - Cierre con un commit y push de etapa 2; hash publicado verificable en `git log`
   y reporte de cierre, a registrar en etapa 3. No comenzar etapa 3 automaticamente.
+
+## Etapa 3 — Health y confirmaciones DELETE
+
+Fecha: 2026-11-04. Base publicada de etapa 2:
+`793e49d5562ebc099635c77532631461055daf7e`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend ni persistencia.
+
+### Contratos implementados
+
+Los modelos comunes viven en
+[response_models.py](../services/api/response_models.py); no se mezclan con los
+esquemas de inventario ni se duplican por router.
+
+| Operacion | Estado original | Cambio verificado |
+|---|---|---|
+| `GET /health` | Dict sin modelo explicito; OpenAPI `schema: {}` | `HealthResponse` declarado en decorador y retorno. HTTP 200 JSON, claves obligatorias `status: "ok"` y `service: "nexova-api"`, sin campos extra; acceso publico preservado. |
+| `DELETE /users/{user_id}` | Dict con esquema generico inferido | `DeletionResponse` explicito y compartido. HTTP 200, claves obligatorias `id` entero estricto positivo y `deleted: true`; sin campos extra. Mantiene propietario/admin, cascada del perfil y errores 401/403/404. |
+| `DELETE /api/suppliers/{supplier_id}` | Dict con esquema generico inferido | Mismo `DeletionResponse` y HTTP 200; mantiene autenticacion y errores existentes. Confirmacion no contiene datos comerciales ni objeto eliminado. |
+
+Las rutas construyen los modelos de respuesta tras la operacion exitosa. No se
+cambia a 204, no se aceptan nuevos campos de entrada ni se modifica el borrado.
+El modelo compartido evita respuestas de confirmacion divergentes entre recursos.
+
+### Evidencia y cierre
+
+- Se ampliaron metodos de tests **ya existentes**, sin nuevos archivos de pruebas
+  ni framework: shape exacto de exito, esquema explicito de OpenAPI, propiedades
+  obligatorias y prohibicion de extras. Health fija los dos valores constantes;
+  DELETE exige ID positivo y `deleted` verdadero.
+- Casos invalidos de modelos verificados: claves faltantes, valores incorrectos,
+  IDs cero/negativos/string/boolean y campos internos extra. Los tests HTTP
+  existentes verifican autorizacion, borrado efectivo, cascada y recursos ausentes.
+- Desde la raiz, con `DATABASE_URL=sqlite:///:memory:` solo en el proceso:
+
+  ```powershell
+  uv run --locked --project services\api python -m unittest services.api.tests.test_users_api services.api.tests.test_suppliers_api services.api.tests.test_api.TestIncidentsAPI.test_health_check -v
+  ```
+
+- **28 tests pasan, sin omitidos**, en 30.367 segundos. Auth/proveedores usan
+  bases temporales; no se leen `.env*`, datos reales ni se envian emails.
+  Los seeds del fixture de proveedores escriben solo su base temporal.
+- GET OpenAPI mediante TestClient sin lifespan: HTTP 200, **32 operaciones**,
+  los tres exitos referencian los nuevos modelos. Ahora hay 30 operaciones con
+  `response_model`; solo analisis y export CSV permanecen pendientes de etapa 4.
+- Sintaxis Python de los cuatro archivos de produccion modificados analizada
+  correctamente; `git diff --check` correcto. Avisos Starlette/httpx y
+  ResourceWarning de conexiones SQLite de fixtures al finalizar, sin fallos.
+- No se ejecutan lint/build frontend ni suite backend completa: no hay cambios
+  frontend y los checks Python declarados pertinentes son los tests anteriores.
+- Las tres operaciones pasan a V3. Swagger manual, documentacion integral de
+  errores, suite completa y aceptacion global siguen para etapa 8.
+- Un commit/push al cerrar etapa 3; hash verificado al publicar y a registrar al
+  comenzar etapa 4. No avanzar a analisis/CSV en este cierre.

@@ -9,8 +9,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from services.api.main import app
+from services.api.response_models import HealthResponse
 from services.api.routers.incidents import set_latest_result
 
 
@@ -77,6 +79,26 @@ class TestIncidentsAPI(unittest.TestCase):
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok", "service": "nexova-api"})
+        self.assertIn("application/json", response.headers["content-type"])
+        schema = self.client.get("/openapi.json").json()
+        operation = schema["paths"]["/health"]["get"]
+        self.assertNotIn("security", operation)
+        reference = operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        contract = schema["components"]["schemas"][reference.rsplit("/", 1)[-1]]
+        self.assertEqual(set(contract["properties"]), {"status", "service"})
+        self.assertEqual(set(contract["required"]), {"status", "service"})
+        self.assertFalse(contract["additionalProperties"])
+        self.assertEqual(contract["properties"]["status"]["const"], "ok")
+        self.assertEqual(contract["properties"]["service"]["const"], "nexova-api")
+        for payload in (
+            {"status": "ok"},
+            {"service": "nexova-api"},
+            {"status": "down", "service": "nexova-api"},
+            {"status": "ok", "service": "other"},
+            {"status": "ok", "service": "nexova-api", "internal": "hidden"},
+        ):
+            with self.subTest(payload=payload), self.assertRaises(ValidationError):
+                HealthResponse.model_validate(payload)
 
     def test_export_without_prior_analysis_returns_404(self):
         """Export before running an analysis must return 404 Not Found."""

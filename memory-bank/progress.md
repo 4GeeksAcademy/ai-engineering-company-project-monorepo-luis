@@ -2,6 +2,30 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 3
+
+2026-11-04. Base publicada de etapa 2:
+`793e49d5562ebc099635c77532631461055daf7e`; rama limpia `docs/auditoria-back`
+al comenzar. Entrada actual; los estados historicos posteriores se conservan.
+
+- Añadido `services/api/response_models.py`: `HealthResponse` con dos constantes
+  obligatorias y `DeletionResponse` comun con ID entero estricto positivo y
+  `deleted: true`; ambos rechazan campos extra.
+- Health y DELETE de usuarios/proveedores declaran `response_model` y construyen
+  esos modelos. Conservan HTTP 200, JSON original, permisos, cascada y errores;
+  sin frontend, dependencias ni cambios de persistencia.
+- Ampliados tests existentes de health/usuarios/proveedores, sin nuevas pruebas
+  en archivos separados: OpenAPI, shape, requeridos, extras y entradas invalidas
+  de modelos; tests de permisos/borrado regresionan el flujo existente.
+- 28 tests focalizados pasan sin omitidos, 30.367 s; SQLite en memoria y TinyDB
+  temporal. Avisos Starlette/httpx y conexiones SQLite de fixtures, sin fallos.
+- OpenAPI confirma 32 operaciones; tres contratos nuevos, 30 response models
+  explicitos en total. Solo analisis JSON y export CSV quedan para etapa 4.
+- Sintaxis Python y `git diff --check` correctos. Auditoria registra V3 para las
+  tres operaciones, preservando estado inicial. Suite completa/Swagger en etapa 8.
+- Cierre con commit/push y verificacion local/remota; registrar hash al iniciar
+  etapa 4. No avanzar automaticamente ni ejecutar checks frontend ajenos.
+
 ## Auditoria de serializacion backend — Etapa 1
 
 Actualizado: 2026-11-02. Rama `docs/auditoria-back`; base limpia en

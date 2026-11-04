@@ -33,6 +33,20 @@ profile ID and related user ID; these are read-only identifiers, not writable
 ownership fields. Contact updates preserve omitted versus null semantics.
 No permissions, storage or login/password-recovery behavior changes in this stage.
 
+Stage 3 (2026-11-04) adds shared contracts in `response_models.py`:
+
+- `GET /health`: explicit `HealthResponse`, HTTP 200,
+  `{"status": "ok", "service": "nexova-api"}`; still public.
+- Both `DELETE /users/{user_id}` and
+  `DELETE /api/suppliers/{supplier_id}`: explicit `DeletionResponse`, HTTP 200,
+  `{"id": <positive integer>, "deleted": true}`. Both fields are required;
+  additional fields are forbidden. Existing permissions, deletion semantics
+  and errors are unchanged; these endpoints do not switch to HTTP 204.
+
+Stage 3 verification: 28 focused tests passed, including authorization/deletion,
+health and the explicit OpenAPI schemas. The API still has 32 operations;
+analysis JSON and CSV export remain for stage 4, not part of this delivery.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`
