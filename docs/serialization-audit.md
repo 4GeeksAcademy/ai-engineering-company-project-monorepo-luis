@@ -72,6 +72,8 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
 - **V4** = contrato JSON de analisis verificado en etapa 4.
 - **V4-CSV** = contrato CSV real verificado y documentado; excepcion tecnica
   no JSON pendiente de aceptacion del instructor, no aprobacion academica final.
+- **V5** = CRUD/resumen de incidentes verificado con tests y OpenAPI en etapa 5;
+  pruebas manuales y aceptacion global pendientes de etapa 8.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -145,11 +147,11 @@ Evidencia: [router](../services/api/routers/incidents.py),
 
 | # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
 |---|---|---|---|---|---|---|
-| 13 | `GET /api/incidents/summary`: resumen | Sin body | Modelo S, 200; agregacion TinyDB | Dashboard: S; todas las dimensiones y total | YA | 5 / P |
-| 14 | `POST /api/incidents`: crear | `IncidentCreate` | Modelo I, 201; documento TinyDB proyectado | Formulario backoffice: I; conservar alta y campos server-managed | YA | 5 / P |
-| 15 | `GET /api/incidents`: listar/filtrar | Query `status`, `origin`, `branch`, `category` | Modelo I[], 200; documentos TinyDB proyectados | Tabla usa ID, titulo, descripcion, dimensiones, estado, fecha; evaluar solo campos restantes | PARCIAL | 5 / P |
-| 16 | `GET /api/incidents/{id}`: detalle | Path | Modelo I, 200; documento TinyDB proyectado | Sin detalle UI identificado; Swagger/tests: I | YA | 5 / P |
-| 17 | `PATCH /api/incidents/{id}/status`: transicion | `IncidentStatusUpdate`, path | Modelo I, 200; documento actualizado | Selector backoffice; revisar necesidad de I completo sin romper contrato existente | PARCIAL | 5 / P |
+| 13 | `GET /api/incidents/summary`: resumen | Sin body | Modelo S, 200; agregacion TinyDB | Dashboard: S; todas las dimensiones y total | YA | 5 / V5 |
+| 14 | `POST /api/incidents`: crear | `IncidentCreate` | Modelo I, 201; documento TinyDB proyectado | Formulario backoffice: I; conservar alta y campos server-managed | YA | 5 / V5 |
+| 15 | `GET /api/incidents`: listar/filtrar | Query `status`, `origin`, `branch`, `category` | Modelo I[], 200; documentos TinyDB proyectados | Tabla usa ID, titulo, descripcion, dimensiones, estado, fecha; proyeccion final sin updated_at en etapa 5 | PARCIAL | 5 / V5 |
+| 16 | `GET /api/incidents/{id}`: detalle | Path | Modelo I, 200; documento TinyDB proyectado | Sin detalle UI identificado; Swagger/tests: I | YA | 5 / V5 |
+| 17 | `PATCH /api/incidents/{id}/status`: transicion | `IncidentStatusUpdate`, path | Modelo I, 200; documento actualizado | Selector backoffice; respuesta I completa conservada por compatibilidad | PARCIAL | 5 / V5 |
 | 18 | `POST /api/incidents/analyze`: analizar CSV | Multipart, `UploadFile` campo `file` | Dict X, 200; dataclass del analizador | Dashboard CSV: X completo tipado, no `row_errors` ni PII | SIN | 4 / V4 |
 | 19 | `GET /api/incidents/results/export`: descargar | Sin body | `Response` C, 200; ultimo agregado global en memoria | Descarga backoffice: C, no JSON; documentar errores y media type real | SIN/CSV | 4 / V4-CSV |
 
@@ -195,7 +197,8 @@ Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
 tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
 pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
 Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
-16 operaciones siguen pendientes de las etapas siguientes. Las formas y
+Cinco operaciones adicionales tienen evidencia V5; 11 operaciones siguen
+pendientes de las etapas siguientes. Las formas y
 clasificaciones originales no se sobrescriben.
 
 ## Hallazgos, causas, impacto y decisiones
@@ -281,7 +284,7 @@ solo por escribir esta justificacion.
 | 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
 | 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
 | 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); aceptacion de excepcion CSV pendiente | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
-| 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Pendiente | `feat(api): audit incident serialization contracts` |
+| 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Completada (2026-11-05) | `feat(api): audit incident serialization contracts`; 32 tests pasan, listado reducido y errores OpenAPI verificados |
 | 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Pendiente | `feat(api): refine supplier serialization contracts` |
 | 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Pendiente | `feat(api): refine inventory serialization contracts` |
 | 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Pendiente | `docs: finalize serialization audit and verification` |
@@ -596,3 +599,82 @@ aceptacion global con esta evidencia. El README/guia ya identificaban esta decis
 
 Un commit/push al cerrar; hash publicado verificable en `git log` y reporte de
 cierre, a registrar en etapa 5. No comenzar CRUD de incidentes automaticamente.
+
+## Etapa 5 — CRUD y resumen de incidentes
+
+Fecha: 2026-11-05. Base publicada de etapa 4:
+`297622c8c7fac2199145e127a1ed14a6eb035fac`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Alcance limitado a cinco operaciones de CRUD/resumen;
+analisis/exportacion solo se comprobaron como regresion.
+
+### Decision de campos y relaciones
+
+Evidencia: `renderIncidentsTable` de
+[incidents.js](../uis/backoffice/incidents.js) lee `id`, `title`, `description`,
+`category`, `origin`, `branch`, `status`, `created_at`. No usa `updated_at`.
+El selector de estado lee `updatedIncident.status` y recarga listado/resumen.
+El resumen utiliza total y las cuatro dimensiones.
+
+| Operacion | Estado original | Contrato final de etapa 5 / justificacion |
+|---|---|---|
+| `GET /api/incidents` | `IncidentRecord[]`, nueve campos por fila | `IncidentListItem[]`, ocho campos: ID/titulo/descripcion/categoria/origen/sede/estado/fecha de creacion. Se excluye unicamente `updated_at`, sin uso en la tabla. Campo disponible en detalle. Cambio intencional de contrato documentado en README. |
+| `POST /api/incidents` | `IncidentRecord`, HTTP 201 | Mantener recurso completo y timestamps server-managed. Input `IncidentCreate` separado, sin ID/timestamps/campos internos escribibles. |
+| `GET /api/incidents/{id}` | `IncidentRecord`, HTTP 200 | Mantener nueve campos, incluida ultima actualizacion. No relaciones anidadas ni documentos de almacenamiento publicados directamente. |
+| `PATCH /api/incidents/{id}/status` | `IncidentRecord`, HTTP 200 | Mantener confirmacion completa por compatibilidad del endpoint existente, aunque el selector solo use estado. Evitar otra ruptura no necesaria; siguen disponibles ID y timestamps del cambio. |
+| `GET /api/incidents/summary` | `IncidentSummary`, HTTP 200 | Mantener total y mapas por estado/categoria/origen/sede, con ceros y todas las claves incluso sin registros. No adjuntar filas completas. |
+
+`IncidentListItem` comparte los campos base explicitos; `IncidentRecord` extiende
+la fila con `updated_at`. Se preserva normalizacion UTC de ambas fechas, incluidos
+timestamps sin zona recibidos del almacenamiento. El listado sigue validando el
+registro almacenado antes de proyectar los ocho campos: no se ignora un registro
+invalido ni se serializa TinyDB sin control.
+
+No se eliminan descripcion ni origen/sede: son datos de la tabla. No se
+introduce redaccion de texto libre ni una politica de acceso nueva; su posible
+PII se mantiene como consideracion, no vulnerabilidad confirmada. CRUD/resumen
+permanecen publicos como en el checkout; analisis/export conservan autenticacion.
+
+### Errores y comportamiento
+
+OpenAPI declara ahora las respuestas reales del CRUD: 400 para validacion
+(`detail`, `errors` con `field`/`message`) y para filtros/transiciones (`detail`),
+404 en detalle/actualizacion y 500 para almacenamiento/error interno. Fallback
+`4XX` evita el 422 automatico de FastAPI donde el handler real devuelve 400.
+Resumen documenta 500. No se cambian handlers, mensajes, permisos ni estados.
+
+Los cuatro filtros siguen combinandose con AND y aceptan los mismos valores;
+lista vacia es `[]`. Transiciones y estados terminales conservan las reglas.
+Actualizacion conserva todos los campos salvo `status`/`updated_at`, no cambia
+la fecha de creacion y el resumen refleja el estado final.
+
+### Evidencia y cierre
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_incidents_crud_api services.api.tests.test_incident_models services.api.tests.test_api -v
+```
+
+- **32 tests pasan sin omitidos**, 5.965 segundos, con inventario SQLite en
+  memoria y bases temporales de incidentes/auth. Sin `.env*`, correos ni bases
+  reales. El seed del caso existente se aplica solo al fixture temporal.
+- Metodos existentes ampliados, sin nuevos archivos/frameworks de tests:
+  esquema explicito de lista/detalle/escrituras y campos exactos; fila igual a
+  detalle menos `updated_at`; payload de una lista con una fila menor en bytes
+  que el detalle equivalente, incluso con los corchetes de la lista.
+  Esta medicion verifica reduccion local, no es un benchmark de rendimiento.
+- Filtros combinados incluyen los cuatro parametros; casos sin coincidencias,
+  filtros invalidos y base vacia pasan. Campos server-managed/internos en alta
+  rechazados con 400; validaciones rechazadas no crean registros.
+- Detalle coincide con alta; IDs invalidos retornan 400 y ausentes 404.
+  PATCH conserva los otros campos, persiste estado/timestamp y mantiene
+  estados terminales. Extras/estado desconocido/payload vacio se rechazan sin
+  alterar el recurso. Resumen conserva todas las claves y sus sumas coinciden
+  con total del fixture (96).
+- Regresion de analisis/exportacion de etapa 4 pasa. No cambio de contratos
+  CSV, libreria compartida ni frontend.
+- Diagnosticos de los tres archivos Python modificados sin errores.
+  Avisos conocidos Starlette/httpx y alias de constante HTTP 413, sin fallos.
+- Auditoria conserva estados originales y marca cinco operaciones V5;
+  quedan 11 operaciones para etapas 6/7. Validacion UI/Swagger manual y suite
+  completa permanecen en etapa 8; no se afirma haberlas ejecutado.
+- Cierre con commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 6. No avanzar a proveedores automaticamente.

@@ -81,6 +81,33 @@ have explicit success documentation: 31 JSON models and one non-JSON CSV
 exception. Swagger manual acceptance/full regression remain in stage 8; confirm
 the assignment's acceptance of the CSV exception with the instructor.
 
+Stage 5 (2026-11-05) separates incident list rows from detail:
+
+- `GET /api/incidents` returns `IncidentListItem[]`: `id`, `title`,
+  `description`, `category`, `origin`, `branch`, `status`, `created_at`.
+  **Intentional contract reduction:** `updated_at` is no longer returned by the
+  list. The backoffice table does not use it; description and creation date are
+  retained because the table does display them. Consumers needing the last
+  update time should use `GET /api/incidents/{id}`.
+- Creation (201), detail (200) and status updates (200) still return the complete
+  `IncidentRecord`, including `updated_at`. The status action retains its
+  established resource response even though the current selector only reads
+  `status`; this avoids an unnecessary second breaking contract change.
+- List and detail share explicit base fields and UTC creation-time normalization;
+  the detail model adds the update timestamp. Requests remain distinct from
+  responses; IDs/timestamps/internal fields are not writable.
+- Summary retains `total`, `by_status`, `by_category`, `by_origin`, `by_branch`,
+  including all dimension keys and zero counts on an empty database.
+- CRUD OpenAPI now documents actual HTTP 400 validation/filter/transition errors,
+  404 where applicable and 500 errors, rather than automatically suggesting 422.
+  Existing handlers, public CRUD/summary access, filters and lifecycle are unchanged.
+
+Stage 5 verification: 32 focused CRUD/model/analysis HTTP tests passed. Assertions
+cover exact fields and OpenAPI models, smaller list output, all four combined
+filters, server-managed input rejection, unchanged detail/update fields,
+summary consistency and terminal transitions. No frontend or storage changes;
+manual UI/Swagger acceptance and the full suite remain in stage 8.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

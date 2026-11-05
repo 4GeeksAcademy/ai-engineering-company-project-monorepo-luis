@@ -121,20 +121,29 @@ class IncidentStatusUpdate(BaseModel):
     status: IncidentStatus
 
 
-class IncidentRecord(IncidentBase):
-    """Incident record as persisted and returned by API."""
+class IncidentListItem(IncidentBase):
+    """Flat incident row containing the fields consumed by the backoffice table."""
 
     id: int = Field(gt=0)
     status: IncidentStatus
     created_at: datetime
-    updated_at: datetime
-
-    @field_validator("created_at", "updated_at")
+    @field_validator("created_at")
     @classmethod
     def timestamps_must_be_utc(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+
+class IncidentRecord(IncidentListItem):
+    """Incident detail and write confirmation, including the last update time."""
+
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def updated_at_must_be_utc(cls, value: datetime) -> datetime:
+        return cls.timestamps_must_be_utc(value)
 
 
 class IncidentSummary(BaseModel):

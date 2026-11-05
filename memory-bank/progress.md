@@ -2,6 +2,30 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 5
+
+2026-11-05. Base publicada de etapa 4:
+`297622c8c7fac2199145e127a1ed14a6eb035fac`; rama limpia `docs/auditoria-back`.
+
+- `GET /api/incidents` usa `IncidentListItem`, ocho campos de tabla, sin
+  `updated_at`. Cambio intencional documentado; descripcion/fecha de creacion
+  conservadas. Detalle/alta/PATCH mantienen `IncidentRecord` completo.
+- Base de lectura compartida y normalizacion UTC preservadas. Listado valida
+  registro almacenado antes de proyectar; no retorno TinyDB sin control.
+- Resumen conserva total y cuatro dimensiones con claves/ceros. PATCH completo
+  mantenido por compatibilidad, aunque selector solo use estado.
+- Errores CRUD 400/404/500 documentados en OpenAPI; fallback 4XX evita 422
+  automatico que no refleja el handler. No cambio de acceso publico, filtros,
+  transiciones, storage, frontend ni contratos de analisis/CSV.
+- 32 tests focalizados pasan sin omitidos, 5.965 s: CRUD/modelos/analisis HTTP.
+  Metodos existentes ampliados para campos/OpenAPI, reduccion medida en bytes,
+  cuatro filtros AND, campos no escribibles, timestamps y resumen coherente.
+- Diagnosticos sin errores; avisos conocidos sin fallo. Datos/bases temporales
+  e inventario en memoria; sin .env ni sistemas reales.
+- Auditoria marca cinco V5 conservando inicial; quedan 11 operaciones etapas 6/7.
+  Manual UI/Swagger y suite completa en etapa 8. Commit/push al cierre verificados,
+  hash a registrar al comenzar etapa 6; no avanzar automaticamente.
+
 ## Auditoria de serializacion backend — Etapa 4
 
 2026-11-04. Base publicada de etapa 3:

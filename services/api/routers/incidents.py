@@ -28,6 +28,7 @@ from services.api.incident_models import (
     ALLOWED_STATUSES,
     IncidentCreate,
     IncidentAnalysisResponse,
+    IncidentListItem,
     IncidentRecord,
     IncidentStatusUpdate,
     IncidentSummary,
@@ -73,6 +74,9 @@ def _to_incident_record(document: Any) -> IncidentRecord:
     "/summary",
     response_model=IncidentSummary,
     summary="Operational metrics summary across incident dimensions",
+    responses={
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+    },
 )
 def get_incidents_summary() -> IncidentSummary:
     """
@@ -121,6 +125,11 @@ def get_incidents_summary() -> IncidentSummary:
     response_model=IncidentRecord,
     status_code=http_status.HTTP_201_CREATED,
     summary="Create a new incident",
+    responses={
+        400: {"model": IncidentValidationErrorResponse, "description": "Invalid incident payload."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def create_incident(incident: IncidentCreate) -> IncidentRecord:
     """
@@ -147,15 +156,20 @@ def create_incident(incident: IncidentCreate) -> IncidentRecord:
 
 @router.get(
     "",
-    response_model=list[IncidentRecord],
+    response_model=list[IncidentListItem],
     summary="List incidents with optional combinable filters",
+    responses={
+        400: {"model": DetailErrorResponse | IncidentValidationErrorResponse, "description": "Invalid filter or query."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def list_incidents(
     status: Optional[str] = Query(None, description="Filter by status"),
     origin: Optional[str] = Query(None, description="Filter by origin"),
     branch: Optional[str] = Query(None, description="Filter by branch"),
     category: Optional[str] = Query(None, description="Filter by category"),
-) -> list[IncidentRecord]:
+) -> list[IncidentListItem]:
     """
     List all stored incidents.
     Supports combinable filtering by status, origin, branch, and category.
@@ -191,7 +205,7 @@ def list_incidents(
             detail="Error retrieving incidents from storage",
         ) from None
 
-    results: list[IncidentRecord] = []
+    results: list[IncidentListItem] = []
     for doc in docs:
         if status is not None and doc.get("status") != status:
             continue
@@ -201,7 +215,8 @@ def list_incidents(
             continue
         if category is not None and doc.get("category") != category:
             continue
-        results.append(_to_incident_record(doc))
+        record = _to_incident_record(doc)
+        results.append(IncidentListItem.model_validate(record.model_dump(exclude={"updated_at"})))
 
     return results
 
@@ -210,6 +225,12 @@ def list_incidents(
     "/{id}",
     response_model=IncidentRecord,
     summary="Retrieve an incident by ID",
+    responses={
+        400: {"model": IncidentValidationErrorResponse, "description": "Invalid incident ID."},
+        404: {"model": DetailErrorResponse, "description": "Incident not found."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def get_incident(id: int) -> IncidentRecord:
     """
@@ -238,6 +259,12 @@ def get_incident(id: int) -> IncidentRecord:
     "/{id}/status",
     response_model=IncidentRecord,
     summary="Update an incident lifecycle status",
+    responses={
+        400: {"model": DetailErrorResponse | IncidentValidationErrorResponse, "description": "Invalid payload, ID or lifecycle transition."},
+        404: {"model": DetailErrorResponse, "description": "Incident not found."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRecord:
     """

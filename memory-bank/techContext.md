@@ -2,6 +2,13 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-05, etapa 5: listado de incidentes retorna
+`IncidentListItem[]` sin `updated_at`; conserva los ocho campos usados por tabla.
+`IncidentRecord` extiende esa proyeccion para detalle/alta/PATCH, que conservan
+ultima actualizacion. Errores CRUD documentados como 400/404/500 sin cambiar
+handlers/acceso/filtros/transiciones. 32 tests focalizados pasan; sin frontend
+ni persistencia modificados. Campo retirado del listado sigue disponible en detalle.
+
 Actualizacion 2026-11-04, etapa 4: analisis usa `IncidentAnalysisResponse`
 completo con `AnalysisSatisfactionResponse`; modelos en `incident_models.py`,
 distintos de enums/metricas CRUD. Export permanece `Response` CSV, ahora
