@@ -2,6 +2,15 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-05, etapa 7: inventario conserva sus cuatro modelos
+explicitos y shapes (catalogo seis, entrada siete, salida ocho, historial doce).
+Historial consume nombres canonicos `movement_type`, `asset_name`, `asset_sku`;
+`user_uuid` sigue siendo ID autenticado como string, no UUID. ID de movimiento
+acotado por tipo. Errores 400/401/404/500 documentados; GET publicos y POST
+autenticados, stock/consultas/persistencia sin cambios. 33 tests inventario y
+siete Node pasan; renderizado con DOM minimo, no navegador. Todas las 32
+operaciones verificadas tecnicamente por etapas; aceptacion global en etapa 8.
+
 Actualizacion 2026-11-05, etapa 6: proveedores lista `SupplierListItem[]` sin
 `updated_at`, conserva diez campos de tarjetas (incluidos contacto/notas/nulls).
 `SupplierRecord` agrega timestamp para detalle/alta/PATCH. Autenticacion/422/

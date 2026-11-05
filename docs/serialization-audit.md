@@ -76,6 +76,8 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
   pruebas manuales y aceptacion global pendientes de etapa 8.
 - **V6** = contratos de proveedores verificados mediante tests y OpenAPI en
   etapa 6; aceptacion manual/global pendiente de etapa 8.
+- **V7** = inventario/movimientos y consumidor del historial verificados en
+  etapa 7; aceptacion manual/global pendiente de etapa 8.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -167,12 +169,12 @@ Evidencia: [router](../services/api/routers/inventory.py),
 
 | # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
 |---|---|---|---|---|---|---|
-| 20 | `GET /inventory/products`: catalogo | Sin body | Modelo B[], 200; SQLModel + calculo stock | Tabla, filtros y selector de activos: B[] ya ligero | YA | 7 / P |
-| 21 | `POST /inventory/products`: crear activo | `AssetCreate`, Bearer | Modelo B, 201; SQLModel proyectado | Swagger/tests; B, stock calculado inicial y SKU unico | YA | 7 / P |
-| 22 | `GET /inventory/products/{id}`: detalle | Path | Modelo B, 200; SQLModel + stock | Cliente backoffice/Swagger: B; no cargar movimientos anidados | YA | 7 / P |
-| 23 | `POST /inventory/orders/inbound`: entrada | `AssetEntryCreate`, Bearer | Modelo E, 201; SQLModel proyectado | Formulario movimientos: revisar E y confirmacion, autor derivado del usuario | PARCIAL | 7 / P |
-| 24 | `POST /inventory/orders/outbound`: salida | `AssetExitCreate`, Bearer | Modelo O, 201; SQLModel proyectado | Formulario movimientos: revisar O; asignacion/consumo y stock preservados | PARCIAL | 7 / P |
-| 25 | `GET /inventory/orders`: historial | Sin body | Modelo L[], 200; proyeccion plana SQLModel | Historial usa autor/destino; espera alias distintos para tipo/nombre/SKU: alinear con L | PARCIAL | 7 / P |
+| 20 | `GET /inventory/products`: catalogo | Sin body | Modelo B[], 200; SQLModel + calculo stock | Tabla, filtros y selector de activos: B[] ya ligero; seis campos conservados | YA | 7 / V7 |
+| 21 | `POST /inventory/products`: crear activo | `AssetCreate`, Bearer | Modelo B, 201; SQLModel proyectado | Swagger/tests; B, stock calculado inicial y SKU unico | YA | 7 / V7 |
+| 22 | `GET /inventory/products/{id}`: detalle | Path | Modelo B, 200; SQLModel + stock | Cliente backoffice/Swagger: B; no cargar movimientos anidados | YA | 7 / V7 |
+| 23 | `POST /inventory/orders/inbound`: entrada | `AssetEntryCreate`, Bearer | Modelo E, 201; SQLModel proyectado | Confirmacion E completa compatible; autor derivado del usuario y no editable | PARCIAL | 7 / V7 |
+| 24 | `POST /inventory/orders/outbound`: salida | `AssetExitCreate`, Bearer | Modelo O, 201; SQLModel proyectado | Confirmacion O completa compatible; asignacion/consumo y stock preservados | PARCIAL | 7 / V7 |
+| 25 | `GET /inventory/orders`: historial | Sin body | Modelo L[], 200; proyeccion plana SQLModel | Historial alineado con movement_type/asset_name/asset_sku; autor/destino conservados | PARCIAL | 7 / V7 |
 
 ### Proveedores - 6 operaciones
 
@@ -199,8 +201,10 @@ Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
 tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
 pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
 Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
-Cinco operaciones adicionales tienen evidencia V5 y otras cinco V6; seis
-operaciones de inventario siguen pendientes de etapa 7. DELETE de proveedores
+Cinco operaciones adicionales tienen evidencia V5, otras cinco V6 y las seis
+de inventario V7. Las 32 operaciones tienen verificacion tecnica por etapas,
+sin operaciones P; aceptacion global/manual pendiente de etapa 8 y CSV pendiente
+del instructor. DELETE de proveedores
 conserva V3 y se comprueba de nuevo en etapa 6. Las formas y
 clasificaciones originales no se sobrescriben.
 
@@ -289,7 +293,7 @@ solo por escribir esta justificacion.
 | 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); aceptacion de excepcion CSV pendiente | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Completada (2026-11-05) | `feat(api): audit incident serialization contracts`; 32 tests pasan, listado reducido y errores OpenAPI verificados |
 | 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Completada (2026-11-05) | `feat(api): refine supplier serialization contracts`; 20 tests pasan, contratos/listado/timestamps verificados |
-| 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Pendiente | `feat(api): refine inventory serialization contracts` |
+| 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Completada (2026-11-05) | `feat(api): refine inventory serialization contracts`; 33 tests inventario y siete Node pasan; historial canonico y contratos verificados |
 | 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Pendiente | `docs: finalize serialization audit and verification` |
 
 Las dependencias adicionales fijan el orden de trabajo acordado, no implican que
@@ -750,3 +754,82 @@ uv run --locked --project services\api python -m unittest services.api.tests.tes
   no se afirman checks frontend ni navegador no ejecutados.
 - Cierre con un commit/push y verificacion local/remota; hash a registrar al
   comenzar etapa 7. No avanzar a inventario automaticamente.
+
+## Etapa 7 — Inventario y movimientos
+
+Fecha: 2026-11-05. Base publicada de etapa 6:
+`95d8b1e6462dd1ffee905ccef04530c81dfe0f5c`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, tablas, consultas, calculos,
+datos persistidos, handlers ni permisos.
+
+### Contratos y relaciones
+
+| Operaciones | Contrato final / justificacion |
+|---|---|
+| Catalogo GET, alta POST y detalle GET | `AssetRead`: seis campos (`id`, `name`, `sku`, `category`, `office`, `current_stock`). Todos sirven para tabla/filtros/selector/acciones. Stock calculado por activo/oficina; alta inicial cero. Lista ya ligera, sin movimientos anidados. |
+| Entrada POST | `AssetEntryRead`: siete campos (`id`, `asset_id`, `quantity`, `supplier`, `office`, `created_at`, `user_uuid`). Confirmacion completa compatible de movimiento persistido, con ID, referencia de activo, datos de entrada y metadata server-managed. |
+| Salida POST | `AssetExitRead`: ocho campos (`id`, `asset_id`, `quantity`, `exit_type`, `assigned_to`, `office`, `created_at`, `user_uuid`). Confirmacion compatible; destino necesario en asignacion y null en consumo. El formulario descarta el body y recarga catalogo, pero no se elimina metadata del contrato por ello. |
+| Historial GET | `OrderItemRead`: doce campos (`id`, `movement_type`, `asset_id`, `asset_name`, `asset_sku`, `quantity`, `office`, `supplier`, `exit_type`, `assigned_to`, `created_at`, `user_uuid`). Lista plana: nombre/SKU evitan consultas por fila, IDs identifican movimiento y activo, tipo distingue tablas y sentido, `exit_type` preserva asignacion/consumo; proveedor/destino, fecha y autor permiten interpretar el movimiento. Sin modelos ORM ni usuario/activo completos anidados. |
+
+`user_uuid` conserva el nombre por compatibilidad, pero significa `str(user.id)`
+del usuario autenticado, no un UUID real. Solo se expone el identificador de
+autor, sin email/perfil/hash; el historial lo muestra. Alta de movimientos no
+acepta autor, ID, timestamp o stock del cliente. El ID de movimiento esta
+acotado a `movement_type`: entradas/salidas pueden compartir numero porque usan
+tablas distintas. Ambas precisiones se agregan a descripciones de OpenAPI sin
+cambiar tipos, valores ni obligatoriedad.
+
+El historial leia `type`, `product_name`/`name` y `sku`, inexistentes en la
+respuesta de movimientos. Se cambian cuatro referencias a nombres canonicos:
+`movement_type`, `asset_name`, `asset_sku` y la condicion de proveedor para
+entrada. El cliente centralizado sigue devolviendo la respuesta sin aliases.
+Se preservan proveedor para entrada, destino para asignacion, null/vacio para
+consumo, fecha y autor; sin cambiar layout, flujo de carga o gestion de errores.
+
+### Errores, stock y alcance de acceso
+
+OpenAPI documenta con `DetailErrorResponse` el 500 comun, 400 de SKU duplicado
+o stock insuficiente, 404 de activo y 401 de escritura. Se conservan 422 de
+validacion y los mensajes existentes, incluido el mensaje exacto de stock.
+No se modifican agregacion por activo/oficina, comprobacion previa a salida,
+persistencia ni carga anticipada de relaciones; no se afirma un benchmark N+1.
+
+Los tres GET siguen publicos y los tres POST requieren autenticacion, igual
+que antes. El destino de asignacion y autor tienen uso funcional, pero esta
+etapa no certifica que un historial publico sea apto para produccion. Mantener
+alcance local/demo y datos sinteticos; modificar la politica de acceso o
+anonimizar destinos requiere un cambio funcional acordado fuera de esta etapa.
+
+### Evidencia y cierre
+
+Desde raiz con `DATABASE_URL=sqlite:///:memory:` solo en el proceso backend:
+
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests\test_inventory_api.py services\api\tests\test_inventory_models_schemas.py services\api\tests\test_inventory_service.py services\api\tests\test_inventory_seed.py -q
+node --test uis\backoffice\tests\test_inventory_api.mjs
+node --check uis\backoffice\order-history.js
+```
+
+- **33 tests backend pasan**, sin omitidos, en 2.46 segundos. Aviso conocido
+  Starlette/httpx. Bases SQLite en memoria; usuarios simulados, sin `.env*`,
+  bases reales, correo o servicios externos.
+- **Siete tests Node pasan**. Se amplia el caso existente de contrato del
+  cliente con respuestas canonicas y DOM minimo para entrada/asignacion/consumo,
+  incluidos IDs coincidentes entre tipos, proveedor, destino, fecha y autor.
+  Antes de corregir consumidor se reprodujeron celdas vacias; tras el cambio
+  el mismo caso pasa. No archivos/metodos de test ni dependencias nuevos.
+- Shapes exactos de catalogo/detalle/alta/confirmaciones/historial, campos null,
+  orden de historial, listas vacias y schemas OpenAPI de seis operaciones.
+  Modelos de entrada prohiben metadata; intentos HTTP de escribir autor, ID,
+  timestamp o stock en movimientos reciben 422 y no alteran stock.
+- Escrituras sin sesion reciben 401; lecturas sin sesion siguen 200. Activo
+  ausente 404, SKU duplicado 400, validacion 422, stock insuficiente 400 exacto
+  sin salida parcial, aislamiento Valencia/Miami y seed siguen pasando.
+- Sintaxis Python de router/schemas/tests y `node --check` correctos.
+  La app estatica no tiene lint/typecheck/build propios. Renderizado comprobado
+  con DOM minimo, no una revision visual ni Swagger manual.
+- Seis operaciones pasan de P a V7: las 32 operaciones tienen evidencia tecnica
+  por etapas (31 JSON y una CSV). Aceptacion manual/global y suite completa
+  pendientes de etapa 8; excepcion CSV pendiente del instructor.
+- Cierre con commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 8. No avanzar a verificacion global ni PR automaticamente.

@@ -7,6 +7,7 @@ from sqlmodel import Session
 from services.api.auth_dependencies import get_current_user
 from services.api.auth_models import UserRecord
 from services.api.database import get_db
+from services.api.response_models import DetailErrorResponse
 from services.api.inventory_service import (
     create_asset,
     get_asset_read,
@@ -25,7 +26,13 @@ from services.api.schemas import (
     OrderItemRead,
 )
 
-router = APIRouter(prefix="/inventory", tags=["Inventory"])
+router = APIRouter(
+    prefix="/inventory",
+    tags=["Inventory"],
+    responses={
+        500: {"model": DetailErrorResponse, "description": "Internal server error."},
+    },
+)
 
 
 @router.get(
@@ -44,6 +51,10 @@ def get_products(session: Session = Depends(get_db)) -> List[AssetRead]:
     response_model=AssetRead,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new asset in catalog",
+    responses={
+        400: {"model": DetailErrorResponse, "description": "SKU already exists."},
+        401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
+    },
 )
 def post_product(
     payload: AssetCreate,
@@ -59,6 +70,7 @@ def post_product(
     response_model=AssetRead,
     status_code=status.HTTP_200_OK,
     summary="Retrieve an asset by ID with current stock",
+    responses={404: {"model": DetailErrorResponse, "description": "Asset not found."}},
 )
 def get_product_by_id(id: int, session: Session = Depends(get_db)) -> AssetRead:
     """Retrieve asset details and derived current stock. 404 if not found."""
@@ -70,6 +82,10 @@ def get_product_by_id(id: int, session: Session = Depends(get_db)) -> AssetRead:
     response_model=AssetEntryRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register inbound asset movement (stock arrival)",
+    responses={
+        401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
+        404: {"model": DetailErrorResponse, "description": "Asset not found."},
+    },
 )
 def post_inbound_order(
     payload: AssetEntryCreate,
@@ -86,6 +102,11 @@ def post_inbound_order(
     response_model=AssetExitRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register outbound asset movement (allocation or consumption)",
+    responses={
+        400: {"model": DetailErrorResponse, "description": "Insufficient stock for this asset and office."},
+        401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
+        404: {"model": DetailErrorResponse, "description": "Asset not found."},
+    },
 )
 def post_outbound_order(
     payload: AssetExitCreate,
@@ -111,4 +132,3 @@ def post_outbound_order(
 def get_orders(session: Session = Depends(get_db)) -> List[OrderItemRead]:
     """Retrieve all inventory movements with parent asset details without N+1 queries."""
     return list_orders(session)
-

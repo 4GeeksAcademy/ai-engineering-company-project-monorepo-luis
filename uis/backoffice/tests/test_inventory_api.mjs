@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 // Mock sessionStorage for Node test environment
 class MockSessionStorage {
@@ -161,6 +163,25 @@ test("InventoryApiClient: clears session on 401 response", async () => {
 test("InventoryApiClient: inventory CRUD calls match API contract", async () => {
   const client = new InventoryApiClient({ baseUrl: "http://test-server" });
   const calls = [];
+  const orders = [
+    {
+      id: 1, movement_type: "inbound", asset_id: 1, asset_name: "Synthetic hub",
+      asset_sku: "TEST-HUB", quantity: 12, office: "Miami", supplier: "Synthetic supplier",
+      exit_type: null, assigned_to: null, created_at: "2030-01-02T03:04:05", user_uuid: "42",
+    },
+    {
+      id: 1, movement_type: "outbound", asset_id: 1, asset_name: "Synthetic hub",
+      asset_sku: "TEST-HUB", quantity: 2, office: "Miami", supplier: null,
+      exit_type: "allocation", assigned_to: "Synthetic team",
+      created_at: "2030-01-02T03:05:05", user_uuid: "84",
+    },
+    {
+      id: 2, movement_type: "outbound", asset_id: 1, asset_name: "Synthetic hub",
+      asset_sku: "TEST-HUB", quantity: 1, office: "Miami", supplier: null,
+      exit_type: "consumption", assigned_to: null,
+      created_at: "2030-01-02T03:06:05", user_uuid: "42",
+    },
+  ];
 
   globalThis.fetch = async (url, options) => {
     calls.push({ url, method: options.method, body: options.body });
@@ -168,7 +189,9 @@ test("InventoryApiClient: inventory CRUD calls match API contract", async () => 
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      json: async () => [{ id: 1, name: "Dell Latitude 5540", sku: "NEX-HW-001", current_stock: 12 }],
+      json: async () => url.endsWith("/orders")
+        ? orders
+        : [{ id: 1, name: "Dell Latitude 5540", sku: "NEX-HW-001", current_stock: 12 }],
     };
   };
 
@@ -180,8 +203,34 @@ test("InventoryApiClient: inventory CRUD calls match API contract", async () => 
   await client.getProductById(1);
   assert.equal(calls[1].url, "http://test-server/inventory/products/1");
 
-  await client.getOrders();
+  const history = await client.getOrders();
   assert.equal(calls[2].url, "http://test-server/inventory/orders");
+  assert.deepEqual(history, orders);
+
+  const element = () => ({
+    children: [], textContent: "", innerHTML: "",
+    appendChild(child) { this.children.push(child); },
+  });
+  const container = element();
+  const context = {
+    document: {
+      readyState: "loading",
+      addEventListener() {},
+      getElementById: () => container,
+      createElement: element,
+    },
+  };
+  runInNewContext(readFileSync(new URL("../order-history.js", import.meta.url), "utf8"), context);
+  context.renderTable(history);
+  const rows = container.children[0].children[1].children;
+  assert.equal(rows.length, 3);
+  const cells = rows.map((row) => row.children.map((cell) => cell.textContent));
+  assert.deepEqual(cells[0].slice(0, 6), ["Entrada", "Synthetic hub", "TEST-HUB", 12, "Miami", "Synthetic supplier"]);
+  assert.deepEqual(cells[1].slice(0, 6), ["Salida", "Synthetic hub", "TEST-HUB", 2, "Miami", "Synthetic team"]);
+  assert.deepEqual(cells[2].slice(0, 6), ["Salida", "Synthetic hub", "TEST-HUB", 1, "Miami", ""]);
+  assert.equal(cells[0][7], "42");
+  assert.equal(cells[1][7], "84");
+  assert.equal(cells[0][6], new Date(orders[0].created_at).toLocaleString());
 });
 
 test("InventoryApiClient: login sets token and user profile", async () => {

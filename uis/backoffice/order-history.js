@@ -44,15 +44,15 @@ function renderTable(orders) {
     const tr = document.createElement('tr');
     // Tipo
     const tdType = document.createElement('td');
-    tdType.textContent = formatType(o.type);
+    tdType.textContent = formatType(o.movement_type);
     tr.appendChild(tdType);
     // Activo (nombre)
     const tdName = document.createElement('td');
-    tdName.textContent = o.product_name ?? o.name ?? '';
+    tdName.textContent = o.asset_name ?? '';
     tr.appendChild(tdName);
     // SKU
     const tdSku = document.createElement('td');
-    tdSku.textContent = o.sku ?? '';
+    tdSku.textContent = o.asset_sku ?? '';
     tr.appendChild(tdSku);
     // Cantidad
     const tdQty = document.createElement('td');
@@ -64,7 +64,7 @@ function renderTable(orders) {
     tr.appendChild(tdOffice);
     // Detalle (proveedor o asignado)
     const tdDetail = document.createElement('td');
-    if (o.type === 'inbound') {
+    if (o.movement_type === 'inbound') {
       tdDetail.textContent = o.supplier ?? '';
     } else {
       tdDetail.textContent = o.assigned_to ?? '';
@@ -107,4 +107,3 @@ if (document.readyState === 'loading') {
 } else {
   loadAndRender();
 }
-

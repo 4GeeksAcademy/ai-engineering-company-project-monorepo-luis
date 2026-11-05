@@ -133,6 +133,34 @@ full PATCH confirmations, timestamp semantics, invalid writes, authentication
 and deletion remain covered. No frontend or dependency changes; manual
 backoffice/Swagger checks and full regression remain in stage 8.
 
+Stage 7 (2026-11-05) verifies all six inventory operations without reducing
+their established success contracts:
+
+- Catalog/create/detail retain `AssetRead` (six fields). The catalog and movement
+  forms use every field; stock is derived per asset/office and starts at zero.
+- Inbound/outbound confirmations retain `AssetEntryRead` / `AssetExitRead`
+  (seven/eight fields), including movement/asset IDs, timestamp and authenticated
+  author. Full confirmations remain compatible even though the form reloads the
+  catalog rather than using the response body.
+- History retains flat `OrderItemRead` (twelve fields), not nested ORM objects.
+  The backoffice now reads canonical `movement_type`, `asset_name`, `asset_sku`;
+  it previously read nonexistent aliases and displayed empty cells. Supplier,
+  allocation destination, null consumption destination, date and author remain.
+- `user_uuid` is the authenticated numeric user ID encoded as a string, not an
+  actual UUID. Clients cannot write it. Movement IDs are scoped by
+  `movement_type` because inbound/outbound tables can share an ID.
+- OpenAPI documents existing 400 duplicate-SKU/insufficient-stock, 404 missing
+  asset, 401 write authentication and 500 errors with `DetailErrorResponse`.
+  Existing 422 validation remains. GET routes stay public; POST routes require
+  authentication. This audit does not broaden permissions or claim production
+  suitability of public history containing author/destination information.
+
+Stage 7 verification: 33 inventory API/schema/service/seed tests and seven
+backoffice Node tests passed; the existing client test also checks history
+rendering with canonical inbound/allocation/consumption fixtures. No dependency,
+database, calculation or query changes. Browser/Swagger acceptance and the full
+backend suite remain in stage 8.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

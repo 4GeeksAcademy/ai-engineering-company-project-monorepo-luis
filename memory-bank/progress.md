@@ -2,6 +2,28 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 7
+
+2026-11-05. Base publicada de etapa 6:
+`95d8b1e6462dd1ffee905ccef04530c81dfe0f5c`; rama limpia `docs/auditoria-back`.
+
+- Contratos de inventario conservados: `AssetRead` seis campos, confirmaciones
+  entrada/salida siete/ocho y `OrderItemRead` plano de doce. Todos justificados
+  en auditoria; sin movimientos/usuario ORM anidados ni metadata editable.
+- Historial corrige cuatro referencias a `movement_type`, `asset_name`,
+  `asset_sku` y condicion de entrada; ahora renderiza tipo/activo/SKU/proveedor.
+- `user_uuid` es ID autenticado como string; ID movimiento acotado por tipo.
+  Precisiones en OpenAPI, junto a errores 400/401/404/500 existentes.
+- 33 tests inventario API/modelos/servicio/seed y siete Node pasan. Fallo de
+  renderizado reproducido antes del cambio y corregido. Sintaxis correcta;
+  sin dependencias, consultas, persistencia, permisos o stock modificados.
+- Lecturas siguen publicas y escrituras autenticadas. Solo uso local/demo
+  y datos sinteticos; esta auditoria no habilita publicar autor/destino reales.
+- Seis V7; las 32 operaciones tienen evidencia tecnica por etapas. Aceptacion
+  global/manual, suite completa y PR quedan para etapa 8; CSV para instructor.
+- Commit/push al cierre; registrar hash al iniciar etapa 8. No avanzar sin
+  autorizacion.
+
 ## Auditoria de serializacion backend — Etapa 6
 
 2026-11-05. Base publicada de etapa 5:
