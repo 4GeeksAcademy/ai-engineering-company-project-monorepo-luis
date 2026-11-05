@@ -1,9 +1,11 @@
 """Domain models and lifecycle validations for Nexova incident records."""
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, field_validator
+
+from services.api.response_models import DetailErrorResponse
 
 IncidentStatus = Literal["open", "in_progress", "resolved", "discarded"]
 IncidentOrigin = Literal["customer", "branch", "internal"]
@@ -119,20 +121,29 @@ class IncidentStatusUpdate(BaseModel):
     status: IncidentStatus
 
 
-class IncidentRecord(IncidentBase):
-    """Incident record as persisted and returned by API."""
+class IncidentListItem(IncidentBase):
+    """Flat incident row containing the fields consumed by the backoffice table."""
 
     id: int = Field(gt=0)
     status: IncidentStatus
     created_at: datetime
-    updated_at: datetime
-
-    @field_validator("created_at", "updated_at")
+    @field_validator("created_at")
     @classmethod
     def timestamps_must_be_utc(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+
+class IncidentRecord(IncidentListItem):
+    """Incident detail and write confirmation, including the last update time."""
+
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def updated_at_must_be_utc(cls, value: datetime) -> datetime:
+        return cls.timestamps_must_be_utc(value)
 
 
 class IncidentSummary(BaseModel):
@@ -144,3 +155,40 @@ class IncidentSummary(BaseModel):
     by_origin: dict[IncidentOrigin, int]
     by_branch: dict[IncidentBranch, int]
 
+
+class AnalysisSatisfactionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scored_tickets: NonNegativeInt
+    total_closed_tickets: NonNegativeInt
+    average_score: float | None = Field(ge=1, le=5, allow_inf_nan=False)
+    score_distribution: dict[Annotated[int, Field(ge=1, le=5)], NonNegativeInt]
+
+
+class IncidentAnalysisResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_records: NonNegativeInt
+    valid_records: NonNegativeInt
+    invalid_records: NonNegativeInt
+    category_counts: dict[
+        Literal["TECHNICAL", "BILLING", "ACCESS", "HR_QUERY", "COMPLAINT"],
+        NonNegativeInt,
+    ]
+    status_counts: dict[Literal["OPEN", "CLOSED", "DISCARDED"], NonNegativeInt]
+    invalid_breakdown: dict[str, NonNegativeInt] = Field(
+        description="Counts by fixed validation-rule label, never raw CSV values."
+    )
+    satisfaction: AnalysisSatisfactionResponse
+    errors_count: NonNegativeInt = Field(
+        description="Number of validation errors; one invalid row can have several."
+    )
+
+
+class IncidentValidationIssue(BaseModel):
+    field: str
+    message: str
+
+
+class IncidentValidationErrorResponse(DetailErrorResponse):
+    errors: list[IncidentValidationIssue]

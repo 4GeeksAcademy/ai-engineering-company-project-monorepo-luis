@@ -6,10 +6,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from services.api.auth_dependencies import get_current_user
+from services.api.response_models import DeletionResponse, DetailErrorResponse
 from services.api.supplier_models import (
     SupplierCategory,
     SupplierCountry,
     SupplierCreate,
+    SupplierListItem,
     SupplierRateUpdate,
     SupplierRecord,
     SupplierStatusUpdate,
@@ -20,6 +22,14 @@ router = APIRouter(
     prefix="/api/suppliers",
     tags=["Suppliers"],
     dependencies=[Depends(get_current_user)],
+    responses={
+        401: {
+            "model": DetailErrorResponse,
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {"WWW-Authenticate": {"schema": {"type": "string", "const": "Bearer"}}},
+        },
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+    },
 )
 
 
@@ -62,11 +72,11 @@ def create_supplier(supplier: SupplierCreate) -> SupplierRecord:
     return _to_record(created)
 
 
-@router.get("", response_model=list[SupplierRecord])
+@router.get("", response_model=list[SupplierListItem])
 def list_suppliers(
     country: SupplierCountry | None = Query(default=None),
     category: SupplierCategory | None = Query(default=None),
-) -> list[SupplierRecord]:
+) -> list[SupplierListItem]:
     try:
         with open_supplier_table() as table:
             documents = table.all()
@@ -82,16 +92,25 @@ def list_suppliers(
             continue
         if category is not None and category not in document.get("categories", []):
             continue
-        suppliers.append(_to_record(document))
+        record = _to_record(document)
+        suppliers.append(SupplierListItem.model_validate(record.model_dump(exclude={"updated_at"})))
     return suppliers
 
 
-@router.get("/{supplier_id}", response_model=SupplierRecord)
+@router.get(
+    "/{supplier_id}",
+    response_model=SupplierRecord,
+    responses={404: {"model": DetailErrorResponse, "description": "Supplier not found."}},
+)
 def get_supplier(supplier_id: int) -> SupplierRecord:
     return _get_supplier_or_404(supplier_id)
 
 
-@router.patch("/{supplier_id}/rate", response_model=SupplierRecord)
+@router.patch(
+    "/{supplier_id}/rate",
+    response_model=SupplierRecord,
+    responses={404: {"model": DetailErrorResponse, "description": "Supplier not found."}},
+)
 def update_supplier_rate(
     supplier_id: int,
     update: SupplierRateUpdate,
@@ -117,7 +136,11 @@ def update_supplier_rate(
     return _to_record(document)
 
 
-@router.patch("/{supplier_id}/status", response_model=SupplierRecord)
+@router.patch(
+    "/{supplier_id}/status",
+    response_model=SupplierRecord,
+    responses={404: {"model": DetailErrorResponse, "description": "Supplier not found."}},
+)
 def update_supplier_status(
     supplier_id: int,
     update: SupplierStatusUpdate,
@@ -142,8 +165,13 @@ def update_supplier_status(
     return _to_record(document)
 
 
-@router.delete("/{supplier_id}", status_code=status.HTTP_200_OK)
-def delete_supplier(supplier_id: int) -> dict[str, int | bool]:
+@router.delete(
+    "/{supplier_id}",
+    response_model=DeletionResponse,
+    status_code=status.HTTP_200_OK,
+    responses={404: {"model": DetailErrorResponse, "description": "Supplier not found."}},
+)
+def delete_supplier(supplier_id: int) -> DeletionResponse:
     try:
         with open_supplier_table() as table:
             deleted_ids = table.remove(doc_ids=[supplier_id])
@@ -157,4 +185,4 @@ def delete_supplier(supplier_id: int) -> dict[str, int | bool]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Supplier not found",
         )
-    return {"id": supplier_id, "deleted": True}
+    return DeletionResponse(id=supplier_id, deleted=True)

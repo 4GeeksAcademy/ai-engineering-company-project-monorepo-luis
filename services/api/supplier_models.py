@@ -64,10 +64,15 @@ class SupplierCreate(BaseModel):
         return self
 
 
-class SupplierRecord(SupplierCreate):
-    """Supplier as stored and returned by the API."""
+class SupplierListItem(SupplierCreate):
+    """Supplier card fields, including its identifier and optional contact details."""
 
     id: int = Field(gt=0)
+
+
+class SupplierRecord(SupplierListItem):
+    """Supplier detail and write confirmation, including the rate timestamp."""
+
     updated_at: datetime
 
     @field_validator("updated_at")

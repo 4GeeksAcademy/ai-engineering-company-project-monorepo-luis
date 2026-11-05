@@ -653,27 +653,15 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.append("file", currentFile);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/incidents/analyze`, {
+        const data = await window.inventoryApi.request("/api/incidents/analyze", {
           method: "POST",
           body: formData,
         });
-
-        if (!response.ok) {
-          let errMessage = "No se pudo procesar el archivo en el servidor.";
-          try {
-            const errData = await response.json();
-            if (errData.detail) errMessage = errData.detail;
-          } catch (_) {}
-          showCsvError(errMessage);
-          return;
-        }
-
-        const data = await response.json();
         clearCsvStatus();
         renderCsvResults(data);
       } catch (err) {
         showCsvError(
-          "No se pudo conectar con el servidor. Comprueba tu conexión e intenta de nuevo."
+          err.message || "No se pudo conectar con el servidor. Comprueba tu conexión e intenta de nuevo."
         );
       } finally {
         btnAnalyze.disabled = false;
@@ -805,12 +793,10 @@ document.addEventListener("DOMContentLoaded", () => {
     btnExport.addEventListener("click", async () => {
       btnExport.disabled = true;
       try {
-        const response = await fetch(`${API_BASE_URL}/api/incidents/results/export`);
-        if (!response.ok) {
-          showCsvError("No se pudo descargar el archivo CSV de exportación.");
-          return;
-        }
-        const blob = await response.blob();
+        const blob = await window.inventoryApi.request("/api/incidents/results/export", {
+          responseType: "blob",
+          headers: { Accept: "text/csv" },
+        });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -820,7 +806,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.URL.revokeObjectURL(url);
         a.remove();
       } catch (e) {
-        showCsvError("No se pudo completar la exportación del archivo CSV. Comprueba tu conexión e intenta de nuevo.");
+        showCsvError(e.message || "No se pudo completar la exportación del archivo CSV. Comprueba tu conexión e intenta de nuevo.");
       } finally {
         btnExport.disabled = false;
       }
@@ -841,7 +827,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!statusContainer) return;
     statusContainer.innerHTML = `
       <div class="status-alert error" role="alert" aria-live="assertive">
-        <strong>Error:</strong> <span>${msg}</span>
+        <strong>Error:</strong> <span>${escapeHtml(msg)}</span>
       </div>
     `;
   }

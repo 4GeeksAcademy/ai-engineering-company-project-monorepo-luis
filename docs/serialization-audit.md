@@ -1,0 +1,949 @@
+# Auditoria de serializacion del backend - Nexova
+
+## Estado y alcance
+
+**Estado actual, 2026-11-05:** implementacion y verificacion tecnica de etapas
+1-8 terminadas. Las 32 operaciones tienen contrato comprobado: 31 JSON y una
+exportacion CSV. El usuario confirma aceptacion del instructor para CSV.
+**Publicacion final pendiente:** el usuario creara manualmente la PR contra
+`main`; enlace e instrucciones al final. No se afirma que la PR exista ni que
+la entrega al instructor este completada.
+
+### Fotografia inicial (etapa 1)
+
+Etapa 1: auditoria inicial y plan documentados el **2026-11-02**. No se han
+implementado cambios funcionales ni certificado los contratos finales.
+
+Esta descripcion y las formas "actuales" del inventario conservan la fotografia
+del commit de partida. Los cambios posteriores se registran por etapa abajo;
+no sobrescribir el estado original con el contrato nuevo.
+
+- Rama: `docs/auditoria-back`, siguiendo `origin/docs/auditoria-back`.
+- Commit de partida: `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`.
+- Arbol limpio al iniciar. API: FastAPI, version declarada `1.0.0`.
+- Alcance: las **32 operaciones** de negocio/health publicadas por la aplicacion
+  de [main.py](../services/api/main.py), incluidos los seis routers registrados.
+- `/docs`, `/redoc` y `/openapi.json` son infraestructura de FastAPI, no operaciones
+  de negocio adicionales. Los errores son respuestas de cada operacion, no rutas
+  independientes.
+- Fuentes: [guia local](../auditoria-back.md),
+  [README oficial](https://github.com/4GeeksAcademy/ai-engineering-syllabus/blob/main/content/projects/ai-eng-performance-serialization/README.es.md),
+  [instrucciones](../AGENTS.md), reglas de `.agents/rules/`, contexto y banco de
+  memoria, README de API/backoffice y contratos de los consumidores citados abajo.
+- Precedencia: README oficial vigente, contratos de negocio/consumidores y codigo,
+  guia local. Las referencias historicas a hitos retirados no justifican recrearlos.
+- Exclusiones: reescritura del servicio, migraciones, cambios de permisos o negocio,
+  datos reales, configuracion de produccion y API externa de candidatos del tracker.
+
+### Metodo y evidencia
+
+Se consulto `GET /openapi.json` con `fastapi.testclient.TestClient(app)`, sin usarlo
+como context manager: respuesta HTTP 200, sin ejecutar lifespan, JWT, seeds ni
+dependencias de endpoints de negocio. Se uso el Python ya instalado en
+`services\api\.venv\Scripts\python.exe`; no se instalaron dependencias.
+
+El inventario se cruzo con los decoradores de `main.py` y `routers/*.py`, los
+modelos, proyecciones y consumidores. Para inspeccionar `APIRoute` se combinaron
+las rutas de la aplicacion y de los routers importados: la primera consulta que
+solo recorria `app.routes` no encontraba las rutas incluidas en esta version de
+FastAPI. La consulta corregida termino con codigo 0 y 32 operaciones.
+
+Hallazgos verificables de OpenAPI:
+
+- 27 operaciones declaran un modelo Pydantic explicito en el decorador.
+- Dos DELETE infieren `dict[str, int | bool]` de la anotacion de retorno:
+  `additionalProperties` permite enteros/booleanos, sin exigir claves concretas.
+  No equivalen a una confirmacion Pydantic con `id` y `deleted` obligatorios.
+- Health y analisis declaran exito JSON con `schema: {}`.
+- Export declara exito `application/json` con `schema: {}`, aunque el codigo
+  devuelve `Response(media_type="text/csv")`: documentacion y contenido divergen.
+- No se identifico en la inspeccion un endpoint que devuelva un ORM de inventario
+  sin proyeccion: el servicio construye esquemas antes de responder. Esto no
+  certifica ausencia de filtraciones en ejecucion.
+
+No se probaron respuestas de negocio ni Swagger interactivo, suite backend,
+lint/build o UI en esta etapa documental. El aviso Starlette/httpx observado no
+impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
+
+## Convenciones del inventario
+
+- **YA** = ya serializado (equivalente a la clasificacion inicial de la guia):
+  modelo explicito adecuado segun evidencia estatica; verificacion final pendiente.
+- **PARCIAL** = contrato existente que requiere decision, ajuste o evidencia
+  adicional de consumidor.
+- **SIN** = falta un contrato de salida explicito con campos definidos.
+- **SIN/CSV** = excepcion no JSON todavia mal documentada.
+- Estado final **P** = pendiente de implementacion/verificacion; no es aprobacion.
+- **V2** = contrato de etapa 2 verificado mediante tests y checks focalizados.
+  La aceptacion global, Swagger manual y suite completa siguen en etapa 8.
+- **V3** = contrato de etapa 3 verificado mediante tests y OpenAPI; misma
+  condicion de aceptacion global pendiente que V2.
+- **V4** = contrato JSON de analisis verificado en etapa 4.
+- **V4-CSV** = contrato CSV real verificado y documentado; excepcion tecnica
+  no JSON pendiente de aceptacion del instructor, no aprobacion academica final.
+- **V5** = CRUD/resumen de incidentes verificado con tests y OpenAPI en etapa 5;
+  pruebas manuales y aceptacion global pendientes de etapa 8.
+- **V6** = contratos de proveedores verificados mediante tests y OpenAPI en
+  etapa 6; aceptacion manual/global pendiente de etapa 8.
+- **V7** = inventario/movimientos y consumidor del historial verificados en
+  etapa 7; aceptacion manual/global pendiente de etapa 8.
+- V2-V7 identifican la etapa de verificacion original. Sus pendientes globales
+  se resuelven en el cierre de etapa 8; se conservan etiquetas y evidencia
+  historicas, no se reescribe la fotografia inicial.
+- En las tablas, las formas objetivo son propuestas para la etapa indicada,
+  no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
+  contrato compatible; Swagger y tests existentes siguen siendo consumidores.
+
+### Catalogo de formas actuales y objetivo (base de etapa 1)
+
+Los campos enumerados son nombres de contrato, nunca valores reales. `[]` indica
+lista; nullable no equivale a campo omitido. Preservar esta distincion al implementar.
+
+| Alias | Forma actual y fuente | Forma objetivo y justificacion |
+|---|---|---|
+| H | Dict: `status`, `service` en `main.py`. | Modelo pequeno con ambas claves obligatorias; mismo JSON y HTTP 200. |
+| T | `TokenResponse`: `access_token`, `token_type`. | Mantener token publico de acceso y tipo bearer; necesarios para login, sin email. No confundir este token intencional con tokens internos de recuperacion. |
+| A | `AuthActionResponse`: `message`. | Mantener confirmacion; forgot generico para ambos casos, sin email ni token de recuperacion. |
+| U | `UserResponse`: `id`, `email`, `is_active`, `role`, `created_at`. | Mantener detalle/actualizacion compatible. Justificar email/rol/estado por gestion autorizada; no reutilizar para registro publico. Evaluar listado por separado. |
+| R | Registro usa U, incluido email. | Propuesta: confirmacion `message` sin email ni campos de credenciales. El formulario descarta el cuerpo y hace login con su input; ajustar tipo del cliente junto al contrato. |
+| P | `ProfileResponse`: `name`, `phone`, `address`, `id`, `user_id`. | Mantener contacto y semantica nullable; justificar IDs o retirarlos coordinadamente de modelos/tipos tras trazar el perfil completo. No eliminarlos solo por ser relaciones. |
+| M | `AuthMeResponse`: `email`, `role`, `profile` (P). | Mantener email propio, rol y proyeccion anidada del perfil; nunca incluir `UserRecord` ni hash. |
+| D | Dict: `id`, `deleted`. | Confirmacion explicita con ID positivo y `deleted` verdadero; mantener HTTP 200 y ambos campos, sin cambiar a 204. |
+| I | `IncidentRecord`: `title`, `description`, `category`, `origin`, `branch`, `id`, `status`, `created_at`, `updated_at`. | Mantener detalle; para listado conservar los campos usados y evaluar `updated_at`, no quitar descripcion que la tabla muestra. |
+| S | `IncidentSummary`: `total`, `by_status`, `by_category`, `by_origin`, `by_branch`. | Conservar agregados y dimensiones, incluidos ceros/base vacia. Sin registros individuales. |
+| X | `IncidentAnalysisResult.to_dict()`: `total_records`, `valid_records`, `invalid_records`, `category_counts`, `status_counts`, `invalid_breakdown`, `satisfaction`, `errors_count`. | Modelo completo de agregados; `satisfaction` contiene `scored_tickets`, `total_closed_tickets`, `average_score` nullable y `score_distribution`. No publicar `row_errors` ni filas originales. |
+| C | CSV del exportador: columnas `metric,value`. | CSV documentado como texto, attachment `results.csv`; mantener categorias/estados, contadores, satisfaccion y razones invalidas. Promedio sin puntuaciones: `N/A`; con puntuaciones: dos decimales. |
+| B | `AssetRead`: `name`, `sku`, `category`, `office`, `id`, `current_stock`. | Mantener: tabla/filtros y acciones necesitan todos estos campos; stock calculado, no editable. |
+| E | `AssetEntryRead`: `id`, `asset_id`, `quantity`, `supplier`, `office`, `created_at`, `user_uuid`. | Mantener proyeccion explicita y revisar campos necesarios para confirmacion; autor server-managed. No eliminarlo globalmente: el historial lo muestra. |
+| O | `AssetExitRead`: `id`, `asset_id`, `quantity`, `exit_type`, `assigned_to` nullable, `office`, `created_at`, `user_uuid`. | Mantener asignacion/consumo y revisar confirmacion; `assigned_to` tiene uso funcional, no debe eliminarse sin alternativa. |
+| L | `OrderItemRead`: `id`, `movement_type`, `asset_id`, `asset_name`, `asset_sku`, `quantity`, `office`, `supplier` nullable, `exit_type` nullable, `assigned_to` nullable, `created_at`, `user_uuid`. | Proyeccion plana; conservar nombres canonicos de API y alinear consumidor. Justificar IDs de movimiento/activo y autor; no anidar objetos ORM completos. |
+| F | `SupplierRecord`: `name`, `country`, `categories`, `monthly_rate`, `currency`, `status`, `contract_renewal_date` nullable, `contact_email` nullable, `notes` nullable, `id`, `updated_at`. | Conservar detalle; listado utiliza contacto/notas ademas de campos comerciales. Evaluar solo campos realmente sobrantes, como timestamp no renderizado, sin duplicar esquemas identicos. |
+
+Fuentes de modelos: [auth_models.py](../services/api/auth_models.py),
+[incident_models.py](../services/api/incident_models.py),
+[schemas.py](../services/api/schemas.py),
+[supplier_models.py](../services/api/supplier_models.py),
+[analizador](../packages/incident_analyzer/models.py) y
+[exportador](../packages/incident_analyzer/exporter.py).
+
+## Inventario completo de operaciones
+
+Cada fila remite a una forma del catalogo: este contiene la lista actual y el
+objetivo. La columna origen describe el dato proyectado, no una autorizacion para
+publicar todas las columnas almacenadas. "Modelo" significa `response_model`
+explicito; los DELETE solo tienen inferencia generica.
+
+### Autenticacion, usuarios y perfiles - 12 operaciones
+
+Evidencia: routers [auth](../services/api/routers/auth.py),
+[users](../services/api/routers/users.py), [profiles](../services/api/routers/profiles.py),
+[cliente tracker](../uis/talent-pipeline-tracker/lib/nexova-api.ts),
+[tipos](../uis/talent-pipeline-tracker/types/auth.ts) y
+[formulario](../uis/talent-pipeline-tracker/components/auth-form.tsx).
+
+| # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
+|---|---|---|---|---|---|---|
+| 1 | `POST /auth/login`: iniciar sesion | `LoginRequest`; JSON u OAuth2 form | Modelo T, 200; JWT creado desde usuario TinyDB | Tracker y cliente backoffice: T; ambos formatos y credenciales invalidas deben conservarse | YA | 2 / V2 |
+| 2 | `GET /auth/me`: identidad propia | Bearer; sin body | Modelo M, 200; usuario/perfil TinyDB | Tracker y backoffice: M; email propio permitido, perfil anidado intencional | PARCIAL | 2 / V2 |
+| 3 | `POST /auth/forgot-password`: solicitar recuperacion | `ForgotPasswordRequest` | Modelo A, 200; confirmacion/background task | Cliente tracker: A; mismo mensaje exista o no usuario | YA | 2 / V2 |
+| 4 | `POST /auth/reset-password`: restablecer | `ResetPasswordRequest` | Modelo A, 200; servicio de recuperacion TinyDB | Cliente tracker: A; no repetir token ni nueva clave | YA | 2 / V2 |
+| 5 | `POST /auth/change-password`: cambiar clave propia | `ChangePasswordRequest`, Bearer | Modelo A, 200; servicio de credenciales TinyDB | Cliente tracker: A; no incluir email/credenciales | YA | 2 / V2 |
+| 6 | `POST /users`: registro publico | `UserRegistration` | Modelo U, 201; usuario/perfil creados en TinyDB | Formulario tracker descarta respuesta; U debe pasar a R y cambiar tipo de retorno del cliente | PARCIAL | 2 / V2 |
+| 7 | `GET /users`: listado admin | Bearer; sin body | Modelo U[], 200; proyecciones TinyDB | Sin UI identificada; Swagger/tests. Justificar campos para admin, no reducir sin caso de uso | PARCIAL | 2 / V2 |
+| 8 | `GET /users/{user_id}`: detalle propietario/admin | Path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U autorizado, sin hash | YA | 2 / V2 |
+| 9 | `PUT /users/{user_id}`: actualizar usuario | `UserUpdate`, path, Bearer | Modelo U, 200; proyeccion TinyDB | Swagger/tests; mantener U y autorizacion admin para rol/estado | YA | 2 / V2 |
+| 10 | `DELETE /users/{user_id}`: borrar usuario/perfil | Path, Bearer | Dict D, 200; confirmacion del servicio | Swagger/tests; fijar D con modelo, no 204 | SIN | 3 / V3 |
+| 11 | `GET /profiles/me`: perfil propio | Bearer; sin body | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; decision explicita sobre IDs en cierre de etapa 2 | PARCIAL | 2 / V2 |
+| 12 | `PUT /profiles/me`: actualizar contacto | `ProfileUpdate`, Bearer | Modelo P, 200; proyeccion TinyDB | Cliente tracker: P; conservar campos omitidos frente a null | PARCIAL | 2 / V2 |
+
+### Incidentes y analisis - 7 operaciones
+
+Evidencia: [router](../services/api/routers/incidents.py),
+[consumidor](../uis/backoffice/incidents.js), analizador/exportador del catalogo.
+
+| # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
+|---|---|---|---|---|---|---|
+| 13 | `GET /api/incidents/summary`: resumen | Sin body | Modelo S, 200; agregacion TinyDB | Dashboard: S; todas las dimensiones y total | YA | 5 / V5 |
+| 14 | `POST /api/incidents`: crear | `IncidentCreate` | Modelo I, 201; documento TinyDB proyectado | Formulario backoffice: I; conservar alta y campos server-managed | YA | 5 / V5 |
+| 15 | `GET /api/incidents`: listar/filtrar | Query `status`, `origin`, `branch`, `category` | Modelo I[], 200; documentos TinyDB proyectados | Tabla usa ID, titulo, descripcion, dimensiones, estado, fecha; proyeccion final sin updated_at en etapa 5 | PARCIAL | 5 / V5 |
+| 16 | `GET /api/incidents/{id}`: detalle | Path | Modelo I, 200; documento TinyDB proyectado | Sin detalle UI identificado; Swagger/tests: I | YA | 5 / V5 |
+| 17 | `PATCH /api/incidents/{id}/status`: transicion | `IncidentStatusUpdate`, path | Modelo I, 200; documento actualizado | Selector backoffice; respuesta I completa conservada por compatibilidad | PARCIAL | 5 / V5 |
+| 18 | `POST /api/incidents/analyze`: analizar CSV | Multipart, `UploadFile` campo `file` | Dict X, 200; dataclass del analizador | Dashboard CSV: X completo tipado, no `row_errors` ni PII | SIN | 4 / V4 |
+| 19 | `GET /api/incidents/results/export`: descargar | Sin body | `Response` C, 200; ultimo agregado global en memoria | Descarga backoffice: C, no JSON; documentar errores y media type real | SIN/CSV | 4 / V4-CSV |
+
+### Inventario - 6 operaciones
+
+Evidencia: [router](../services/api/routers/inventory.py),
+[servicio](../services/api/inventory_service.py),
+[cliente](../uis/backoffice/inventory-api.js),
+[catalogo](../uis/backoffice/inventory-view.js),
+[historial](../uis/backoffice/order-history.js).
+
+| # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
+|---|---|---|---|---|---|---|
+| 20 | `GET /inventory/products`: catalogo | Sin body | Modelo B[], 200; SQLModel + calculo stock | Tabla, filtros y selector de activos: B[] ya ligero; seis campos conservados | YA | 7 / V7 |
+| 21 | `POST /inventory/products`: crear activo | `AssetCreate`, Bearer | Modelo B, 201; SQLModel proyectado | Swagger/tests; B, stock calculado inicial y SKU unico | YA | 7 / V7 |
+| 22 | `GET /inventory/products/{id}`: detalle | Path | Modelo B, 200; SQLModel + stock | Cliente backoffice/Swagger: B; no cargar movimientos anidados | YA | 7 / V7 |
+| 23 | `POST /inventory/orders/inbound`: entrada | `AssetEntryCreate`, Bearer | Modelo E, 201; SQLModel proyectado | Confirmacion E completa compatible; autor derivado del usuario y no editable | PARCIAL | 7 / V7 |
+| 24 | `POST /inventory/orders/outbound`: salida | `AssetExitCreate`, Bearer | Modelo O, 201; SQLModel proyectado | Confirmacion O completa compatible; asignacion/consumo y stock preservados | PARCIAL | 7 / V7 |
+| 25 | `GET /inventory/orders`: historial | Sin body | Modelo L[], 200; proyeccion plana SQLModel | Historial alineado con movement_type/asset_name/asset_sku; autor/destino conservados | PARCIAL | 7 / V7 |
+
+### Proveedores - 6 operaciones
+
+Evidencia: [router](../services/api/routers/suppliers.py) y
+[consumidor](../uis/backoffice/suppliers.js).
+
+| # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
+|---|---|---|---|---|---|---|
+| 26 | `POST /api/suppliers`: crear | `SupplierCreate` | Modelo F, 201; documento TinyDB proyectado | Formulario backoffice; F, ID/timestamp server-managed | YA | 6 / V6 |
+| 27 | `GET /api/suppliers`: listado/filtros | Query `country`, `category` | Modelo F[], 200; documentos TinyDB proyectados | Tarjetas usan contacto/notas; listado final sin updated_at en etapa 6 | PARCIAL | 6 / V6 |
+| 28 | `GET /api/suppliers/{supplier_id}`: detalle | Path | Modelo F, 200; documento TinyDB proyectado | Swagger/tests; F compatible, datos comerciales solo en alcance local/demo | YA | 6 / V6 |
+| 29 | `PATCH /api/suppliers/{supplier_id}/rate`: tarifa | `SupplierRateUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; F completo conservado por compatibilidad | PARCIAL | 6 / V6 |
+| 30 | `PATCH /api/suppliers/{supplier_id}/status`: estado | `SupplierStatusUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; conservar semantica del timestamp | PARCIAL | 6 / V6 |
+| 31 | `DELETE /api/suppliers/{supplier_id}`: borrar | Path | Dict D, 200; confirmacion TinyDB | No hay accion UI; Swagger/tests: D explicito, no 204 | SIN | 3 / V3 |
+
+### Salud - 1 operacion
+
+| # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
+|---|---|---|---|---|---|---|
+| 32 | `GET /health`: estado del servicio | Sin body | Dict H, 200; constantes | Smoke checks/Swagger: H estable y tipado | SIN | 3 / V3 |
+
+Clasificacion inicial de este inventario: **14 YA, 13 PARCIAL, 4 SIN y 1 SIN/CSV**.
+Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
+tabla preliminar de la guia. Las verificaciones globales de etapa 8 estan
+registradas al final; las 11 operaciones de etapa 2 conservan evidencia V2.
+Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
+Cinco operaciones adicionales tienen evidencia V5, otras cinco V6 y las seis
+de inventario V7. Las 32 operaciones tienen verificacion tecnica por etapas,
+sin operaciones P; verificacion global/manual completada en etapa 8 y CSV
+aceptado segun confirmacion del usuario. Solo falta la PR manual. DELETE de proveedores
+conserva V3 y se comprueba de nuevo en etapa 6. Las formas y
+clasificaciones originales no se sobrescriben.
+
+## Hallazgos, causas, impacto y decisiones
+
+| ID | Causa / evidencia | Impacto | Mejora propuesta / etapa |
+|---|---|---|---|
+| F01 | Health/analisis retornan dict sin esquema explicito; DELETE infieren diccionario generico | OpenAPI no fija las claves esperadas; cambios accidentales de shape no quedan controlados por un modelo de campos | Modelos H/D/X explicitos, preservando respuestas/codigos; etapas 3 y 4 |
+| F02 | Registro comparte U con gestion autorizada | Reenvia email, contrario al criterio oficial de registro; tipo del cliente liga casos distintos | R especifico y tipo del cliente actualizado; etapa 2 |
+| F03 | Export usa `Response`, pero OpenAPI anuncia JSON | Clientes/documentacion no conocen el CSV ni su estructura real | Declarar `text/csv`, esquema texto/columnas y errores; etapa 4 |
+| F04 | Listados reutilizan detalle sin decision escrita | Posible over-fetching; no hay medicion de bytes ni prueba de que todos los campos sobren | Inventariar campos efectivamente usados; separar solo con reduccion real, etapas 2/5/6 |
+| F05 | Modelos P y movimientos incluyen IDs de relaciones/autor | IDs no justificados pueden revelar estructura innecesaria, pero quitarlos puede romper tipos/UI | Documentar uso y proyeccion; preservar autor del historial y decidir IDs restantes; etapas 2/7 |
+| F06 | Historial lee `type`, `product_name`/`name`, `sku`; API publica `movement_type`, `asset_name`, `asset_sku`; `getOrders()` no adapta | Divergencia estatica del contrato: tipo/nombre/SKU pueden mostrarse vacios o incorrectos | Consumidor debe leer nombres canonicos de L; probar historial en etapa 7, sin renombrar API por comodidad |
+| F07 | El handler de validacion cambia errores de incidentes a 400 y sanea errores de auth, mientras OpenAPI agrega 422 generico | Documentacion de errores puede no reflejar codigos/shape reales | Documentar respuestas por operacion y validar errores relevantes al trabajar cada familia |
+
+Estos son hallazgos de contratos, no vulnerabilidades explotables confirmadas.
+No se inspeccionaron datos reales ni se midieron tamanos/rendimiento.
+
+### Relaciones, privacidad y compatibilidad
+
+- Auth: separar almacenamiento `UserRecord` de U/R/M. No publicar hash, digest ni
+  tokens de recuperacion. T contiene exclusivamente el token publico necesario.
+- Registro/login/forgot/reset: no reenviar email. M puede incluir email propio.
+  No imponer la misma restriccion indiscriminadamente al listado admin o al
+  contacto de proveedores; justificar permisos/caso de uso.
+- Perfil: M anida una proyeccion de contacto, no el documento completo. IDs de P
+  requieren decision documentada; mantener contratos actuales hasta resolverla.
+- Inventario: `asset_id` identifica el activo; L aplana nombre/SKU. `user_uuid`
+  se genera actualmente como `str(current_user.id)`, no como un UUID real.
+  Mantener la politica de acceso existente: GET de inventario publicos y escrituras
+  autenticadas. Esta auditoria no autoriza cambiar permisos.
+- Incidentes: descripcion libre puede contener PII, pero no se inspeccionaron
+  valores para afirmarlo. La UI la muestra; no eliminar ni enmascarar sin decision.
+  X/C solo agregados; resultado CSV global en memoria preservado, sin cambiar
+  propiedad, almacenamiento o ciclo de vida.
+- Proveedores: contacto y notas aparecen en tarjetas. Datos comerciales en
+  local/demo; no crear un listado reducido que deje esas tarjetas incompletas.
+- Mantener arrays vacios, null/omitido, filtros, transiciones y respuestas
+  completas existentes salvo ajuste justificado y coordinado con clientes/tests.
+
+### Entradas y errores a preservar/verificar
+
+Los POST/PUT/PATCH JSON ya tienen modelos de entrada distintos de los de salida.
+Los esquemas de escritura usan `extra="forbid"`; verificarlo contra requests en
+sus etapas, no deducir validacion HTTP solo de la definicion. Analisis es multipart,
+no debe convertirse a JSON para aparentar cumplir el requisito.
+
+- Registro: solo email/password/contacto inicial; rol siempre `user`.
+- Usuario: email/password editables por propietario/admin; rol/estado solo admin.
+  IDs, hashes y timestamps no son entradas. `UserUpdate` rechaza null explicito.
+- Perfil: actualizacion parcial; diferenciar omitido de null intencional.
+- Incidentes: creacion acepta estado inicial segun regla actual; transicion recibe
+  solo `status`. ID y timestamps server-managed. No cambiar el ciclo de vida.
+- Inventario: stock/autor/ID/fecha server-managed; entrada y salida tienen
+  modelos separados. `asset_id` es referencia escribible necesaria.
+- Proveedores: ID/timestamp server-managed; tarifa y estado con modelos separados.
+
+Errores actuales segun codigo (no ejecutados contra endpoints de negocio):
+
+| Familia | Contratos que deben conservarse y comprobarse |
+|---|---|
+| Comunes | 500 generico sin stack trace; errores HTTP con `detail`. 401 en rutas autenticadas y cabecera Bearer donde corresponda |
+| Auth | Login 401/415/422; me 401/404; forgot 422/503; reset 400/422/503; change 400/401/422/503. Mensajes de validacion saneados sin copiar inputs |
+| Usuarios/perfiles | 401/403/404, 409 email duplicado, 422 de entrada; usuarios usan `{"detail": "Invalid user request"}`. Perfil preserva errores saneados y contacto nullable |
+| Incidentes CRUD | 400 filtros/payload/transicion, 404 recurso, 500 almacenamiento; validacion puede incluir `detail` y `errors` con `field`/`message`, no 422 generico |
+| Analisis/export | 400 formato/vacio/analisis, 413 limite 25 MiB, 401, 500; export 404 sin resultado. Validacion multipart de incidentes pasa por handler 400 |
+| Inventario | 400 SKU duplicado/stock insuficiente, 404 activo, 422 validacion; escrituras 401; mantener errores de dominio |
+| Proveedores | 401, 404, 422 entrada/filtros y 500 almacenamiento. Cambio de estado no actualiza el timestamp de tarifa |
+
+### Decision sobre CSV
+
+El README oficial pide literalmente `response_model` en cada endpoint y no
+explica exportaciones no JSON. La guia local propone una excepcion tecnica:
+documentar el CSV real en OpenAPI, sin fingir JSON ni aplicar un modelo Pydantic
+al texto. Implementar esa documentacion en etapa 4 y **confirmar con el instructor
+su aceptacion antes de declarar cumplida la entrega**. No marcar CSV aprobado
+solo por escribir esta justificacion.
+
+Actualizacion de etapa 8, 2026-11-05: el usuario confirma expresamente que el
+instructor ya acepto la excepcion CSV. Se registra esa confirmacion, no una
+verificacion independiente con el instructor. Contenido y contrato reales
+comprobados desde Swagger y backoffice en etapa 8.
+
+## Tablero de trabajo y publicacion
+
+| Etapa | Alcance / condicion de cierre | Dependencias | Estado | Commit previsto / evidencia |
+|---|---|---|---|---|
+| 1 | Inventario, campos, consumidores, decisiones y plan; guia/memoria actualizadas | Ninguna | Completada (alcance documental) | `docs: establish serialization audit baseline`; OpenAPI 200, 32 operaciones; commit/push se verifican al publicar |
+| 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
+| 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
+| 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); CSV aceptado segun usuario en etapa 8 | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
+| 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Completada (2026-11-05) | `feat(api): audit incident serialization contracts`; 32 tests pasan, listado reducido y errores OpenAPI verificados |
+| 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Completada (2026-11-05) | `feat(api): refine supplier serialization contracts`; 20 tests pasan, contratos/listado/timestamps verificados |
+| 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Completada (2026-11-05) | `feat(api): refine inventory serialization contracts`; 33 tests inventario y siete Node pasan; historial canonico y contratos verificados |
+| 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Verificacion completada (2026-11-05); PR manual pendiente por decision del usuario | `fix: close serialization audit validation gaps`; 244 tests API, 121 subtests, dos omitidos; nueve analizador, siete Node; lint/build y navegador verificados |
+
+Las dependencias adicionales fijan el orden de trabajo acordado, no implican que
+todos los modelos de una familia dependan tecnicamente de otra. Si una etapa solo
+necesita justificacion y ninguna modificacion funcional, su commit sera `docs:`,
+no se crearan cambios artificiales para conservar un mensaje `feat:`.
+
+### Cierre obligatorio por etapa
+
+1. Implementar solo el alcance actual. Si una decision cambia negocio/permisos,
+   detener esa parte y consultar; no cambiar codigo para cerrar una casilla.
+2. Ejecutar pruebas focalizadas existentes; actualizar contratos/tests afectados
+   al implementar segun el alcance autorizado. Sin nueva suite/framework.
+3. Actualizar este documento con estado original, cambios, evidencia y pendientes;
+   actualizar memoria/README si cambia comportamiento o estado.
+4. Revisar diff/staging, `git diff --check`, secretos/archivos generados y cambios ajenos.
+5. Un commit y push por etapa cerrada; verificar hash local/remoto y arbol limpio.
+   No se escribira el hash de un commit dentro de si mismo: la etapa siguiente
+   registra el hash publicado anterior; `git log` conserva la trazabilidad inmediata.
+6. Reportar cierre y detenerse hasta autorizacion de la siguiente etapa.
+
+## Verificacion final
+
+- [x] Las 32 operaciones tienen contrato explicito adecuado; cobertura contrastada
+  con los routers y OpenAPI en etapa 8.
+- [x] Requests/respuestas y errores relevantes probados; campos sensibles ausentes.
+- [x] Listados y relaciones justificados frente al consumidor, no por intuicion.
+- [x] Suite completa sin fallos: 244 tests API y 121 subtests pasan; dos omitidos
+  con causas y comprobacion complementaria registradas abajo. Nueve tests del
+  analizador y siete Node pasan. No se presenta la omision como test ejecutado.
+- [x] Al menos tres endpoints probados manualmente en `/docs`: flujo auth, listado
+  y operacion modificada; registrar metodo/ruta, shape, fecha y resultado sin secretos.
+- [x] Export real CSV comprobado (media type, attachment, columnas y errores).
+- [x] Excepcion CSV aceptada segun confirmacion del usuario en etapa 8.
+- [x] Consumidores afectados comprobados, incluido historial inventario.
+- [x] Estados finales actualizados con evidencia, no solo presencia de un modelo.
+- [ ] PR contra `main`: `feat: serialization audit and implementation`;
+  URL compartida al instructor. No abrir PR final durante etapa 1.
+
+Comando de suite completa para **etapa 8**, desde la raiz:
+
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests -q
+```
+
+Se usa el runner pytest ya declarado para incluir tanto unittest como las
+funciones/fixtures pytest de inventario. `unittest discover` solo no descubre
+estas ultimas y no representa toda la suite actual.
+
+No se ejecuta repetidamente la suite completa por cada cambio. Para etapas
+intermedias se seleccionan modulos de tests relevantes con el runner existente.
+No hay lint/typecheck/build Python propios declarados; si se modifican tipos del
+tracker, usar sus checks existentes, no ejecutar checks frontend ajenos.
+
+### Registro de evidencia
+
+| Evidencia | Estado al cerrar la documentacion de etapa 1 |
+|---|---|
+| Base / fecha | `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`, 2026-11-02 |
+| OpenAPI | TestClient sin lifespan, GET 200; 32 operaciones contrastadas con routers |
+| Contratos actuales | 27 modelos explicitos; 2 DELETE inferidos; health/analisis sin esquema fijo; CSV documentado incorrectamente como JSON |
+| Consumidores | Registro tracker descarta respuesta; tarjetas proveedores usan contacto/notas; incidentes usan descripcion; historial usa autor y alias divergentes |
+| Validacion documental | Inventario numerado 1-32 coincide exactamente con OpenAPI; recuentos de clasificacion y enlaces locales comprobados; referencias desde guia/memoria/README y columnas de login verificadas |
+| Pruebas de negocio / suite completa | No ejecutadas; pendientes de etapas de implementacion/cierre |
+| Swagger interactivo / UI | No ejecutados; pendientes |
+| Datos / dependencias | Sin datos reales, seeds, lectura de `.env*` ni instalaciones |
+| Implementacion / PR | Etapas 2-8 pendientes; PR no abierta |
+| Commit/push de etapa 1 | Publicado y sincronizado: `3c6de178eeaf1360ca346dd4bd8443a344b7968f` |
+
+## Etapa 2 — Autenticacion, usuarios y perfiles
+
+Fecha: 2026-11-02. Base publicada de etapa 1:
+`3c6de178eeaf1360ca346dd4bd8443a344b7968f`. Sin cambios preexistentes al comenzar.
+
+### Cambios y decisiones aplicadas
+
+| Operacion | Original | Contrato de etapa 2 / justificacion |
+|---|---|---|
+| `POST /users` | U, incluido email | HTTP 201, `AuthActionResponse` con solo `message: "User registered successfully"`. Reutiliza el esquema existente de confirmacion, separado de entrada y gestion de usuarios; no crea modelos duplicados. Usuario/perfil y errores se preservan. |
+| `POST /auth/login` | T | Sin cambios: token de acceso publico y `token_type`, sin email ni credenciales. Probados JSON y OAuth2. |
+| `GET /auth/me` | M con P anidado | Sin cambios: email del propio llamante, rol y proyeccion de perfil; no retorna `UserRecord`. UI usa email/rol/contacto. |
+| `POST /auth/forgot-password` | A | Sin cambios: mismo mensaje generico para usuario existente/desconocido/inactivo; no incluye email ni token de recuperacion. |
+| `POST /auth/reset-password` | A | Sin cambios: confirmacion de una clave; token invalido/reutilizado y errores conservados. |
+| `POST /auth/change-password` | A | Sin cambios: confirmacion; exige Bearer y clave actual. Errores no se convierten en exitos. |
+| `GET /users` | U[] | Mantener lista plana con ID/email/rol/estado/fecha. No hay UI administrativa identificada; Swagger/tests consumen el contrato. ID sirve para rutas de gestion, email identifica cuenta, rol/estado gestion autorizada, fecha preserva metadata de creacion. No existe evidencia de un listado diferente que justifique duplicar modelos. |
+| `GET /users/{user_id}` | U | Mantener proyeccion explicita de gestion; propietario/admin, sin hash ni perfil/contactos anidados. |
+| `PUT /users/{user_id}` | U | Mantener U; solo admin modifica rol/estado. Entrada separada, null y campos no autorizados rechazados. |
+| `GET /profiles/me` | P | Mantener ID del perfil y ID relacionado del usuario: identidad explicita del recurso/vinculo ya declarado por SDK y comprobado por contratos HTTP. La UI no los renderiza; se conservan por compatibilidad de la API, no se afirma que sean indispensables para esa vista. No se anida un usuario completo ni credenciales. |
+| `PUT /profiles/me` | P | Mantener la misma identidad y contacto; ID/vinculo no editables. Campo omitido conserva dato y null lo limpia. |
+
+El cliente tracker cambia `registerNexovaUser` a
+`Promise<NexovaAuthActionResponse>`. El formulario ya descartaba el cuerpo de
+registro y sigue iniciando sesion con su input, sin nuevas pantallas ni estado.
+`NexovaUser` sigue describiendo la forma de gestion U, no la confirmacion publica.
+El backoffice usa login/me, no `/users`: no necesita adaptar su registro.
+
+Se actualizaron **tests existentes**, sin archivos de pruebas o frameworks nuevos:
+fixtures recuperan la cuenta desde el servicio interno de pruebas, no desde una
+respuesta publica que ya no debe incluir identidad. El caso de registro comprueba
+confirmacion exacta, ausencia de email/credenciales, creacion de usuario/perfil y
+login posterior. Listado/detalle/actualizacion, perfil, login JSON/OAuth2 y me
+comprueban campos exactos; OpenAPI exige solo `message` y rechaza propiedades extra
+en el esquema de respuesta de registro.
+
+### Evidencia de etapa 2
+
+- Backend: `uv run --locked --project services\api python -m unittest
+  services.api.tests.test_users_api services.api.tests.test_auth_api
+  services.api.tests.test_password_reset_api services.api.tests.test_auth_models -v`.
+  **84 tests descubiertos: 83 pasan y 1 omitido** por `pass_fds` no disponible en
+  Windows; primera ejecucion de 53.736 segundos. Confirmados nuevamente el
+  2026-11-03 con los mismos cuatro modulos y `-q`: 84 descubiertos, 83 pasan,
+  1 omitido, 50.672 segundos. No es la suite backend completa.
+- Inventario SQL aislado con `DATABASE_URL=sqlite:///:memory:` en el proceso de
+  validacion. Fixtures usan TinyDB temporal, claves sinteticas y sender inyectado:
+  sin email real, seeds, datos reales ni lectura de `.env*`.
+- Casos existentes comprueban permisos propietario/admin, 401/403/404/409/422,
+  validacion saneada, recuperacion/cambio, fallos de persistencia/configuracion,
+  ausencia de secretos y contratos de OpenAPI. El caso de proceso Uvicorn omitido
+  no se presenta como verificacion de servidor real.
+- Bloqueo inicial de frontend (2026-11-02, resuelto para validacion el 2026-11-03):
+  `npm` de PowerShell no pudo
+  arrancar por politica de scripts; `npm.cmd` inicia el CLI sin modificarla.
+  ESLint falla con `Cannot find module` para
+  `node_modules\zod\v4\index.cjs`, antes de analizar el archivo del cliente.
+- Dos intentos de restauracion desde lockfile, sin cambios de versiones:
+  `npm.cmd ci --ignore-scripts --no-audit --no-fund` se detuvo tras mas de diez
+  minutos sin avanzar desde `idealTree buildDeps`. El intento
+  `npm.cmd ci --offline --ignore-scripts --no-audit --no-fund --loglevel=verbose
+  --fetch-retries=0 --fetch-timeout=30000` obtuvo cache hits, pero no termino tras
+  varios minutos y se detuvo. El registro publico respondio HTTP 200. No se
+  diagnostico la causa exacta; las dependencias locales pueden quedar incompletas.
+- Los procesos de restauracion fallidos fueron detenidos; la solucion y sus
+  limites se registran a continuacion, sin presentar esos intentos como exitos.
+- Swagger/UI manuales y suite completa siguen reservados para etapa 8.
+- La divergencia preexistente de documentacion OpenAPI de errores (F07) no cambia
+  los errores HTTP, que se verifican con los tests existentes. Su documentacion
+  integral no se declara resuelta por el nuevo modelo de registro.
+
+### Cierre de validacion — 2026-11-03
+
+- Medicion de filesystem con cinco escrituras/borrados sinteticos: C: 18 ms;
+  E: 9.098 ms. Una nueva restauracion en E: seguia extrayendo archivos muy
+  lentamente. Mismo lockfile restaurado en C: con `npm.cmd ci --prefer-offline
+  --ignore-scripts --no-audit --no-fund --fetch-retries=0 --fetch-timeout=30000`:
+  **597 paquetes en 34 segundos**. Manifiestos/lockfiles originales sin cambios.
+- Lint focalizado `npm.cmd run lint -- lib\nexova-api.ts` pasa, tanto con
+  dependencias enlazadas al checkout como en la replica de validacion.
+- Next/Webpack en E: con dependencias enlazadas a C: fallo con ruta
+  `./C:/.../next/dist/client/next.js`. El alias del proyecto no evito que Next
+  resolviera su ruta real. Las opciones oficiales de Node para conservar enlaces
+  corrigieron la ruta, pero produjeron identidades duplicadas de SWC
+  (`bindings not loaded yet`). No se parcheo Next ni su configuracion.
+- Se intento copia fisica paralela autorizada; se detuvo por lentitud tras
+  comprobar 13.784 archivos de los 35.881. No se declaro restauracion completa.
+- Solucion de verificacion: replica local en C: de los **44 archivos versionados
+  actuales del tracker**, incluidos los cambios sin commit, con comparacion
+  SHA-256 archivo por archivo. Sin leer/copiar `.env*`, `node_modules`, `.next`
+  ni datos locales del checkout. Dependencias restauradas del lockfile identico,
+  ubicadas en la misma unidad. Sin opciones especiales de Node en el build exitoso.
+- `npm.cmd run build` **pasa** en esa replica: webpack compila (7.7 segundos),
+  TypeScript termina (3.3 segundos), diez paginas estaticas generadas y trazas
+  completas. Se verifica el codigo exacto de la etapa, no una version anterior
+  ni una variante de configuracion. No se afirma que el build directo desde E:
+  con enlaces entre unidades este arreglado: es una limitacion local del entorno.
+- Backend: warning Starlette/httpx y ResourceWarning de conexiones SQLite de
+  fixtures al finalizar, sin fallos de tests. Los mensajes de persistencia son
+  esperados en casos que inyectan errores; no se enviaron correos reales.
+- Los contratos de las 11 operaciones se marcan V2, preservando la fotografia
+  inicial. La aceptacion global/manual de etapa 8 no se adelanta.
+- Replica temporal, aliases y copias parciales eliminados tras verificar.
+  Cache de dependencias completa conservada en C: y enlazada desde
+  `node_modules` del tracker; sin cambios de configuracion versionada ni procesos
+  auxiliares activos. Para un build directo se requieren fuentes y dependencias
+  reales en la misma unidad, como en la validacion exitosa.
+- Cierre con un commit y push de etapa 2; hash publicado verificable en `git log`
+  y reporte de cierre, a registrar en etapa 3. No comenzar etapa 3 automaticamente.
+
+## Etapa 3 — Health y confirmaciones DELETE
+
+Fecha: 2026-11-04. Base publicada de etapa 2:
+`793e49d5562ebc099635c77532631461055daf7e`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend ni persistencia.
+
+### Contratos implementados
+
+Los modelos comunes viven en
+[response_models.py](../services/api/response_models.py); no se mezclan con los
+esquemas de inventario ni se duplican por router.
+
+| Operacion | Estado original | Cambio verificado |
+|---|---|---|
+| `GET /health` | Dict sin modelo explicito; OpenAPI `schema: {}` | `HealthResponse` declarado en decorador y retorno. HTTP 200 JSON, claves obligatorias `status: "ok"` y `service: "nexova-api"`, sin campos extra; acceso publico preservado. |
+| `DELETE /users/{user_id}` | Dict con esquema generico inferido | `DeletionResponse` explicito y compartido. HTTP 200, claves obligatorias `id` entero estricto positivo y `deleted: true`; sin campos extra. Mantiene propietario/admin, cascada del perfil y errores 401/403/404. |
+| `DELETE /api/suppliers/{supplier_id}` | Dict con esquema generico inferido | Mismo `DeletionResponse` y HTTP 200; mantiene autenticacion y errores existentes. Confirmacion no contiene datos comerciales ni objeto eliminado. |
+
+Las rutas construyen los modelos de respuesta tras la operacion exitosa. No se
+cambia a 204, no se aceptan nuevos campos de entrada ni se modifica el borrado.
+El modelo compartido evita respuestas de confirmacion divergentes entre recursos.
+
+### Evidencia y cierre
+
+- Se ampliaron metodos de tests **ya existentes**, sin nuevos archivos de pruebas
+  ni framework: shape exacto de exito, esquema explicito de OpenAPI, propiedades
+  obligatorias y prohibicion de extras. Health fija los dos valores constantes;
+  DELETE exige ID positivo y `deleted` verdadero.
+- Casos invalidos de modelos verificados: claves faltantes, valores incorrectos,
+  IDs cero/negativos/string/boolean y campos internos extra. Los tests HTTP
+  existentes verifican autorizacion, borrado efectivo, cascada y recursos ausentes.
+- Desde la raiz, con `DATABASE_URL=sqlite:///:memory:` solo en el proceso:
+
+  ```powershell
+  uv run --locked --project services\api python -m unittest services.api.tests.test_users_api services.api.tests.test_suppliers_api services.api.tests.test_api.TestIncidentsAPI.test_health_check -v
+  ```
+
+- **28 tests pasan, sin omitidos**, en 30.367 segundos. Auth/proveedores usan
+  bases temporales; no se leen `.env*`, datos reales ni se envian emails.
+  Los seeds del fixture de proveedores escriben solo su base temporal.
+- GET OpenAPI mediante TestClient sin lifespan: HTTP 200, **32 operaciones**,
+  los tres exitos referencian los nuevos modelos. Ahora hay 30 operaciones con
+  `response_model`; solo analisis y export CSV permanecen pendientes de etapa 4.
+- Sintaxis Python de los cuatro archivos de produccion modificados analizada
+  correctamente; `git diff --check` correcto. Avisos Starlette/httpx y
+  ResourceWarning de conexiones SQLite de fixtures al finalizar, sin fallos.
+- No se ejecutan lint/build frontend ni suite backend completa: no hay cambios
+  frontend y los checks Python declarados pertinentes son los tests anteriores.
+- Las tres operaciones pasan a V3. Swagger manual, documentacion integral de
+  errores, suite completa y aceptacion global siguen para etapa 8.
+- Un commit/push al cerrar etapa 3; hash verificado al publicar y a registrar al
+  comenzar etapa 4. No avanzar a analisis/CSV en este cierre.
+
+## Etapa 4 — Analisis JSON y exportacion CSV
+
+Fecha: 2026-11-04. Base publicada de etapa 3:
+`2ddfb6fa993101ff3b96bc4e129218327a50b57f`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend, libreria compartida
+del analizador ni reglas de validacion del CSV.
+
+### Contratos implementados y compatibilidad
+
+| Operacion | Estado original | Cambio y evidencia |
+|---|---|---|
+| `POST /api/incidents/analyze` | Dict X sin esquema fijo | `IncidentAnalysisResponse` explicito con los ocho campos X obligatorios. `AnalysisSatisfactionResponse` fija los cuatro campos anidados. Se valida la proyeccion `to_dict()`, nunca la dataclass con filas/errores individuales. |
+| `GET /api/incidents/results/export` | CSV real anunciado como JSON vacio | `response_class=Response`, `response_model=None` intencional y exito OpenAPI exclusivamente `text/csv` con esquema string, columnas/metricas/ejemplo y cabeceras. No se convierte CSV a JSON ni se aplica Pydantic a su texto. |
+
+- Contadores no negativos; categorias helpdesk `TECHNICAL`, `BILLING`, `ACCESS`,
+  `HR_QUERY`, `COMPLAINT`, distintas de las del CRUD de incidentes. Estados
+  helpdesk `OPEN`, `CLOSED`, `DISCARDED`. Satisfaccion media nullable o finita
+  entre 1 y 5; distribucion por puntuacion 1-5.
+- Las claves de distribucion son enteros en el analizador y strings en JSON.
+  Primera ejecucion detecto que `Literal[1,...,5]` rechazaba la revalidacion de
+  claves JSON; se corrigio a enteros acotados con conversion estandar Pydantic.
+  La forma publicada no cambia y el test verifica ida/vuelta desde el JSON real.
+- `invalid_breakdown` contiene etiquetas fijas de reglas y sus contadores.
+  `errors_count` puede superar `invalid_records` porque una fila viola varias
+  reglas. No se incluyen `row_errors`, email, compania ni descripcion originales.
+- La proyeccion se valida antes de reemplazar el ultimo resultado en memoria;
+  solo un agregado valido queda disponible para exportacion. No cambia la
+  propiedad global en memoria, los calculos, orden/columnas CSV ni persistencia.
+- CSV: HTTP 200, `text/csv; charset=utf-8`, cabeceras
+  `Content-Disposition: attachment; filename="results.csv"` y
+  `Cache-Control: no-cache`. Header `metric,value`, dos columnas por fila;
+  promedio a dos decimales o `N/A`; metricas enumeradas en README/OpenAPI.
+- Entrada multipart y codigos existentes conservados. OpenAPI describe 400
+  (CSV invalido o validacion con `detail` y `errors[field,message]`), 401,
+  413 y 500 para analisis; 401/404/500 JSON para export.
+  `DetailErrorResponse` comparte la forma `detail` de errores; no reemplaza los
+  handlers. Un fallback OpenAPI `4XX` evita el 422 automatico incorrecto de
+  FastAPI: validacion de este router sigue siendo 400. No se afirma que esto
+  resuelva F07 para todas las familias de la API.
+
+### Evidencia de verificacion
+
+Desde raiz, con SQLite de inventario en memoria solo en el proceso:
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_api services.api.tests.test_incident_models packages.incident_analyzer.tests.test_analyzer -v
+```
+
+- **26 tests pasan, sin omitidos**, en 4.001 segundos tras una correccion del tipo
+  de claves de puntuacion. No se repitio la suite completa ni se crearon archivos
+  de tests/frameworks: se ampliaron casos de HTTP existentes.
+- Contrato de ocho campos y satisfaccion completa, metricas del fixture
+  existente (100 total, 96 validas, 4 invalidas, media 3.84), CSV de dos columnas,
+  cabeceras/media type y descarga conservados.
+- Casos sinteticos: solo encabezado (cero filas), una fila abierta sin score
+  (media null/CSV `N/A`), todas las filas invalidas y cinco infracciones en una
+  misma fila. Categorias/estados y cinco puntuaciones conservan claves con ceros.
+  Respuestas JSON/CSV excluyen email/descripcion sinteticos y errores por fila.
+- Errores HTTP ejercitados: 401 sin credenciales/credenciales invalidas, 404 sin
+  analisis, 400 extension/vacio/encabezado/multipart sin archivo, 413 (umbral
+  temporal reducido en el test para comprobar la rama sin cargar 25 MiB) y
+  500 del analizador con mensaje generico, sin detalle interno inyectado.
+  No se presenta ese caso de 413 como prueba de carga del limite real.
+- Comprobacion adicional ejecutada en memoria: **20 formas invalidas** rechazadas
+  (campos obligatorios omitidos, contadores negativos, campos extra de filas/PII,
+  puntuaciones fuera de 1-5, medias fuera de rango/NaN/infinito).
+- OpenAPI confirma **32 operaciones: 31 contratos JSON con modelo y un CSV
+  explicito**, ningun esquema JSON de exito vacio. Exito CSV no anuncia
+  `application/json`; errores si lo anuncian. Multipart y seguridad preservados.
+- Pylance: sin errores de sintaxis en modelos/router; diagnosticos de los cuatro
+  archivos Python modificados sin errores. `git diff --check` correcto.
+- Solo bases temporales de auth/incidentes e inventario en memoria. Sin `.env*`,
+  correo real ni datos de produccion. Avisos preexistentes Starlette/httpx,
+  alias de constante HTTP 413 y conexiones SQLite de fixtures, sin fallos.
+- No checks frontend porque no hay cambios frontend. Swagger manual, prueba
+  manual de descarga y suite global permanecen en etapa 8: TestClient verifica
+  HTTP/contenido, no se presenta como uso manual del navegador.
+
+### Cierre y limite de aceptacion
+
+Etapa tecnica completada: V4 para analisis, V4-CSV para exportacion. Mantener
+pendiente la confirmacion del instructor sobre la excepcion CSV del requisito
+literal de `response_model`; no declarar aprobacion academica ni cerrar la
+aceptacion global con esta evidencia. El README/guia ya identificaban esta decision.
+
+Un commit/push al cerrar; hash publicado verificable en `git log` y reporte de
+cierre, a registrar en etapa 5. No comenzar CRUD de incidentes automaticamente.
+
+## Etapa 5 — CRUD y resumen de incidentes
+
+Fecha: 2026-11-05. Base publicada de etapa 4:
+`297622c8c7fac2199145e127a1ed14a6eb035fac`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Alcance limitado a cinco operaciones de CRUD/resumen;
+analisis/exportacion solo se comprobaron como regresion.
+
+### Decision de campos y relaciones
+
+Evidencia: `renderIncidentsTable` de
+[incidents.js](../uis/backoffice/incidents.js) lee `id`, `title`, `description`,
+`category`, `origin`, `branch`, `status`, `created_at`. No usa `updated_at`.
+El selector de estado lee `updatedIncident.status` y recarga listado/resumen.
+El resumen utiliza total y las cuatro dimensiones.
+
+| Operacion | Estado original | Contrato final de etapa 5 / justificacion |
+|---|---|---|
+| `GET /api/incidents` | `IncidentRecord[]`, nueve campos por fila | `IncidentListItem[]`, ocho campos: ID/titulo/descripcion/categoria/origen/sede/estado/fecha de creacion. Se excluye unicamente `updated_at`, sin uso en la tabla. Campo disponible en detalle. Cambio intencional de contrato documentado en README. |
+| `POST /api/incidents` | `IncidentRecord`, HTTP 201 | Mantener recurso completo y timestamps server-managed. Input `IncidentCreate` separado, sin ID/timestamps/campos internos escribibles. |
+| `GET /api/incidents/{id}` | `IncidentRecord`, HTTP 200 | Mantener nueve campos, incluida ultima actualizacion. No relaciones anidadas ni documentos de almacenamiento publicados directamente. |
+| `PATCH /api/incidents/{id}/status` | `IncidentRecord`, HTTP 200 | Mantener confirmacion completa por compatibilidad del endpoint existente, aunque el selector solo use estado. Evitar otra ruptura no necesaria; siguen disponibles ID y timestamps del cambio. |
+| `GET /api/incidents/summary` | `IncidentSummary`, HTTP 200 | Mantener total y mapas por estado/categoria/origen/sede, con ceros y todas las claves incluso sin registros. No adjuntar filas completas. |
+
+`IncidentListItem` comparte los campos base explicitos; `IncidentRecord` extiende
+la fila con `updated_at`. Se preserva normalizacion UTC de ambas fechas, incluidos
+timestamps sin zona recibidos del almacenamiento. El listado sigue validando el
+registro almacenado antes de proyectar los ocho campos: no se ignora un registro
+invalido ni se serializa TinyDB sin control.
+
+No se eliminan descripcion ni origen/sede: son datos de la tabla. No se
+introduce redaccion de texto libre ni una politica de acceso nueva; su posible
+PII se mantiene como consideracion, no vulnerabilidad confirmada. CRUD/resumen
+permanecen publicos como en el checkout; analisis/export conservan autenticacion.
+
+### Errores y comportamiento
+
+OpenAPI declara ahora las respuestas reales del CRUD: 400 para validacion
+(`detail`, `errors` con `field`/`message`) y para filtros/transiciones (`detail`),
+404 en detalle/actualizacion y 500 para almacenamiento/error interno. Fallback
+`4XX` evita el 422 automatico de FastAPI donde el handler real devuelve 400.
+Resumen documenta 500. No se cambian handlers, mensajes, permisos ni estados.
+
+Los cuatro filtros siguen combinandose con AND y aceptan los mismos valores;
+lista vacia es `[]`. Transiciones y estados terminales conservan las reglas.
+Actualizacion conserva todos los campos salvo `status`/`updated_at`, no cambia
+la fecha de creacion y el resumen refleja el estado final.
+
+### Evidencia y cierre
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_incidents_crud_api services.api.tests.test_incident_models services.api.tests.test_api -v
+```
+
+- **32 tests pasan sin omitidos**, 5.965 segundos, con inventario SQLite en
+  memoria y bases temporales de incidentes/auth. Sin `.env*`, correos ni bases
+  reales. El seed del caso existente se aplica solo al fixture temporal.
+- Metodos existentes ampliados, sin nuevos archivos/frameworks de tests:
+  esquema explicito de lista/detalle/escrituras y campos exactos; fila igual a
+  detalle menos `updated_at`; payload de una lista con una fila menor en bytes
+  que el detalle equivalente, incluso con los corchetes de la lista.
+  Esta medicion verifica reduccion local, no es un benchmark de rendimiento.
+- Filtros combinados incluyen los cuatro parametros; casos sin coincidencias,
+  filtros invalidos y base vacia pasan. Campos server-managed/internos en alta
+  rechazados con 400; validaciones rechazadas no crean registros.
+- Detalle coincide con alta; IDs invalidos retornan 400 y ausentes 404.
+  PATCH conserva los otros campos, persiste estado/timestamp y mantiene
+  estados terminales. Extras/estado desconocido/payload vacio se rechazan sin
+  alterar el recurso. Resumen conserva todas las claves y sus sumas coinciden
+  con total del fixture (96).
+- Regresion de analisis/exportacion de etapa 4 pasa. No cambio de contratos
+  CSV, libreria compartida ni frontend.
+- Diagnosticos de los tres archivos Python modificados sin errores.
+  Avisos conocidos Starlette/httpx y alias de constante HTTP 413, sin fallos.
+- Auditoria conserva estados originales y marca cinco operaciones V5;
+  quedan 11 operaciones para etapas 6/7. Validacion UI/Swagger manual y suite
+  completa permanecen en etapa 8; no se afirma haberlas ejecutado.
+- Cierre con commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 6. No avanzar a proveedores automaticamente.
+
+## Etapa 6 — Proveedores
+
+Fecha: 2026-11-05. Base publicada de etapa 5:
+`14ee135e3896ce2bf3fc92f8c66c6e2206ffcf20`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend, datos persistidos
+ni reglas de negocio.
+
+### Campos, relaciones y compatibilidad
+
+Las tarjetas de [suppliers.js](../uis/backoffice/suppliers.js) usan ID para
+acciones, nombre/pais/categorias/tarifa/moneda/estado, renovacion para la alerta,
+contacto y notas para detalles expandibles. No leen `updated_at`. Ambos PATCH
+descartan la respuesta y recargan listado; no requieren cambiar la UI.
+
+| Operacion | Original | Contrato final / decision |
+|---|---|---|
+| `GET /api/suppliers` | `SupplierRecord[]`, once campos | `SupplierListItem[]`, diez campos: todos menos `updated_at`. Se conservan contacto/notas y nulls, renovacion, ID y campos comerciales de tarjetas. Reduccion intencional documentada; timestamp disponible en detalle. |
+| `POST /api/suppliers` | `SupplierRecord`, 201 | Mantener once campos para confirmacion del recurso creado y metadata server-managed. Input `SupplierCreate` separado, sin ID/timestamp escribibles. |
+| `GET /api/suppliers/{supplier_id}` | `SupplierRecord`, 200 | Mantener detalle completo, incluida fecha de cambio de tarifa, sin objetos TinyDB ni relaciones anidadas. |
+| `PATCH /api/suppliers/{supplier_id}/rate` | `SupplierRecord`, 200 | Mantener confirmacion completa por compatibilidad del endpoint; cambia tarifa y `updated_at`. No introducir otra ruptura solo porque el cliente actual descarta el body. |
+| `PATCH /api/suppliers/{supplier_id}/status` | `SupplierRecord`, 200 | Mantener confirmacion completa; estado cambia, timestamp de tarifa no cambia. Modelo de entrada solo para estado. |
+| `DELETE /api/suppliers/{supplier_id}` | Ya tipado en etapa 3 | Mantener `DeletionResponse`, HTTP 200 y autenticacion. Revalidado, sin cambiar contrato de exito. |
+
+`SupplierListItem` reutiliza validaciones de los campos de `SupplierCreate` y
+agrega ID; `SupplierRecord` extiende la proyeccion con timestamp UTC. Los tipos
+de entrada/salida siguen siendo distintos: input no admite campos server-managed.
+El listado valida primero el registro almacenado y luego proyecta sin timestamp:
+no omite registros invalidos silenciosamente ni devuelve TinyDB sin control.
+Las relaciones son planas y el ID sirve para acciones de gestion.
+
+### Errores y permisos
+
+Se documentan en OpenAPI los errores JSON existentes: 401 con cabecera Bearer y
+500 en el router; 404 para detalle, PATCH y DELETE. Validacion de escritura y
+filtros conserva 422 y la sanitizacion global existente. No se altera ningun
+handler, mensaje, permiso o codigo de exito; todas las operaciones siguen
+requiriendo autenticacion. Pais/categoria combinados con AND.
+
+### Evidencia y cierre
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_suppliers_api services.api.tests.test_supplier_models services.api.tests.test_supplier_seed -v
+```
+
+- **20 tests pasan, sin omitidos**, primera ejecucion en 6.466 segundos.
+  Metodos existentes ampliados, sin archivos de tests ni framework nuevos.
+- Exactitud de los diez campos de cada fila frente al detalle equivalente,
+  OpenAPI del listado/detalle/alta/PATCH/DELETE y errores documentados. Contacto,
+  notas y renovacion sinteticos permanecen en listado/alta/detalle; opcionales
+  ausentes mantienen null en respuesta, sin `exclude_none` de salida.
+- Listado equivalente de 15 proveedores serializado con el mismo formato JSON
+  ocupa menos bytes que la lista de detalles completos. Es una comprobacion
+  local de reduccion, no benchmark de rendimiento ni objetivo porcentual.
+- Se verifica vacio `[]` tras borrar el fixture temporal; filtros combinados y
+  filtros invalidos conservan comportamiento. 401 para las seis operaciones,
+  404 para recursos ausentes y DELETE mantienen los casos existentes.
+- PATCH tarifa confirma recurso persistido, actualiza timestamp y conserva
+  los demas campos; listado recargado refleja tarifa nueva sin timestamp.
+  PATCH estado conserva timestamp y devuelve recurso persistido; extras/null
+  no escribibles rechazados con 422 y sin alterar recurso.
+- Validaciones del dominio y seed exacto/idempotente siguen pasando.
+  TinyDB temporal e inventario SQLite en memoria; sin `.env*`, correos ni bases
+  reales. Avisos conocidos Starlette/httpx y conexiones SQLite de fixtures.
+- Cinco operaciones pasan a V6; DELETE conserva V3. Quedan seis operaciones de
+  inventario para etapa 7. Backoffice/Swagger manual y suite completa en etapa 8;
+  no se afirman checks frontend ni navegador no ejecutados.
+- Cierre con un commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 7. No avanzar a inventario automaticamente.
+
+## Etapa 7 — Inventario y movimientos
+
+Fecha: 2026-11-05. Base publicada de etapa 6:
+`95d8b1e6462dd1ffee905ccef04530c81dfe0f5c`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, tablas, consultas, calculos,
+datos persistidos, handlers ni permisos.
+
+### Contratos y relaciones
+
+| Operaciones | Contrato final / justificacion |
+|---|---|
+| Catalogo GET, alta POST y detalle GET | `AssetRead`: seis campos (`id`, `name`, `sku`, `category`, `office`, `current_stock`). Todos sirven para tabla/filtros/selector/acciones. Stock calculado por activo/oficina; alta inicial cero. Lista ya ligera, sin movimientos anidados. |
+| Entrada POST | `AssetEntryRead`: siete campos (`id`, `asset_id`, `quantity`, `supplier`, `office`, `created_at`, `user_uuid`). Confirmacion completa compatible de movimiento persistido, con ID, referencia de activo, datos de entrada y metadata server-managed. |
+| Salida POST | `AssetExitRead`: ocho campos (`id`, `asset_id`, `quantity`, `exit_type`, `assigned_to`, `office`, `created_at`, `user_uuid`). Confirmacion compatible; destino necesario en asignacion y null en consumo. El formulario descarta el body y recarga catalogo, pero no se elimina metadata del contrato por ello. |
+| Historial GET | `OrderItemRead`: doce campos (`id`, `movement_type`, `asset_id`, `asset_name`, `asset_sku`, `quantity`, `office`, `supplier`, `exit_type`, `assigned_to`, `created_at`, `user_uuid`). Lista plana: nombre/SKU evitan consultas por fila, IDs identifican movimiento y activo, tipo distingue tablas y sentido, `exit_type` preserva asignacion/consumo; proveedor/destino, fecha y autor permiten interpretar el movimiento. Sin modelos ORM ni usuario/activo completos anidados. |
+
+`user_uuid` conserva el nombre por compatibilidad, pero significa `str(user.id)`
+del usuario autenticado, no un UUID real. Solo se expone el identificador de
+autor, sin email/perfil/hash; el historial lo muestra. Alta de movimientos no
+acepta autor, ID, timestamp o stock del cliente. El ID de movimiento esta
+acotado a `movement_type`: entradas/salidas pueden compartir numero porque usan
+tablas distintas. Ambas precisiones se agregan a descripciones de OpenAPI sin
+cambiar tipos, valores ni obligatoriedad.
+
+El historial leia `type`, `product_name`/`name` y `sku`, inexistentes en la
+respuesta de movimientos. Se cambian cuatro referencias a nombres canonicos:
+`movement_type`, `asset_name`, `asset_sku` y la condicion de proveedor para
+entrada. El cliente centralizado sigue devolviendo la respuesta sin aliases.
+Se preservan proveedor para entrada, destino para asignacion, null/vacio para
+consumo, fecha y autor; sin cambiar layout, flujo de carga o gestion de errores.
+
+### Errores, stock y alcance de acceso
+
+OpenAPI documenta con `DetailErrorResponse` el 500 comun, 400 de SKU duplicado
+o stock insuficiente, 404 de activo y 401 de escritura. Se conservan 422 de
+validacion y los mensajes existentes, incluido el mensaje exacto de stock.
+No se modifican agregacion por activo/oficina, comprobacion previa a salida,
+persistencia ni carga anticipada de relaciones; no se afirma un benchmark N+1.
+
+Los tres GET siguen publicos y los tres POST requieren autenticacion, igual
+que antes. El destino de asignacion y autor tienen uso funcional, pero esta
+etapa no certifica que un historial publico sea apto para produccion. Mantener
+alcance local/demo y datos sinteticos; modificar la politica de acceso o
+anonimizar destinos requiere un cambio funcional acordado fuera de esta etapa.
+
+### Evidencia y cierre
+
+Desde raiz con `DATABASE_URL=sqlite:///:memory:` solo en el proceso backend:
+
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests\test_inventory_api.py services\api\tests\test_inventory_models_schemas.py services\api\tests\test_inventory_service.py services\api\tests\test_inventory_seed.py -q
+node --test uis\backoffice\tests\test_inventory_api.mjs
+node --check uis\backoffice\order-history.js
+```
+
+- **33 tests backend pasan**, sin omitidos, en 2.46 segundos. Aviso conocido
+  Starlette/httpx. Bases SQLite en memoria; usuarios simulados, sin `.env*`,
+  bases reales, correo o servicios externos.
+- **Siete tests Node pasan**. Se amplia el caso existente de contrato del
+  cliente con respuestas canonicas y DOM minimo para entrada/asignacion/consumo,
+  incluidos IDs coincidentes entre tipos, proveedor, destino, fecha y autor.
+  Antes de corregir consumidor se reprodujeron celdas vacias; tras el cambio
+  el mismo caso pasa. No archivos/metodos de test ni dependencias nuevos.
+- Shapes exactos de catalogo/detalle/alta/confirmaciones/historial, campos null,
+  orden de historial, listas vacias y schemas OpenAPI de seis operaciones.
+  Modelos de entrada prohiben metadata; intentos HTTP de escribir autor, ID,
+  timestamp o stock en movimientos reciben 422 y no alteran stock.
+- Escrituras sin sesion reciben 401; lecturas sin sesion siguen 200. Activo
+  ausente 404, SKU duplicado 400, validacion 422, stock insuficiente 400 exacto
+  sin salida parcial, aislamiento Valencia/Miami y seed siguen pasando.
+- Sintaxis Python de router/schemas/tests y `node --check` correctos.
+  La app estatica no tiene lint/typecheck/build propios. Renderizado comprobado
+  con DOM minimo, no una revision visual ni Swagger manual.
+- Seis operaciones pasan de P a V7: las 32 operaciones tienen evidencia tecnica
+  por etapas (31 JSON y una CSV). Aceptacion manual/global y suite completa
+  pendientes de etapa 8; excepcion CSV pendiente del instructor.
+- Cierre con commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 8. No avanzar a verificacion global ni PR automaticamente.
+
+## Etapa 8 — Verificacion final y preparacion de entrega
+
+Fecha: 2026-11-05. Base publicada de etapa 7:
+`3a871db73583a52a3fa9c626baaad657ab9346b7`; rama limpia
+`docs/auditoria-back` al comenzar.
+
+### Resultados reproducibles
+
+| Comprobacion | Resultado observado |
+|---|---|
+| Suite completa API: `uv run --locked --project services\api python -m pytest services\api\tests -q` | 244 tests y 121 subtests pasan, dos omitidos, 89.35 s. Ejecutada una vez; sin cambios backend posteriores. |
+| Biblioteca: `uv run --locked --project services\api python -m pytest packages\incident_analyzer\tests -q` | Nueve tests pasan, 0.82 s. |
+| Backoffice: `node --test uis\backoffice\tests\test_inventory_api.mjs` | Siete tests pasan tras ajustes finales, 169.594 ms; metodos existentes ampliados para multipart autenticado, Blob CSV y errores JSON/401. |
+| Sintaxis JS | `node --check` de cliente, proveedores, incidentes e historial correcto. Sin toolchain nuevo para app estatica. |
+| Tracker: `npm.cmd run lint` y `npm.cmd run build` | Ambos pasan tras correccion autorizada. Build incluye TypeScript y genera diez paginas. Replica C: de 44 archivos versionados cotejados con SHA-256, sin `.env*`, dependencias del lockfile ya disponibles; mismo limite E:/C: descrito en etapa 2. |
+| OpenAPI y rutas | 32 operaciones coinciden con `APIRoute` de aplicacion/routers; 31 modelos JSON explicitos y un CSV intencional; inputs separados de outputs. Sin campos de clave/hash/reset token en respuestas, ni email en registro/login/forgot/reset. El access token de login sigue siendo intencional. |
+
+Omisiones: `pass_fds` no esta soportado en Windows; el test del entrypoint admin
+no detecta su ejecutable por la ruta Windows que construye. El ejecutable real
+`promote-admin.exe` si existe y se comprobo directamente fuera del checkout,
+con DB temporal sintetica: codigo 0 y usuario promovido. No se modifica ese test
+ajeno ni se declara que el caso omitido se ejecuto. Avisos conocidos:
+Starlette/httpx y nombre obsoleto del codigo HTTP 413.
+
+### Swagger interactivo y CSV real
+
+API local aislada en `127.0.0.1:8000`; todas estas operaciones se ejecutaron con
+los controles Try it out/Execute de `/docs`, no solo consultando OpenAPI:
+
+| Metodo/ruta | Resultado y shape observado |
+|---|---|
+| `POST /users` | 201, solo `message`; sin email ni metadata de cuenta. |
+| `POST /auth/login` | 200, solo `access_token`/`token_type`; JSON y autorizacion OAuth2 form funcionan. No se guardan valores de token en esta evidencia. |
+| `GET /api/suppliers` | 200, una fila de diez campos, contacto/notas/nulls conservados, sin `updated_at`. |
+| `GET /inventory/orders` | 200, dos movimientos planos de doce campos, tipos inbound/outbound y datos de activo/autor/destino. |
+| `POST /api/incidents/analyze` | 200, ocho campos agregados; CSV sintetico con una fila valida, sin filas originales ni `row_errors`. |
+| `GET /api/incidents/results/export` | Antes del analisis: 404 JSON `detail`. Despues: 200 `text/csv; charset=utf-8`, attachment `results.csv`, `no-cache`; header `metric,value`, 19 filas metricas y media `5.00`, sin correo original. |
+
+### Consumidores y bloqueos resueltos con autorizacion
+
+La verificacion encontro fallos preexistentes y el usuario autorizo expresamente
+corregir integracion de sesion y lint dentro de esta etapa:
+
+- Proveedores y analisis/export usaban fetch sin Bearer aun con sesion valida.
+  Se reutiliza el cliente autenticado existente; proveedores envia objetos JSON,
+  analisis conserva FormData sin forzar Content-Type y export solicita Blob CSV.
+  Los errores JSON conservan su tratamiento incluso al pedir Blob; 401 expira
+  sesion. No cambia ningun permiso backend ni contrato de exito.
+- Proveedores informa que hace falta login sin sesion, recarga tras login y
+  retira tarjetas al salir. Respuestas antiguas de filtros/cambios de sesion se
+  descartan para no duplicar tarjetas ni reintroducir datos obsoletos. La carrera
+  de filtros se reprodujo en navegador y la comprobacion final deja una tarjeta.
+- El lint global del tracker detecto `react-hooks/set-state-in-effect` en el
+  formulario reset preexistente. Se captura el token al inicializar estado y se
+  deriva su ausencia; el efecto solo limpia la URL. No se desactiva la regla ni
+  se pospone setState artificialmente.
+- Navegador backoffice: historial muestra Entrada/Salida, nombre, SKU, proveedor
+  o destino y autor; proveedores conserva contacto/notas, filtros combinados,
+  tarifa 135, cambio de estado, logout y recarga autenticada. Analizador muestra
+  total/validos 1 y media 5.00; export obtiene Blob CSV de 416 bytes y genera el
+  enlace de descarga `results.csv`. El navegador integrado no notifico el evento
+  download: se comprueban Blob/enlace, no un archivo guardado en disco.
+- Incidentes: alta sintetica mediante submit nativo del formulario por DOM
+  devuelve 201 y actualiza tabla/resumen con listado reducido; no se afirma
+  haber completado un clic de puntero en ese formulario.
+- Navegador tracker de produccion: registro 201 con `message`, login automatico
+  200, `/auth/me` 200, redireccion y perfil cargado. API externa de candidatos
+  interceptada con respuesta paginada sintetica, sin consultar servicio externo.
+  Reset: token retirado de URL pero conservado para submit, token sintetico
+  invalido recibe 400 y muestra error; recargar sin token muestra enlace no valido.
+
+Solo configuracion/DB de sesion y datos sinteticos. Sin `.env*`, correo real,
+sistemas productivos ni cambios de dependencias. Servidores y replicas temporales
+se retiran al terminar; la cache de dependencias anterior se conserva.
+
+### Publicacion y accion manual pendiente
+
+El usuario confirma que el instructor acepto CSV y decide crear la PR manualmente.
+No hay CLI GitHub disponible ni sesion web autenticada para crearla desde esta
+ejecucion. El commit/push de etapa 8 incluye correcciones, evidencia y documentos;
+se comprueba igualdad de HEAD local/remoto y arbol limpio al publicar.
+
+- Base de PR: `main`; head: `docs/auditoria-back`.
+- Titulo obligatorio: **feat: serialization audit and implementation**.
+- [Preparar PR en GitHub](https://github.com/4GeeksAcademy/ai-engineering-company-project-monorepo-luis/compare/main...docs%2Fauditoria-back?expand=1&title=feat%3A%20serialization%20audit%20and%20implementation).
+- Resumen sugerido: contratos explicitos para las 32 operaciones; proyecciones
+  reducidas de incidentes/proveedores; historial canonico; integracion de sesion;
+  auditoria de campos/relaciones, CSV aceptado y evidencia de tests/Swagger/UI.
+- Tras crearla: compartir su URL con el instructor. **PR y envio pendientes**;
+  no confundir cierre tecnico con entrega administrativa completada.
