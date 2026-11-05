@@ -28,6 +28,15 @@ provides the authenticated caller's email, role and explicit profile projection.
 See the [serialization audit](../../docs/serialization-audit.md) for the original
 and updated contracts.
 
+Final serialization verification (2026-11-05): full lint and production build
+(including TypeScript) pass on the hash-matched C: replica documented in the
+audit. Browser registration receives only `message`, then logs in and loads
+the caller's profile. External candidate requests were mocked, not sent.
+An authorized fix removes effect-driven state initialization in the reset form:
+the initial query token stays in component state while the effect strips it from
+the URL. Missing-token reload and invalid-token submission were verified in the
+production browser build. No lint-rule suppression or dependency changes.
+
 | Route | Access |
 |---|---|
 | `/login`, `/register` | Public |

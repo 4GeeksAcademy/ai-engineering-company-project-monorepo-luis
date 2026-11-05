@@ -2,6 +2,15 @@
 
 ## Estado y alcance
 
+**Estado actual, 2026-11-05:** implementacion y verificacion tecnica de etapas
+1-8 terminadas. Las 32 operaciones tienen contrato comprobado: 31 JSON y una
+exportacion CSV. El usuario confirma aceptacion del instructor para CSV.
+**Publicacion final pendiente:** el usuario creara manualmente la PR contra
+`main`; enlace e instrucciones al final. No se afirma que la PR exista ni que
+la entrega al instructor este completada.
+
+### Fotografia inicial (etapa 1)
+
 Etapa 1: auditoria inicial y plan documentados el **2026-11-02**. No se han
 implementado cambios funcionales ni certificado los contratos finales.
 
@@ -78,6 +87,9 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
   etapa 6; aceptacion manual/global pendiente de etapa 8.
 - **V7** = inventario/movimientos y consumidor del historial verificados en
   etapa 7; aceptacion manual/global pendiente de etapa 8.
+- V2-V7 identifican la etapa de verificacion original. Sus pendientes globales
+  se resuelven en el cierre de etapa 8; se conservan etiquetas y evidencia
+  historicas, no se reescribe la fotografia inicial.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -198,13 +210,13 @@ Evidencia: [router](../services/api/routers/suppliers.py) y
 
 Clasificacion inicial de este inventario: **14 YA, 13 PARCIAL, 4 SIN y 1 SIN/CSV**.
 Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
-tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
-pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
+tabla preliminar de la guia. Las verificaciones globales de etapa 8 estan
+registradas al final; las 11 operaciones de etapa 2 conservan evidencia V2.
 Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
 Cinco operaciones adicionales tienen evidencia V5, otras cinco V6 y las seis
 de inventario V7. Las 32 operaciones tienen verificacion tecnica por etapas,
-sin operaciones P; aceptacion global/manual pendiente de etapa 8 y CSV pendiente
-del instructor. DELETE de proveedores
+sin operaciones P; verificacion global/manual completada en etapa 8 y CSV
+aceptado segun confirmacion del usuario. Solo falta la PR manual. DELETE de proveedores
 conserva V3 y se comprueba de nuevo en etapa 6. Las formas y
 clasificaciones originales no se sobrescriben.
 
@@ -274,7 +286,7 @@ Errores actuales segun codigo (no ejecutados contra endpoints de negocio):
 | Inventario | 400 SKU duplicado/stock insuficiente, 404 activo, 422 validacion; escrituras 401; mantener errores de dominio |
 | Proveedores | 401, 404, 422 entrada/filtros y 500 almacenamiento. Cambio de estado no actualiza el timestamp de tarifa |
 
-### Decision pendiente sobre CSV
+### Decision sobre CSV
 
 El README oficial pide literalmente `response_model` en cada endpoint y no
 explica exportaciones no JSON. La guia local propone una excepcion tecnica:
@@ -283,6 +295,11 @@ al texto. Implementar esa documentacion en etapa 4 y **confirmar con el instruct
 su aceptacion antes de declarar cumplida la entrega**. No marcar CSV aprobado
 solo por escribir esta justificacion.
 
+Actualizacion de etapa 8, 2026-11-05: el usuario confirma expresamente que el
+instructor ya acepto la excepcion CSV. Se registra esa confirmacion, no una
+verificacion independiente con el instructor. Contenido y contrato reales
+comprobados desde Swagger y backoffice en etapa 8.
+
 ## Tablero de trabajo y publicacion
 
 | Etapa | Alcance / condicion de cierre | Dependencias | Estado | Commit previsto / evidencia |
@@ -290,11 +307,11 @@ solo por escribir esta justificacion.
 | 1 | Inventario, campos, consumidores, decisiones y plan; guia/memoria actualizadas | Ninguna | Completada (alcance documental) | `docs: establish serialization audit baseline`; OpenAPI 200, 32 operaciones; commit/push se verifican al publicar |
 | 2 | Auth/usuarios/perfiles y tipo cliente registro; contratos/errores/permisos verificados | 1 | Completada (2026-11-03) | `feat(api): refine auth and user response contracts`; 83 tests pasan, 1 omitido Windows; lint/build/TypeScript pasan en replica identica C: |
 | 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
-| 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); aceptacion de excepcion CSV pendiente | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
+| 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); CSV aceptado segun usuario en etapa 8 | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Completada (2026-11-05) | `feat(api): audit incident serialization contracts`; 32 tests pasan, listado reducido y errores OpenAPI verificados |
 | 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Completada (2026-11-05) | `feat(api): refine supplier serialization contracts`; 20 tests pasan, contratos/listado/timestamps verificados |
 | 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Completada (2026-11-05) | `feat(api): refine inventory serialization contracts`; 33 tests inventario y siete Node pasan; historial canonico y contratos verificados |
-| 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Pendiente | `docs: finalize serialization audit and verification` |
+| 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Verificacion completada (2026-11-05); PR manual pendiente por decision del usuario | `fix: close serialization audit validation gaps`; 244 tests API, 121 subtests, dos omitidos; nueve analizador, siete Node; lint/build y navegador verificados |
 
 Las dependencias adicionales fijan el orden de trabajo acordado, no implican que
 todos los modelos de una familia dependan tecnicamente de otra. Si una etapa solo
@@ -315,27 +332,33 @@ no se crearan cambios artificiales para conservar un mensaje `feat:`.
    registra el hash publicado anterior; `git log` conserva la trazabilidad inmediata.
 6. Reportar cierre y detenerse hasta autorizacion de la siguiente etapa.
 
-## Verificacion final pendiente
+## Verificacion final
 
-- [ ] Las 32 operaciones tienen contrato explicito adecuado; confirmar recuento
-  nuevamente si cambia la superficie.
-- [ ] Requests/respuestas y errores relevantes probados; campos sensibles ausentes.
-- [ ] Listados y relaciones justificados frente al consumidor, no por intuicion.
-- [ ] Todos los tests previos pasan y los contratos modificados quedan cubiertos.
-- [ ] Al menos tres endpoints probados manualmente en `/docs`: flujo auth, listado
+- [x] Las 32 operaciones tienen contrato explicito adecuado; cobertura contrastada
+  con los routers y OpenAPI en etapa 8.
+- [x] Requests/respuestas y errores relevantes probados; campos sensibles ausentes.
+- [x] Listados y relaciones justificados frente al consumidor, no por intuicion.
+- [x] Suite completa sin fallos: 244 tests API y 121 subtests pasan; dos omitidos
+  con causas y comprobacion complementaria registradas abajo. Nueve tests del
+  analizador y siete Node pasan. No se presenta la omision como test ejecutado.
+- [x] Al menos tres endpoints probados manualmente en `/docs`: flujo auth, listado
   y operacion modificada; registrar metodo/ruta, shape, fecha y resultado sin secretos.
-- [ ] Export real CSV comprobado (media type, attachment, columnas y errores).
-- [ ] Excepcion CSV aceptada para entrega o criterio pendiente explicitado.
-- [ ] Consumidores afectados siguen funcionando, incluido historial inventario.
-- [ ] Estados finales actualizados con evidencia, no solo presencia de un modelo.
+- [x] Export real CSV comprobado (media type, attachment, columnas y errores).
+- [x] Excepcion CSV aceptada segun confirmacion del usuario en etapa 8.
+- [x] Consumidores afectados comprobados, incluido historial inventario.
+- [x] Estados finales actualizados con evidencia, no solo presencia de un modelo.
 - [ ] PR contra `main`: `feat: serialization audit and implementation`;
   URL compartida al instructor. No abrir PR final durante etapa 1.
 
 Comando de suite completa para **etapa 8**, desde la raiz:
 
 ```powershell
-uv run --locked --project services\api python -m unittest discover -s services\api\tests -v
+uv run --locked --project services\api python -m pytest services\api\tests -q
 ```
+
+Se usa el runner pytest ya declarado para incluir tanto unittest como las
+funciones/fixtures pytest de inventario. `unittest discover` solo no descubre
+estas ultimas y no representa toda la suite actual.
 
 No se ejecuta repetidamente la suite completa por cada cambio. Para etapas
 intermedias se seleccionan modulos de tests relevantes con el runner existente.
@@ -833,3 +856,94 @@ node --check uis\backoffice\order-history.js
   pendientes de etapa 8; excepcion CSV pendiente del instructor.
 - Cierre con commit/push y verificacion local/remota; hash a registrar al
   comenzar etapa 8. No avanzar a verificacion global ni PR automaticamente.
+
+## Etapa 8 — Verificacion final y preparacion de entrega
+
+Fecha: 2026-11-05. Base publicada de etapa 7:
+`3a871db73583a52a3fa9c626baaad657ab9346b7`; rama limpia
+`docs/auditoria-back` al comenzar.
+
+### Resultados reproducibles
+
+| Comprobacion | Resultado observado |
+|---|---|
+| Suite completa API: `uv run --locked --project services\api python -m pytest services\api\tests -q` | 244 tests y 121 subtests pasan, dos omitidos, 89.35 s. Ejecutada una vez; sin cambios backend posteriores. |
+| Biblioteca: `uv run --locked --project services\api python -m pytest packages\incident_analyzer\tests -q` | Nueve tests pasan, 0.82 s. |
+| Backoffice: `node --test uis\backoffice\tests\test_inventory_api.mjs` | Siete tests pasan tras ajustes finales, 169.594 ms; metodos existentes ampliados para multipart autenticado, Blob CSV y errores JSON/401. |
+| Sintaxis JS | `node --check` de cliente, proveedores, incidentes e historial correcto. Sin toolchain nuevo para app estatica. |
+| Tracker: `npm.cmd run lint` y `npm.cmd run build` | Ambos pasan tras correccion autorizada. Build incluye TypeScript y genera diez paginas. Replica C: de 44 archivos versionados cotejados con SHA-256, sin `.env*`, dependencias del lockfile ya disponibles; mismo limite E:/C: descrito en etapa 2. |
+| OpenAPI y rutas | 32 operaciones coinciden con `APIRoute` de aplicacion/routers; 31 modelos JSON explicitos y un CSV intencional; inputs separados de outputs. Sin campos de clave/hash/reset token en respuestas, ni email en registro/login/forgot/reset. El access token de login sigue siendo intencional. |
+
+Omisiones: `pass_fds` no esta soportado en Windows; el test del entrypoint admin
+no detecta su ejecutable por la ruta Windows que construye. El ejecutable real
+`promote-admin.exe` si existe y se comprobo directamente fuera del checkout,
+con DB temporal sintetica: codigo 0 y usuario promovido. No se modifica ese test
+ajeno ni se declara que el caso omitido se ejecuto. Avisos conocidos:
+Starlette/httpx y nombre obsoleto del codigo HTTP 413.
+
+### Swagger interactivo y CSV real
+
+API local aislada en `127.0.0.1:8000`; todas estas operaciones se ejecutaron con
+los controles Try it out/Execute de `/docs`, no solo consultando OpenAPI:
+
+| Metodo/ruta | Resultado y shape observado |
+|---|---|
+| `POST /users` | 201, solo `message`; sin email ni metadata de cuenta. |
+| `POST /auth/login` | 200, solo `access_token`/`token_type`; JSON y autorizacion OAuth2 form funcionan. No se guardan valores de token en esta evidencia. |
+| `GET /api/suppliers` | 200, una fila de diez campos, contacto/notas/nulls conservados, sin `updated_at`. |
+| `GET /inventory/orders` | 200, dos movimientos planos de doce campos, tipos inbound/outbound y datos de activo/autor/destino. |
+| `POST /api/incidents/analyze` | 200, ocho campos agregados; CSV sintetico con una fila valida, sin filas originales ni `row_errors`. |
+| `GET /api/incidents/results/export` | Antes del analisis: 404 JSON `detail`. Despues: 200 `text/csv; charset=utf-8`, attachment `results.csv`, `no-cache`; header `metric,value`, 19 filas metricas y media `5.00`, sin correo original. |
+
+### Consumidores y bloqueos resueltos con autorizacion
+
+La verificacion encontro fallos preexistentes y el usuario autorizo expresamente
+corregir integracion de sesion y lint dentro de esta etapa:
+
+- Proveedores y analisis/export usaban fetch sin Bearer aun con sesion valida.
+  Se reutiliza el cliente autenticado existente; proveedores envia objetos JSON,
+  analisis conserva FormData sin forzar Content-Type y export solicita Blob CSV.
+  Los errores JSON conservan su tratamiento incluso al pedir Blob; 401 expira
+  sesion. No cambia ningun permiso backend ni contrato de exito.
+- Proveedores informa que hace falta login sin sesion, recarga tras login y
+  retira tarjetas al salir. Respuestas antiguas de filtros/cambios de sesion se
+  descartan para no duplicar tarjetas ni reintroducir datos obsoletos. La carrera
+  de filtros se reprodujo en navegador y la comprobacion final deja una tarjeta.
+- El lint global del tracker detecto `react-hooks/set-state-in-effect` en el
+  formulario reset preexistente. Se captura el token al inicializar estado y se
+  deriva su ausencia; el efecto solo limpia la URL. No se desactiva la regla ni
+  se pospone setState artificialmente.
+- Navegador backoffice: historial muestra Entrada/Salida, nombre, SKU, proveedor
+  o destino y autor; proveedores conserva contacto/notas, filtros combinados,
+  tarifa 135, cambio de estado, logout y recarga autenticada. Analizador muestra
+  total/validos 1 y media 5.00; export obtiene Blob CSV de 416 bytes y genera el
+  enlace de descarga `results.csv`. El navegador integrado no notifico el evento
+  download: se comprueban Blob/enlace, no un archivo guardado en disco.
+- Incidentes: alta sintetica mediante submit nativo del formulario por DOM
+  devuelve 201 y actualiza tabla/resumen con listado reducido; no se afirma
+  haber completado un clic de puntero en ese formulario.
+- Navegador tracker de produccion: registro 201 con `message`, login automatico
+  200, `/auth/me` 200, redireccion y perfil cargado. API externa de candidatos
+  interceptada con respuesta paginada sintetica, sin consultar servicio externo.
+  Reset: token retirado de URL pero conservado para submit, token sintetico
+  invalido recibe 400 y muestra error; recargar sin token muestra enlace no valido.
+
+Solo configuracion/DB de sesion y datos sinteticos. Sin `.env*`, correo real,
+sistemas productivos ni cambios de dependencias. Servidores y replicas temporales
+se retiran al terminar; la cache de dependencias anterior se conserva.
+
+### Publicacion y accion manual pendiente
+
+El usuario confirma que el instructor acepto CSV y decide crear la PR manualmente.
+No hay CLI GitHub disponible ni sesion web autenticada para crearla desde esta
+ejecucion. El commit/push de etapa 8 incluye correcciones, evidencia y documentos;
+se comprueba igualdad de HEAD local/remoto y arbol limpio al publicar.
+
+- Base de PR: `main`; head: `docs/auditoria-back`.
+- Titulo obligatorio: **feat: serialization audit and implementation**.
+- [Preparar PR en GitHub](https://github.com/4GeeksAcademy/ai-engineering-company-project-monorepo-luis/compare/main...docs%2Fauditoria-back?expand=1&title=feat%3A%20serialization%20audit%20and%20implementation).
+- Resumen sugerido: contratos explicitos para las 32 operaciones; proyecciones
+  reducidas de incidentes/proveedores; historial canonico; integracion de sesion;
+  auditoria de campos/relaciones, CSV aceptado y evidencia de tests/Swagger/UI.
+- Tras crearla: compartir su URL con el instructor. **PR y envio pendientes**;
+  no confundir cierre tecnico con entrega administrativa completada.

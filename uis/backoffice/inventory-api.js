@@ -2,7 +2,7 @@
  * Nexova Backoffice — Centralized Inventory & Auth API Client
  * 
  * Enforces architectural constraints:
- * - Centralizes all HTTP communication with FastAPI (/inventory and /auth)
+ * - Centralizes authenticated HTTP communication with FastAPI
  * - Strict prohibition of raw fetch() calls in components/views
  * - Sanitized error parsing for FastAPI 4xx/5xx responses (especially 400 insufficient stock)
  * - Session token management via sessionStorage without leaking credentials to console/logs
@@ -157,15 +157,16 @@
     // ==========================================
 
     async request(endpoint, options = {}) {
+      const { responseType = "json", ...requestOptions } = options;
       const url = `${this.baseUrl}${endpoint}`;
       const headers = {
         Accept: "application/json",
-        ...(options.headers || {}),
+        ...(requestOptions.headers || {}),
       };
 
-      if (options.body && !(options.body instanceof FormData) && typeof options.body === "object") {
+      if (requestOptions.body && !(requestOptions.body instanceof FormData) && typeof requestOptions.body === "object") {
         headers["Content-Type"] = "application/json";
-        options.body = JSON.stringify(options.body);
+        requestOptions.body = JSON.stringify(requestOptions.body);
       }
 
       // Inyectar Authorization Bearer si no se especificó y tenemos token en sesión
@@ -177,7 +178,7 @@
       let response;
       try {
         response = await fetch(url, {
-          ...options,
+          ...requestOptions,
           headers,
         });
       } catch (_) {
@@ -186,6 +187,10 @@
           null,
           `No se pudo conectar con el servidor backend (${this.baseUrl}). Verifica que la API esté activa.`
         );
+      }
+
+      if (response.ok && responseType === "blob") {
+        return response.blob();
       }
 
       let data = null;

@@ -20,8 +20,8 @@ import {
 export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [token, setToken] = useState<string | null>(null);
-  const [isTokenMissing, setIsTokenMissing] = useState(false);
+  const [token] = useState(() => searchParams.get("token")?.trim() || null);
+  const isTokenMissing = token === null;
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,16 +29,11 @@ export default function ResetPasswordForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const rawToken = searchParams.get("token")?.trim();
-
-    if (rawToken) {
-      setToken(rawToken);
+    if (token) {
       // Remove the token from the URL immediately so it is not leaked or kept in browser history
       window.history.replaceState(null, "", window.location.pathname);
-    } else {
-      setIsTokenMissing(true);
     }
-  }, [searchParams]);
+  }, [token]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -267,4 +262,3 @@ export default function ResetPasswordForm() {
     </main>
   );
 }
-

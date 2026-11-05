@@ -161,6 +161,26 @@ rendering with canonical inbound/allocation/consumption fixtures. No dependency,
 database, calculation or query changes. Browser/Swagger acceptance and the full
 backend suite remain in stage 8.
 
+Stage 8 (2026-11-05) completes technical verification:
+
+- 244 API tests and 121 subtests pass, with two explicit Windows/environment
+  skips; nine analyzer-library tests and seven backoffice tests pass.
+  The installed Windows admin CLI was also checked directly on a temporary DB.
+- Use `uv run --locked --project services\api python -m pytest services\api\tests -q`
+  from the repository root for the whole API suite. Unlike unittest discovery
+  alone, this includes the inventory pytest functions and fixtures.
+- All 32 operations match OpenAPI/route declarations: 31 JSON models and one
+  documented CSV. Six distinct endpoints were exercised through Swagger,
+  including registration/login, supplier/history lists and analysis/export.
+- Backoffice session integration was corrected with user approval: supplier
+  requests and analysis/export reuse the existing authenticated client; CSV is
+  returned as a Blob. Backend permissions and response contracts are unchanged.
+- Tracker lint/build/TypeScript pass on the hash-matched C: replica; browser
+  registration/login/profile and reset-token handling were verified locally.
+- CSV instructor acceptance was confirmed by the user. The user will create the
+  PR to `main` manually; [final audit and PR link](../../docs/serialization-audit.md#publicacion-y-accion-manual-pendiente)
+  record the remaining delivery action. No PR is claimed to exist.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

@@ -115,6 +115,21 @@ test("InventoryApiClient: sends Bearer token in authenticated calls", async () =
   assert.equal(result.id, 99);
   assert.equal(recordedHeaders["Authorization"], "Bearer valid-token-123");
   assert.equal(recordedHeaders["Content-Type"], "application/json");
+
+  const form = new FormData();
+  form.append("file", new Blob(["synthetic csv"]), "synthetic.csv");
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "http://test-server/api/incidents/analyze");
+    assert.equal(options.body, form);
+    assert.equal(options.headers.Authorization, recordedHeaders.Authorization);
+    assert.equal(options.headers["Content-Type"], undefined);
+    return {
+      ok: true, status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({ total_records: 1 }),
+    };
+  };
+  assert.deepEqual(await client.request("/api/incidents/analyze", { method: "POST", body: form }), { total_records: 1 });
 });
 
 test("InventoryApiClient: handles network failure gracefully", async () => {
@@ -231,6 +246,31 @@ test("InventoryApiClient: inventory CRUD calls match API contract", async () => 
   assert.equal(cells[0][7], "42");
   assert.equal(cells[1][7], "84");
   assert.equal(cells[0][6], new Date(orders[0].created_at).toLocaleString());
+
+  client.setToken("synthetic-export-session");
+  const csv = new Blob(["metric,value\ntotal_records,1\n"], { type: "text/csv" });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "http://test-server/api/incidents/results/export");
+    assert.equal(options.headers.Authorization, "Bearer synthetic-export-session");
+    assert.equal(options.headers.Accept, "text/csv");
+    assert.equal("responseType" in options, false);
+    return { ok: true, status: 200, blob: async () => csv };
+  };
+  const exported = await client.request("/api/incidents/results/export", {
+    responseType: "blob", headers: { Accept: "text/csv" },
+  });
+  assert.equal(exported, csv);
+  assert.equal(await exported.text(), "metric,value\ntotal_records,1\n");
+  globalThis.fetch = async () => ({
+    ok: false, status: 401,
+    headers: { get: () => "application/json" },
+    json: async () => ({ detail: "Not authenticated" }),
+  });
+  await assert.rejects(
+    client.request("/api/incidents/results/export", { responseType: "blob" }),
+    (error) => error instanceof ApiError && error.status === 401,
+  );
+  assert.equal(client.isAuthenticated(), false);
 });
 
 test("InventoryApiClient: login sets token and user profile", async () => {

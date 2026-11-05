@@ -2,6 +2,31 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 8
+
+2026-11-05. Base publicada etapa 7:
+`3a871db73583a52a3fa9c626baaad657ab9346b7`.
+
+- Cierre tecnico: 32 operaciones contrastadas con rutas/OpenAPI, 31 modelos
+  JSON y CSV explicito; inputs separados, sin credenciales en outputs.
+- Suite API completa pytest: 244 tests/121 subtests pasan, dos omitidos
+  Windows/entrypoint. CLI Windows comprobado aparte con DB temporal. Nueve
+  tests analizador y siete Node pasan. Sin repeticion de suite backend.
+- Swagger: registro/login, proveedores/historial y analisis/export ejecutados.
+  CSV real, errores y ausencia de filas/correo comprobados; el usuario confirma
+  que el instructor acepto la excepcion CSV.
+- Usuario autoriza resolver bloqueos previos: proveedores/CSV ahora usan
+  cliente autenticado compartido, Blob y errores JSON/401; directorio recarga
+  al login, limpia al logout y descarta respuestas obsoletas de filtros.
+- Reset tracker inicializa token en estado sin setState en efecto; lint y build
+  globales pasan en replica C: de 44 archivos cotejados, sin `.env*`.
+- Navegador local: tarjetas, historial, incidencias, CSV y registro/perfil/reset
+  tracker comprobados. Candidatos externos mockeados; solo datos sinteticos.
+- **PR manual pendiente por decision del usuario**: `main` <- `docs/auditoria-back`,
+  titulo `feat: serialization audit and implementation`; enlace de preparacion
+  y evidencia final en `docs/serialization-audit.md`. No se afirma PR creada ni
+  entrega al instructor finalizada. Commit/push de cierre y limpieza al terminar.
+
 ## Auditoria de serializacion backend — Etapa 7
 
 2026-11-05. Base publicada de etapa 6:

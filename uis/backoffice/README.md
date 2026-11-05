@@ -8,7 +8,9 @@ Panel interno de referencia para el contexto de negocio y las etapas del proceso
 - Los nombres de las etapas se toman de `SPEC.md`.
 - El directorio de proveedores consulta la API de operaciones; el resto de las cifras del panel sigue siendo contexto del proyecto y no una vista en tiempo real.
 - El panel no consulta la API del tracker ni muestra registros personales de candidatos.
-- El directorio muestra información comercial interna (tarifas, contactos y notas). Mantener API y panel en local/demo; no hay autenticación y CORS no la sustituye.
+- El directorio muestra información comercial interna (tarifas, contactos y notas)
+  y requiere sesión Nexova. Mantener API y panel en local/demo; CORS no sustituye
+  la autenticación. El historial de inventario conserva su acceso público existente.
 
 ## Ejecutar localmente
 
@@ -53,6 +55,17 @@ uv run seed
 ```
 
 ## Inventario e historial
+
+Proveedores y analisis/exportacion CSV reutilizan `inventoryApi.request` para
+enviar la sesion Bearer y tratar errores/expiracion. El directorio se recarga al
+iniciar sesion y retira sus tarjetas al cerrar; respuestas antiguas de filtros
+no duplican filas. El cliente admite `responseType: "blob"` para CSV, sin cambiar
+el tratamiento JSON de errores. FormData conserva el boundary del navegador.
+
+Verificacion final 2026-11-05: siete tests Node pasan; navegador local con
+datos sinteticos comprobo tarjetas/filtros/tarifa/estado/login/logout, historial,
+tabla/resumen de incidencias y analisis/export CSV. Se verificaron Blob y enlace
+`results.csv`, no un archivo guardado por el navegador integrado.
 
 - El catalogo consume los seis campos de `AssetRead` en `/inventory/products`;
   los formularios registran entradas/salidas con el cliente centralizado.

@@ -2,6 +2,16 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-05, etapa 8: verificacion tecnica global terminada:
+244 tests API y 121 subtests pasan/dos omitidos; nueve analizador y siete Node.
+Swagger y consumidores locales comprobados; CSV aceptado segun usuario.
+Proveedores/analisis/export reutilizan sesion de `inventoryApi.request`;
+`responseType: "blob"` conserva CSV y errores JSON. Directorio reacciona a
+login/logout y descarta respuestas antiguas. Reset tracker captura token
+inicial en estado y limpia URL en efecto; lint/build/TypeScript pasan en replica
+C: cotejada. Sin deps/permisos/persistencia modificados. PR a main pendiente de
+creacion manual por usuario; enlace/evidencia en auditoria, no PR existente.
+
 Actualizacion 2026-11-05, etapa 7: inventario conserva sus cuatro modelos
 explicitos y shapes (catalogo seis, entrada siete, salida ocho, historial doce).
 Historial consume nombres canonicos `movement_type`, `asset_name`, `asset_sku`;
