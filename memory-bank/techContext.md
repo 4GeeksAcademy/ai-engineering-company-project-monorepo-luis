@@ -2,6 +2,12 @@
 
 ## Auditoria de serializacion — 2026-11-02
 
+Actualizacion 2026-11-05, etapa 6: proveedores lista `SupplierListItem[]` sin
+`updated_at`, conserva diez campos de tarjetas (incluidos contacto/notas/nulls).
+`SupplierRecord` agrega timestamp para detalle/alta/PATCH. Autenticacion/422/
+filtros y semantica timestamp tarifa/estado preservados; 401/404/500 documentados.
+20 tests focalizados pasan; sin frontend/persistencia/dependencias modificados.
+
 Actualizacion 2026-11-05, etapa 5: listado de incidentes retorna
 `IncidentListItem[]` sin `updated_at`; conserva los ocho campos usados por tabla.
 `IncidentRecord` extiende esa proyeccion para detalle/alta/PATCH, que conservan

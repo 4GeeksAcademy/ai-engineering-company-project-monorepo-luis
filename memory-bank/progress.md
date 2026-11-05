@@ -2,6 +2,26 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 6
+
+2026-11-05. Base publicada de etapa 5:
+`14ee135e3896ce2bf3fc92f8c66c6e2206ffcf20`; rama limpia `docs/auditoria-back`.
+
+- Listado proveedores usa `SupplierListItem`, diez campos de tarjetas sin
+  `updated_at`; contacto/notas/renovacion y nulls conservados. Detalle/alta/PATCH
+  mantienen `SupplierRecord` completo de once campos y timestamp UTC.
+- PATCH completo conservado por compatibilidad; tarifa actualiza timestamp,
+  estado no. Inputs separados, sin campos server-managed escribibles.
+- OpenAPI documenta errores 401/500 de router y 404 de recurso; sin cambios de
+  permisos, handlers, validacion 422, filtros AND, frontend, storage o versiones.
+- 20 tests focalizados pasan: API/modelos/seed, campos exactos, payload reducido,
+  opcionales, listado vacio, actualizaciones persistidas, escritura rechazada,
+  autenticacion y borrado. Datos temporales, SQLite en memoria; avisos conocidos.
+- Auditoria marca cinco V6 y revalida DELETE V3. Solo seis operaciones inventario
+  pendientes de etapa 7. Validacion manual/Swagger y suite completa en etapa 8.
+- Commit/push al cierre verificados; registrar hash en etapa 7. No avanzar sin
+  autorizacion.
+
 ## Auditoria de serializacion backend — Etapa 5
 
 2026-11-05. Base publicada de etapa 4:

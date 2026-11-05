@@ -1,5 +1,6 @@
 """HTTP contract tests for the supplier directory API."""
 
+import json
 import os
 import secrets
 import tempfile
@@ -68,7 +69,8 @@ class TestSuppliersAPI(unittest.TestCase):
                         self.assertEqual(response.headers["www-authenticate"], "Bearer")
 
     def test_supplier_routes_are_marked_protected_in_openapi(self):
-        paths = self.client.get("/openapi.json").json()["paths"]
+        schema = self.client.get("/openapi.json").json()
+        paths = schema["paths"]
         expected = {
             ("/api/suppliers", "post"),
             ("/api/suppliers", "get"),
@@ -80,7 +82,25 @@ class TestSuppliersAPI(unittest.TestCase):
         for path, method in expected:
             with self.subTest(path=path, method=method):
                 self.assertIn("security", paths[path][method])
+                for code in ("401", "500"):
+                    self.assertTrue(paths[path][method]["responses"][code]["content"]["application/json"]["schema"]["$ref"].endswith("/DetailErrorResponse"))
+                if "{supplier_id}" in path:
+                    self.assertIn("404", paths[path][method]["responses"])
         self.assertNotIn("security", paths["/health"]["get"])
+        list_ref = paths["/api/suppliers"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["items"]["$ref"]
+        self.assertTrue(list_ref.endswith("/SupplierListItem"))
+        row = schema["components"]["schemas"]["SupplierListItem"]
+        detail = schema["components"]["schemas"]["SupplierRecord"]
+        self.assertEqual(set(row["properties"]), set(detail["properties"]) - {"updated_at"})
+        self.assertFalse(row["additionalProperties"])
+        self.assertNotIn("id", schema["components"]["schemas"]["SupplierCreate"]["properties"])
+        for path, method, code in (
+            ("/api/suppliers", "post", "201"),
+            ("/api/suppliers/{supplier_id}", "get", "200"),
+            ("/api/suppliers/{supplier_id}/rate", "patch", "200"),
+            ("/api/suppliers/{supplier_id}/status", "patch", "200"),
+        ):
+            self.assertTrue(paths[path][method]["responses"][code]["content"]["application/json"]["schema"]["$ref"].endswith("/SupplierRecord"))
 
     def supplier_id(self, name):
         response = self.client.get("/api/suppliers")
@@ -101,13 +121,26 @@ class TestSuppliersAPI(unittest.TestCase):
         }
 
     def test_create_returns_server_id_and_timestamp(self):
-        response = self.client.post("/api/suppliers", json=self.valid_payload())
+        payload = {
+            **self.valid_payload(),
+            "contact_email": "synthetic@example.com",
+            "notes": "Synthetic supplier notes",
+            "contract_renewal_date": "2030-01-02",
+        }
+        response = self.client.post("/api/suppliers", json=payload)
 
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertGreater(data["id"], 0)
         self.assertTrue(data["updated_at"].endswith("Z"))
         self.assertEqual(data["name"], "Example Supplier")
+        self.assertEqual(set(data), set(payload) | {"id", "updated_at"})
+        self.assertEqual(self.client.get(f"/api/suppliers/{data['id']}").json(), data)
+        listed = self.client.get("/api/suppliers").json()
+        row = next(item for item in listed if item["id"] == data["id"])
+        self.assertEqual(row, {key: value for key, value in data.items() if key != "updated_at"})
+        self.assertEqual(row["contact_email"], payload["contact_email"])
+        self.assertEqual(row["notes"], payload["notes"])
 
     def test_create_rejects_client_managed_fields(self):
         for field_name, value in (
@@ -133,6 +166,23 @@ class TestSuppliersAPI(unittest.TestCase):
             {supplier["name"] for supplier in response.json()},
             {"LinkedIn Talent Solutions", "InfoJobs Premium"},
         )
+        details = []
+        for row in all_suppliers.json():
+            detail = self.client.get(f"/api/suppliers/{row['id']}").json()
+            details.append(detail)
+            self.assertEqual(row, {key: value for key, value in detail.items() if key != "updated_at"})
+            self.assertEqual(set(row), {
+                "id", "name", "country", "categories", "monthly_rate", "currency",
+                "status", "contract_renewal_date", "contact_email", "notes",
+            })
+        self.assertLess(
+            len(json.dumps(all_suppliers.json(), separators=(",", ":")).encode()),
+            len(json.dumps(details, separators=(",", ":")).encode()),
+        )
+        for row in all_suppliers.json():
+            deleted = self.client.delete(f"/api/suppliers/{row['id']}")
+            self.assertEqual(deleted.status_code, 200)
+        self.assertEqual(self.client.get("/api/suppliers").json(), [])
 
     def test_list_rejects_invalid_filter_values(self):
         for params in ({"country": "France"}, {"category": "other"}):
@@ -148,10 +198,15 @@ class TestSuppliersAPI(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["name"], "Workable")
+        self.assertEqual(set(response.json()), {
+            "id", "name", "country", "categories", "monthly_rate", "currency",
+            "status", "contract_renewal_date", "contact_email", "notes", "updated_at",
+        })
         self.assertEqual(missing.status_code, 404)
 
     def test_rate_update_changes_timestamp_and_persists(self):
         supplier_id = self.supplier_id("Workable")
+        original = self.client.get(f"/api/suppliers/{supplier_id}").json()
         fixed_timestamp = "2030-01-02T03:04:05+00:00"
 
         with patch("services.api.routers.suppliers.datetime") as mocked_datetime:
@@ -169,6 +224,12 @@ class TestSuppliersAPI(unittest.TestCase):
         persisted = self.client.get(f"/api/suppliers/{supplier_id}").json()
         self.assertEqual(persisted["monthly_rate"], 333.0)
         self.assertEqual(persisted["updated_at"], response.json()["updated_at"])
+        self.assertEqual(response.json(), persisted)
+        for field in set(original) - {"monthly_rate", "updated_at"}:
+            self.assertEqual(persisted[field], original[field])
+        row = next(item for item in self.client.get("/api/suppliers").json() if item["id"] == supplier_id)
+        self.assertEqual(row["monthly_rate"], 333.0)
+        self.assertNotIn("updated_at", row)
 
     def test_rate_update_rejects_invalid_rate_and_missing_id(self):
         supplier_id = self.supplier_id("Workable")
@@ -184,6 +245,15 @@ class TestSuppliersAPI(unittest.TestCase):
 
         self.assertEqual(invalid.status_code, 422)
         self.assertEqual(missing.status_code, 404)
+        for payload in (
+            {"monthly_rate": 100, "updated_at": "synthetic"},
+            {"monthly_rate": 100, "id": 99},
+            {"monthly_rate": None},
+        ):
+            self.assertEqual(
+                self.client.patch(f"/api/suppliers/{supplier_id}/rate", json=payload).status_code,
+                422,
+            )
 
     def test_status_update_and_invalid_status(self):
         supplier_id = self.supplier_id("Workable")
@@ -209,6 +279,18 @@ class TestSuppliersAPI(unittest.TestCase):
         self.assertEqual(response.json()["updated_at"], original_timestamp)
         self.assertEqual(invalid.status_code, 422)
         self.assertEqual(missing.status_code, 404)
+        persisted = self.client.get(f"/api/suppliers/{supplier_id}").json()
+        self.assertEqual(persisted, response.json())
+        for payload in (
+            {"status": "active", "monthly_rate": 1},
+            {"status": "active", "updated_at": "synthetic"},
+            {"status": None},
+        ):
+            self.assertEqual(
+                self.client.patch(f"/api/suppliers/{supplier_id}/status", json=payload).status_code,
+                422,
+            )
+        self.assertEqual(self.client.get(f"/api/suppliers/{supplier_id}").json(), persisted)
 
     def test_delete_and_missing_id(self):
         supplier_id = self.supplier_id("Workable")

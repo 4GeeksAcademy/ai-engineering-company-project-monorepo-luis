@@ -108,6 +108,31 @@ filters, server-managed input rejection, unchanged detail/update fields,
 summary consistency and terminal transitions. No frontend or storage changes;
 manual UI/Swagger acceptance and the full suite remain in stage 8.
 
+Stage 6 (2026-11-05) separates supplier card rows from detail:
+
+- `GET /api/suppliers` returns `SupplierListItem[]`: `id`, `name`, `country`,
+  `categories`, `monthly_rate`, `currency`, `status`, `contract_renewal_date`,
+  `contact_email`, `notes`. **Intentional contract reduction:** `updated_at`
+  is omitted only from the list; the backoffice never reads it.
+  Contact/notes and renewal date remain because the cards use them.
+- Creation, detail, rate and status updates retain `SupplierRecord` with the
+  same ten fields plus `updated_at`. Clients needing that timestamp should use
+  detail. The timestamp changes on rate update, not on status update.
+  PATCH keeps the full resource response for compatibility, even though the
+  backoffice discards it and reloads the list.
+- `SupplierListItem` reuses the established supplier field validation and adds
+  the read-only identifier; `SupplierRecord` adds the UTC timestamp.
+  `SupplierCreate` and the rate/status inputs still exclude server-managed fields.
+- Router OpenAPI documents existing 401/500 JSON errors and 404 for detail,
+  updates and deletion. Existing 422 validation, filters combined with AND,
+  authentication and storage semantics are unchanged.
+
+Stage 6 verification: 20 focused API/model/seed tests passed. Exact list/detail
+fields, nullable contact data, smaller serialized list output, empty list,
+full PATCH confirmations, timestamp semantics, invalid writes, authentication
+and deletion remain covered. No frontend or dependency changes; manual
+backoffice/Swagger checks and full regression remain in stage 8.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

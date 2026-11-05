@@ -74,6 +74,8 @@ impidio consultar OpenAPI y no se cambio ninguna dependencia para resolverlo.
   no JSON pendiente de aceptacion del instructor, no aprobacion academica final.
 - **V5** = CRUD/resumen de incidentes verificado con tests y OpenAPI en etapa 5;
   pruebas manuales y aceptacion global pendientes de etapa 8.
+- **V6** = contratos de proveedores verificados mediante tests y OpenAPI en
+  etapa 6; aceptacion manual/global pendiente de etapa 8.
 - En las tablas, las formas objetivo son propuestas para la etapa indicada,
   no cambios ya aplicados. Una ruta sin consumidor UI identificado mantiene su
   contrato compatible; Swagger y tests existentes siguen siendo consumidores.
@@ -179,11 +181,11 @@ Evidencia: [router](../services/api/routers/suppliers.py) y
 
 | # | Metodo y ruta / proposito | Entrada | Salida actual / origen | Consumidor y objetivo | Inicial | Etapa / final |
 |---|---|---|---|---|---|---|
-| 26 | `POST /api/suppliers`: crear | `SupplierCreate` | Modelo F, 201; documento TinyDB proyectado | Formulario backoffice; F, ID/timestamp server-managed | YA | 6 / P |
-| 27 | `GET /api/suppliers`: listado/filtros | Query `country`, `category` | Modelo F[], 200; documentos TinyDB proyectados | Tarjetas usan contacto/notas; evaluar `updated_at`, no excluir contacto sin alternativa | PARCIAL | 6 / P |
-| 28 | `GET /api/suppliers/{supplier_id}`: detalle | Path | Modelo F, 200; documento TinyDB proyectado | Swagger/tests; F compatible, datos comerciales solo en alcance local/demo | YA | 6 / P |
-| 29 | `PATCH /api/suppliers/{supplier_id}/rate`: tarifa | `SupplierRateUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; valorar proyeccion menor o justificar F compatible | PARCIAL | 6 / P |
-| 30 | `PATCH /api/suppliers/{supplier_id}/status`: estado | `SupplierStatusUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; conservar semantica del timestamp | PARCIAL | 6 / P |
+| 26 | `POST /api/suppliers`: crear | `SupplierCreate` | Modelo F, 201; documento TinyDB proyectado | Formulario backoffice; F, ID/timestamp server-managed | YA | 6 / V6 |
+| 27 | `GET /api/suppliers`: listado/filtros | Query `country`, `category` | Modelo F[], 200; documentos TinyDB proyectados | Tarjetas usan contacto/notas; listado final sin updated_at en etapa 6 | PARCIAL | 6 / V6 |
+| 28 | `GET /api/suppliers/{supplier_id}`: detalle | Path | Modelo F, 200; documento TinyDB proyectado | Swagger/tests; F compatible, datos comerciales solo en alcance local/demo | YA | 6 / V6 |
+| 29 | `PATCH /api/suppliers/{supplier_id}/rate`: tarifa | `SupplierRateUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; F completo conservado por compatibilidad | PARCIAL | 6 / V6 |
+| 30 | `PATCH /api/suppliers/{supplier_id}/status`: estado | `SupplierStatusUpdate`, path | Modelo F, 200; documento actualizado | Backoffice descarta cuerpo y recarga; conservar semantica del timestamp | PARCIAL | 6 / V6 |
 | 31 | `DELETE /api/suppliers/{supplier_id}`: borrar | Path | Dict D, 200; confirmacion TinyDB | No hay accion UI; Swagger/tests: D explicito, no 204 | SIN | 3 / V3 |
 
 ### Salud - 1 operacion
@@ -197,8 +199,9 @@ Las clasificaciones se actualizaron con consumidores y OpenAPI, no copiando la
 tabla preliminar de la guia. Las verificaciones globales de etapa 8 siguen
 pendientes; las 11 operaciones de etapa 2 tienen evidencia focalizada V2.
 Otras tres operaciones tienen evidencia V3 y dos tienen evidencia V4/V4-CSV;
-Cinco operaciones adicionales tienen evidencia V5; 11 operaciones siguen
-pendientes de las etapas siguientes. Las formas y
+Cinco operaciones adicionales tienen evidencia V5 y otras cinco V6; seis
+operaciones de inventario siguen pendientes de etapa 7. DELETE de proveedores
+conserva V3 y se comprueba de nuevo en etapa 6. Las formas y
 clasificaciones originales no se sobrescriben.
 
 ## Hallazgos, causas, impacto y decisiones
@@ -285,7 +288,7 @@ solo por escribir esta justificacion.
 | 3 | H y ambos D explicitos; codigos/shape compatibles | 1, 2 | Completada (2026-11-04) | `feat(api): type health and deletion responses`; 28 tests pasan, contratos OpenAPI y sintaxis verificados |
 | 4 | X completo y C documentado; contenido/errores comprobados | 1, 3 | Completada tecnicamente (2026-11-04); aceptacion de excepcion CSV pendiente | `feat(api): define analysis and CSV export contracts`; 26 tests pasan, OpenAPI/privacidad/CSV verificados |
 | 5 | CRUD/resumen incidentes y campos de tabla justificados | 1, 4 | Completada (2026-11-05) | `feat(api): audit incident serialization contracts`; 32 tests pasan, listado reducido y errores OpenAPI verificados |
-| 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Pendiente | `feat(api): refine supplier serialization contracts` |
+| 6 | Proveedores sin romper tarjetas ni actualizaciones | 1, 5 | Completada (2026-11-05) | `feat(api): refine supplier serialization contracts`; 20 tests pasan, contratos/listado/timestamps verificados |
 | 7 | Inventario/relaciones y alineacion del historial | 1, 6 | Pendiente | `feat(api): refine inventory serialization contracts` |
 | 8 | Cobertura OpenAPI, suite completa, Swagger/UI y auditoria final/PR | 2, 3, 4, 5, 6, 7 | Pendiente | `docs: finalize serialization audit and verification` |
 
@@ -678,3 +681,72 @@ uv run --locked --project services\api python -m unittest services.api.tests.tes
   completa permanecen en etapa 8; no se afirma haberlas ejecutado.
 - Cierre con commit/push y verificacion local/remota; hash a registrar al
   comenzar etapa 6. No avanzar a proveedores automaticamente.
+
+## Etapa 6 — Proveedores
+
+Fecha: 2026-11-05. Base publicada de etapa 5:
+`14ee135e3896ce2bf3fc92f8c66c6e2206ffcf20`; rama `docs/auditoria-back`, arbol
+limpio al comenzar. Sin cambios de dependencias, frontend, datos persistidos
+ni reglas de negocio.
+
+### Campos, relaciones y compatibilidad
+
+Las tarjetas de [suppliers.js](../uis/backoffice/suppliers.js) usan ID para
+acciones, nombre/pais/categorias/tarifa/moneda/estado, renovacion para la alerta,
+contacto y notas para detalles expandibles. No leen `updated_at`. Ambos PATCH
+descartan la respuesta y recargan listado; no requieren cambiar la UI.
+
+| Operacion | Original | Contrato final / decision |
+|---|---|---|
+| `GET /api/suppliers` | `SupplierRecord[]`, once campos | `SupplierListItem[]`, diez campos: todos menos `updated_at`. Se conservan contacto/notas y nulls, renovacion, ID y campos comerciales de tarjetas. Reduccion intencional documentada; timestamp disponible en detalle. |
+| `POST /api/suppliers` | `SupplierRecord`, 201 | Mantener once campos para confirmacion del recurso creado y metadata server-managed. Input `SupplierCreate` separado, sin ID/timestamp escribibles. |
+| `GET /api/suppliers/{supplier_id}` | `SupplierRecord`, 200 | Mantener detalle completo, incluida fecha de cambio de tarifa, sin objetos TinyDB ni relaciones anidadas. |
+| `PATCH /api/suppliers/{supplier_id}/rate` | `SupplierRecord`, 200 | Mantener confirmacion completa por compatibilidad del endpoint; cambia tarifa y `updated_at`. No introducir otra ruptura solo porque el cliente actual descarta el body. |
+| `PATCH /api/suppliers/{supplier_id}/status` | `SupplierRecord`, 200 | Mantener confirmacion completa; estado cambia, timestamp de tarifa no cambia. Modelo de entrada solo para estado. |
+| `DELETE /api/suppliers/{supplier_id}` | Ya tipado en etapa 3 | Mantener `DeletionResponse`, HTTP 200 y autenticacion. Revalidado, sin cambiar contrato de exito. |
+
+`SupplierListItem` reutiliza validaciones de los campos de `SupplierCreate` y
+agrega ID; `SupplierRecord` extiende la proyeccion con timestamp UTC. Los tipos
+de entrada/salida siguen siendo distintos: input no admite campos server-managed.
+El listado valida primero el registro almacenado y luego proyecta sin timestamp:
+no omite registros invalidos silenciosamente ni devuelve TinyDB sin control.
+Las relaciones son planas y el ID sirve para acciones de gestion.
+
+### Errores y permisos
+
+Se documentan en OpenAPI los errores JSON existentes: 401 con cabecera Bearer y
+500 en el router; 404 para detalle, PATCH y DELETE. Validacion de escritura y
+filtros conserva 422 y la sanitizacion global existente. No se altera ningun
+handler, mensaje, permiso o codigo de exito; todas las operaciones siguen
+requiriendo autenticacion. Pais/categoria combinados con AND.
+
+### Evidencia y cierre
+
+```powershell
+uv run --locked --project services\api python -m unittest services.api.tests.test_suppliers_api services.api.tests.test_supplier_models services.api.tests.test_supplier_seed -v
+```
+
+- **20 tests pasan, sin omitidos**, primera ejecucion en 6.466 segundos.
+  Metodos existentes ampliados, sin archivos de tests ni framework nuevos.
+- Exactitud de los diez campos de cada fila frente al detalle equivalente,
+  OpenAPI del listado/detalle/alta/PATCH/DELETE y errores documentados. Contacto,
+  notas y renovacion sinteticos permanecen en listado/alta/detalle; opcionales
+  ausentes mantienen null en respuesta, sin `exclude_none` de salida.
+- Listado equivalente de 15 proveedores serializado con el mismo formato JSON
+  ocupa menos bytes que la lista de detalles completos. Es una comprobacion
+  local de reduccion, no benchmark de rendimiento ni objetivo porcentual.
+- Se verifica vacio `[]` tras borrar el fixture temporal; filtros combinados y
+  filtros invalidos conservan comportamiento. 401 para las seis operaciones,
+  404 para recursos ausentes y DELETE mantienen los casos existentes.
+- PATCH tarifa confirma recurso persistido, actualiza timestamp y conserva
+  los demas campos; listado recargado refleja tarifa nueva sin timestamp.
+  PATCH estado conserva timestamp y devuelve recurso persistido; extras/null
+  no escribibles rechazados con 422 y sin alterar recurso.
+- Validaciones del dominio y seed exacto/idempotente siguen pasando.
+  TinyDB temporal e inventario SQLite en memoria; sin `.env*`, correos ni bases
+  reales. Avisos conocidos Starlette/httpx y conexiones SQLite de fixtures.
+- Cinco operaciones pasan a V6; DELETE conserva V3. Quedan seis operaciones de
+  inventario para etapa 7. Backoffice/Swagger manual y suite completa en etapa 8;
+  no se afirman checks frontend ni navegador no ejecutados.
+- Cierre con un commit/push y verificacion local/remota; hash a registrar al
+  comenzar etapa 7. No avanzar a inventario automaticamente.
