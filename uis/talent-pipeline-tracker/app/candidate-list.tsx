@@ -1,8 +1,9 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -18,7 +19,6 @@ import {
 
 import { getCandidates } from "@/lib/api";
 import { endNexovaSession } from "@/lib/nexova-api";
-import CandidateForm from "@/components/candidate-form";
 import {
   STAGES,
   STATUSES,
@@ -26,6 +26,17 @@ import {
   type Stage,
   type Status,
 } from "@/types";
+
+const CandidateForm = dynamic(() => import("@/components/candidate-form"), {
+  loading: () => (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+      role="status"
+    >
+      Cargando formulario...
+    </div>
+  ),
+});
 
 const statusLabels: Record<Status, string> = {
   received: "Recibido",
@@ -157,6 +168,20 @@ export default function CandidateList() {
 
   const hasFilters = Boolean(
     searchParams.get("search") || selectedStatus || selectedStage,
+  );
+  const candidateRows = useMemo(
+    () =>
+      candidates.map((candidate) => (
+        <CandidateRow candidate={candidate} key={candidate.id} />
+      )),
+    [candidates],
+  );
+  const candidateCards = useMemo(
+    () =>
+      candidates.map((candidate) => (
+        <CandidateCard candidate={candidate} key={candidate.id} />
+      )),
+    [candidates],
   );
 
   return (
@@ -338,16 +363,12 @@ export default function CandidateList() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {candidates.map((candidate) => (
-                      <CandidateRow candidate={candidate} key={candidate.id} />
-                    ))}
+                    {candidateRows}
                   </tbody>
                 </table>
               </div>
               <div className="divide-y divide-slate-100 md:hidden">
-                {candidates.map((candidate) => (
-                  <CandidateCard candidate={candidate} key={candidate.id} />
-                ))}
+                {candidateCards}
               </div>
             </>
           )}

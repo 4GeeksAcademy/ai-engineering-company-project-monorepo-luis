@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -14,7 +15,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-import CandidateForm from "@/components/candidate-form";
 import {
   addNote,
   deleteNote,
@@ -30,6 +30,17 @@ import {
   type Stage,
   type Status,
 } from "@/types";
+
+const CandidateForm = dynamic(() => import("@/components/candidate-form"), {
+  loading: () => (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+      role="status"
+    >
+      Cargando formulario...
+    </div>
+  ),
+});
 
 const statusLabels: Record<Status, string> = {
   received: "Recibido",
