@@ -152,37 +152,65 @@ compartido:
 | `/` | `CandidateForm` en el flujo de alta | El formulario solo se muestra al abrir el alta, pero actualmente se importa desde el componente de lista. Su archivo fuente ocupa 10.134 B. |
 | `/candidates/[id]` | `CandidateForm` en el flujo de edición | Solo se muestra al activar la edición, pero se importa al cargar el detalle. Diferir el módulo puede evitar cargar el formulario en ambas rutas hasta que se solicite. |
 
-La lista también construye filas de escritorio y tarjetas móviles a partir de los
-mismos candidatos en cada render. El campo de búsqueda actualiza estado en cada
-tecla sin filtrar la lista hasta enviar el formulario. Memoizar esas dos listas
-derivadas con `useMemo` y dependencia `[candidates]` es una hipótesis concreta
-para evaluar si el React Profiler confirma que la recreación tiene coste
-significativo con el tamaño real de página. No se recomienda memoizar cálculos
-triviales ni dar por probado un beneficio sin esa medición.
+El formulario condicional se carga con `next/dynamic` tanto en la ruta de alta
+(`/`) como en la de edición (`/candidates/[id]`); ambas muestran un estado de
+carga mientras se descarga el módulo. El componente solo se necesita cuando el
+usuario abre uno de esos formularios. Su archivo fuente ocupa 10.134 B. Esta es
+una medida del código fuente, no del chunk emitido ni de bytes transferidos.
+
+La lista memoiza con `useMemo` los elementos de filas de escritorio y tarjetas
+móviles, con `[candidates]` como dependencia. La transformación construye dos
+representaciones completas de la lista; estados de carga, error y apertura del
+formulario no cambian esos datos. Así se evita recrear los elementos durante
+esos renders. No se aplicó memoización a cálculos triviales. Sin React Profiler y
+una lista de tamaño representativo, el beneficio de renderizado sigue siendo
+cualitativo, no medido.
 
 Las mediciones de 16.482 B para `candidate-list.tsx` y 17.305 B para la página de
 detalle son tamaños de archivos fuente, no tamaños de transferencia. No se pudo
 obtener un perfil de React ni tamaños de red fiables durante esta etapa.
 
-## Validaciones y pendientes de la línea base
+## Etapa 4 — informe y aceptación
 
-- `npm run build` en el tracker no completó: webpack no pudo resolver
+Se integran en este informe el inventario de la API, las decisiones de frontend,
+las invalidaciones, los TTL, los intercambios de frescura y las comparaciones de
+latencia del backend con datos sintéticos. No se cachean respuestas de sesión,
+perfiles, cuentas ni movimientos internos.
+
+Validaciones frontend ejecutadas tras las optimizaciones:
+
+- `tsc --noEmit`: pasó.
+- ESLint enfocado en `app/candidate-list.tsx` y `app/candidates/[id]/page.tsx`:
+  pasó.
+- `npm run build`: bloqueado por la misma resolución local de Next.js observada
+  en la línea base. Webpack intenta resolver
   `./C:/Users/el_me/AppData/Local/nexova-build-cache/tracker-810d7d052aad/node_modules/next/dist/client/next.js`
-  ni `app-next.js`. Next.js también informó de lockfiles en la raíz y en el
-  tracker. No se modificó esa configuración como parte de esta auditoría.
-- `npm run lint` encontró un error preexistente en
-  `components/reset-password-form.tsx:35`: `react-hooks/set-state-in-effect`.
+  y `app-next.js`, que no encuentra. La instalación local contiene un enlace de
+  `node_modules/next` hacia una ruta diferente (`E:\Users\...`). No se cambió la
+  instalación ni la configuración para ocultar el error.
+- El lint global sigue teniendo el error preexistente de
+  `components/reset-password-form.tsx:35` (`react-hooks/set-state-in-effect`);
+  las dos rutas modificadas pasan el lint dirigido.
+
+Por el fallo de build no se pudieron confirmar los chunks de producción ni
+medir bytes transferidos para el lazy loading. El informe y el código cubren los
+requisitos de implementación, pero la aceptación del build y la medición visual
+del frontend quedan condicionadas a reparar la resolución de Next.js y repetir
+la validación en un entorno correcto.
+
+## Validaciones backend y pendientes generales
+
 - React DevTools Profiler y Network quedan pendientes: obtener un perfil con
-  una lista sintética representativa, verificar el coste de los renders y medir
-  chunks transferidos antes de cerrar la elección del `useMemo` y las cargas
-  diferidas.
-- La consola de FastAPI emitió una advertencia deprecada sobre
-  `starlette.testclient` con `httpx`; el benchmark sí terminó correctamente.
+  una lista sintética representativa, verificar el coste real de renders y medir
+  chunks transferidos.
+- La suite FastAPI pasó: 244 pruebas, 2 omitidas y 105 subtests. TestClient
+  emitió una advertencia de deprecación de `httpx`; las pruebas terminaron bien.
+- `compileall` para los módulos backend modificados y `git diff --check` pasaron.
 
 ## Siguiente comprobación
 
-En la etapa 3, completar el perfil del navegador con datos sintéticos para
-verificar el coste de render y los chunks antes de seleccionar las optimizaciones
-del frontend. Si se obtiene telemetría local por ruta, reevaluar los TTL según
-frecuencia y frescura. No cachear respuestas de autenticación, perfil, usuarios
-ni movimientos con identificadores/asignaciones personales.
+Resolver la instalación/ruta de Next.js y volver a ejecutar build; después,
+medir los chunks y el render con React Profiler/Network usando datos sintéticos.
+Si se obtiene telemetría local por ruta, reevaluar los TTL según frecuencia y
+frescura. No cachear respuestas de autenticación, perfil, usuarios ni
+movimientos con identificadores/asignaciones personales.
