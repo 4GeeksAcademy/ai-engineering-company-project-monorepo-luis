@@ -32,7 +32,11 @@ from services.api.incident_models import (
     IncidentSummary,
     validate_status_transition,
 )
-from services.api.incident_storage import open_incident_table
+from services.api.incident_storage import (
+    get_incident_database_path,
+    open_incident_table,
+)
+from services.api.response_cache import response_cache
 
 router = APIRouter(
     prefix="/api/incidents",
@@ -42,6 +46,11 @@ router = APIRouter(
 # In-memory store for the latest analysis result
 _latest_analysis_result: Optional[IncidentAnalysisResult] = None
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB limit
+INCIDENT_SUMMARY_CACHE_TTL_SECONDS = 30
+
+
+def _incident_summary_cache_key() -> tuple[str, str]:
+    return ("incidents:summary", str(get_incident_database_path()))
 
 
 def get_latest_result() -> Optional[IncidentAnalysisResult]:
@@ -76,40 +85,47 @@ def get_incidents_summary() -> IncidentSummary:
     Returns aggregated metrics by status, category, origin, and branch.
     Responds cleanly with zero values when the storage is empty.
     """
-    try:
-        with open_incident_table() as table:
-            records = table.all()
-    except OSError:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error accessing incident storage",
-        ) from None
+    def calculate_summary() -> IncidentSummary:
+        try:
+            with open_incident_table() as table:
+                records = table.all()
+        except OSError:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error accessing incident storage",
+            ) from None
 
-    status_counts: dict[str, int] = {st: 0 for st in ALLOWED_STATUSES}
-    category_counts: dict[str, int] = {cat: 0 for cat in ALLOWED_CATEGORIES}
-    origin_counts: dict[str, int] = {orig: 0 for orig in ALLOWED_ORIGINS}
-    branch_counts: dict[str, int] = {br: 0 for br in ALLOWED_BRANCHES}
+        status_counts: dict[str, int] = {st: 0 for st in ALLOWED_STATUSES}
+        category_counts: dict[str, int] = {cat: 0 for cat in ALLOWED_CATEGORIES}
+        origin_counts: dict[str, int] = {orig: 0 for orig in ALLOWED_ORIGINS}
+        branch_counts: dict[str, int] = {br: 0 for br in ALLOWED_BRANCHES}
 
-    for doc in records:
-        st = doc.get("status")
-        if st in status_counts:
-            status_counts[st] += 1
-        cat = doc.get("category")
-        if cat in category_counts:
-            category_counts[cat] += 1
-        orig = doc.get("origin")
-        if orig in origin_counts:
-            origin_counts[orig] += 1
-        br = doc.get("branch")
-        if br in branch_counts:
-            branch_counts[br] += 1
+        for doc in records:
+            st = doc.get("status")
+            if st in status_counts:
+                status_counts[st] += 1
+            cat = doc.get("category")
+            if cat in category_counts:
+                category_counts[cat] += 1
+            orig = doc.get("origin")
+            if orig in origin_counts:
+                origin_counts[orig] += 1
+            br = doc.get("branch")
+            if br in branch_counts:
+                branch_counts[br] += 1
 
-    return IncidentSummary(
-        total=len(records),
-        by_status=status_counts,  # type: ignore
-        by_category=category_counts,  # type: ignore
-        by_origin=origin_counts,  # type: ignore
-        by_branch=branch_counts,  # type: ignore
+        return IncidentSummary(
+            total=len(records),
+            by_status=status_counts,  # type: ignore
+            by_category=category_counts,  # type: ignore
+            by_origin=origin_counts,  # type: ignore
+            by_branch=branch_counts,  # type: ignore
+        )
+
+    return response_cache.get_or_set(
+        _incident_summary_cache_key(),
+        INCIDENT_SUMMARY_CACHE_TTL_SECONDS,
+        calculate_summary,
     )
 
 
@@ -139,6 +155,7 @@ def create_incident(incident: IncidentCreate) -> IncidentRecord:
             detail="Error persisting incident",
         ) from None
 
+    response_cache.invalidate(_incident_summary_cache_key())
     return _to_incident_record(document)
 
 
@@ -270,6 +287,7 @@ def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRec
             detail="Error updating incident status in storage",
         ) from None
 
+    response_cache.invalidate(_incident_summary_cache_key())
     return _to_incident_record(updated_doc)
 
 

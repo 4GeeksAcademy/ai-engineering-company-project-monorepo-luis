@@ -77,7 +77,7 @@ medición.
 | `PUT /profiles/me` | Actualiza el perfil de la sesión actual. | No cachear; escritura personalizada. |
 | `GET /health` | Devuelve un estado constante, sin consulta costosa. | No aporta un beneficio material de caché. |
 
-### Candidatas para confirmar antes de implementar
+### Hipótesis iniciales de la etapa 1
 
 1. `GET /api/incidents/summary`: el agregado hace un recorrido completo por los
    incidentes. Hipótesis inicial: TTL de hasta 30 s; invalidar después de crear
@@ -88,11 +88,58 @@ medición.
    o registrar una entrada/salida. Confirmar que la frecuencia justifica la
    caché y que el equipo acepta ese límite de frescura.
 
-Los TTL son hipótesis para evaluar, no decisiones de implementación. La medición
-actual no prueba alto tráfico ni una mejora perceptible. Si la telemetría no
-confirma lecturas repetidas, se debe reconsiderar la caché en vez de añadirla por
-cumplir una cuota. Si se usa caché en proceso, solo cubre una instancia; no es
-compartida entre varios workers.
+Los TTL eran hipótesis para evaluar: la medición sin caché no probaba alto
+tráfico ni una mejora perceptible.
+
+## Etapa 2 — caché del backend
+
+Se implementó `services/api/response_cache.py`, una caché en proceso con TTL
+basada en reloj monotónico. Devuelve copias de los valores para que una respuesta
+no pueda alterar el objeto guardado. Las claves de resumen incluyen la ruta de
+la base TinyDB y las claves de productos identifican el engine SQLModel; ninguna
+clave depende de credenciales, sesión o usuario.
+
+| Endpoint | TTL | Invalidación después de una escritura correcta |
+|---|---:|---|
+| `GET /api/incidents/summary` | 30 s | `POST /api/incidents` y `PATCH /api/incidents/{id}/status` |
+| `GET /inventory/products` | 15 s | `POST /inventory/products`, `POST /inventory/orders/inbound` y `POST /inventory/orders/outbound` |
+
+Son datos agregados/internos compartidos por diseño en estas rutas, no respuestas
+de sesión. La lectura puede quedar obsoleta como máximo hasta el TTL si otra
+instancia, un script o una escritura directa a la base modifica los datos sin
+pasar por estas rutas. Esta caché en proceso no se comparte entre workers o
+instancias; si el despliegue escala horizontalmente, habrá que sustituirla por
+una caché compartida o una estrategia de invalidación distribuida.
+
+### Comparación local de latencia
+
+Se repitió el benchmark con los mismos volúmenes de datos sintéticos de la línea
+base. Se midieron 40 lecturas sin caché después de cinco calentamientos en la
+línea base, y 40 lecturas con caché caliente después de una solicitud que llenó
+la caché en la medición posterior. Tiempos de `FastAPI TestClient`, en proceso;
+no son datos de producción.
+
+| Endpoint | Mediana sin caché | p95 sin caché | Mediana con caché caliente | p95 con caché caliente |
+|---|---:|---:|---:|---:|
+| `GET /api/incidents/summary` | 17,590 ms | 18,729 ms | 1,272 ms | 1,927 ms |
+| `GET /inventory/products` | 13,829 ms | 14,852 ms | 3,491 ms | 4,399 ms |
+
+En esta prueba, la mediana caliente bajó aproximadamente un 92,8 % para el
+resumen y un 74,8 % para el listado de productos. Es una comparación entre dos
+ejecuciones locales, sensible al entorno y sin latencia de red; no demuestra la
+frecuencia real de las llamadas ni permite prometer la misma mejora en
+producción.
+
+### Verificación de etapa
+
+- Pasaron 23 pruebas preexistentes: `test_incidents_crud_api.py` y
+  `test_inventory_api.py`.
+- Una comprobación local con datos sintéticos confirmó reutilización, copia
+  defensiva, expiración e invalidación al crear/cambiar incidentes, crear
+  productos y registrar movimientos de entrada/salida.
+- `compileall` para los tres módulos Python modificados y `git diff --check`
+  pasaron. TestClient emitió la advertencia conocida de deprecación de
+  `httpx`; no afecta el resultado de las pruebas.
 
 ## Revisión inicial del frontend
 
@@ -134,8 +181,8 @@ obtener un perfil de React ni tamaños de red fiables durante esta etapa.
 
 ## Siguiente comprobación
 
-Antes de implementar las optimizaciones, completar el perfil del navegador con
-datos sintéticos y recopilar telemetría local por ruta (cantidad y latencia de
-solicitudes). Comparar las lecturas medidas con la línea base descrita aquí y
-confirmar los TTL/invalidez propuestos. No cachear respuestas de autenticación,
-perfil, usuarios ni movimientos con identificadores/asignaciones personales.
+En la etapa 3, completar el perfil del navegador con datos sintéticos para
+verificar el coste de render y los chunks antes de seleccionar las optimizaciones
+del frontend. Si se obtiene telemetría local por ruta, reevaluar los TTL según
+frecuencia y frescura. No cachear respuestas de autenticación, perfil, usuarios
+ni movimientos con identificadores/asignaciones personales.
