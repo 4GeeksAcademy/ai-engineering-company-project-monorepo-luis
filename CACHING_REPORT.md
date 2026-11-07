@@ -182,15 +182,16 @@ Validaciones frontend ejecutadas tras las optimizaciones:
 - `tsc --noEmit`: pasó.
 - ESLint enfocado en `app/candidate-list.tsx` y `app/candidates/[id]/page.tsx`:
   pasó.
+- `npm run lint`: pasó después de corregir la inicialización del token en
+  `components/reset-password-form.tsx`.
 - `npm run build`: bloqueado por la misma resolución local de Next.js observada
   en la línea base. Webpack intenta resolver
   `./C:/Users/el_me/AppData/Local/nexova-build-cache/tracker-810d7d052aad/node_modules/next/dist/client/next.js`
-  y `app-next.js`, que no encuentra. La instalación local contiene un enlace de
-  `node_modules/next` hacia una ruta diferente (`E:\Users\...`). No se cambió la
-  instalación ni la configuración para ocultar el error.
-- El lint global sigue teniendo el error preexistente de
-  `components/reset-password-form.tsx:35` (`react-hooks/set-state-in-effect`);
-  las dos rutas modificadas pasan el lint dirigido.
+  y `app-next.js`, que no encuentra. `node_modules` apunta a una junction en
+  `C:\Users\el_me\AppData\Local\nexova-build-cache\tracker-810d7d052aad`.
+  `NODE_OPTIONS=--preserve-symlinks` no resolvió el error. No se pudo completar
+  una instalación local alternativa; se restauró la junction original y el
+  caché externo no se modificó.
 
 Por el fallo de build no se pudieron confirmar los chunks de producción ni
 medir bytes transferidos para el lazy loading. El informe y el código cubren los
