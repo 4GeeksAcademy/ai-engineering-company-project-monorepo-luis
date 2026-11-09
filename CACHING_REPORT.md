@@ -179,25 +179,19 @@ perfiles, cuentas ni movimientos internos.
 
 Validaciones frontend ejecutadas tras las optimizaciones:
 
+- `npm ci`: completó una instalación local desde el lockfile del tracker
+  (597 paquetes); el caché externo no se modificó.
 - `tsc --noEmit`: pasó.
 - ESLint enfocado en `app/candidate-list.tsx` y `app/candidates/[id]/page.tsx`:
   pasó.
 - `npm run lint`: pasó después de corregir la inicialización del token en
   `components/reset-password-form.tsx`.
-- `npm run build`: bloqueado por la misma resolución local de Next.js observada
-  en la línea base. Webpack intenta resolver
-  `./C:/Users/el_me/AppData/Local/nexova-build-cache/tracker-810d7d052aad/node_modules/next/dist/client/next.js`
-  y `app-next.js`, que no encuentra. `node_modules` apunta a una junction en
-  `C:\Users\el_me\AppData\Local\nexova-build-cache\tracker-810d7d052aad`.
-  `NODE_OPTIONS=--preserve-symlinks` no resolvió el error. No se pudo completar
-  una instalación local alternativa; se restauró la junction original y el
-  caché externo no se modificó.
+- `npm run build`: pasó con Next.js 16.3.4 y generó las rutas estáticas y
+  dinámicas esperadas. La instalación ya no depende de la junction externa.
 
-Por el fallo de build no se pudieron confirmar los chunks de producción ni
-medir bytes transferidos para el lazy loading. El informe y el código cubren los
-requisitos de implementación, pero la aceptación del build y la medición visual
-del frontend quedan condicionadas a reparar la resolución de Next.js y repetir
-la validación en un entorno correcto.
+No se capturaron todavía perfiles de React ni mediciones de bytes transferidos
+para el lazy loading; la validación del build confirma compilación, no el impacto
+de rendimiento en el navegador.
 
 ## Validaciones backend y pendientes generales
 
@@ -210,8 +204,7 @@ la validación en un entorno correcto.
 
 ## Siguiente comprobación
 
-Resolver la instalación/ruta de Next.js y volver a ejecutar build; después,
-medir los chunks y el render con React Profiler/Network usando datos sintéticos.
+Medir los chunks y el render con React Profiler/Network usando datos sintéticos.
 Si se obtiene telemetría local por ruta, reevaluar los TTL según frecuencia y
 frescura. No cachear respuestas de autenticación, perfil, usuarios ni
 movimientos con identificadores/asignaciones personales.
