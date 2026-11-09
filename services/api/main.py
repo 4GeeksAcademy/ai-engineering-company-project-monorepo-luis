@@ -14,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from services.api.database import init_db
+from services.api.response_models import HealthResponse
 from services.api.routers.auth import router as auth_router
 from services.api.routers.incidents import router as incidents_router
 from services.api.routers.inventory import router as inventory_router
@@ -124,10 +125,10 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 
-@app.get("/health", tags=["Health"])
-async def health_check():
+@app.get("/health", response_model=HealthResponse, tags=["Health"])
+async def health_check() -> HealthResponse:
     """Service health verification endpoint."""
-    return {"status": "ok", "service": "nexova-api"}
+    return HealthResponse(status="ok", service="nexova-api")
 
 
 if __name__ == "__main__":

@@ -68,6 +68,37 @@ def test_get_products_empty(client: TestClient):
     response = client.get("/inventory/products")
     assert response.status_code == 200
     assert response.json() == []
+    assert client.get("/inventory/orders").json() == []
+    spec = client.get("/openapi.json").json()
+    routes = {
+        ("/inventory/products", "get"): ("200", "AssetRead", True),
+        ("/inventory/products", "post"): ("201", "AssetRead", False),
+        ("/inventory/products/{id}", "get"): ("200", "AssetRead", False),
+        ("/inventory/orders/inbound", "post"): ("201", "AssetEntryRead", False),
+        ("/inventory/orders/outbound", "post"): ("201", "AssetExitRead", False),
+        ("/inventory/orders", "get"): ("200", "OrderItemRead", True),
+    }
+    for (path, method), (code, model, is_list) in routes.items():
+        operation = spec["paths"][path][method]
+        schema = operation["responses"][code]["content"]["application/json"]["schema"]
+        if is_list:
+            assert schema["type"] == "array"
+            schema = schema["items"]
+        assert schema["$ref"].endswith(f"/{model}")
+        assert bool(operation.get("security")) == (method == "post")
+        for error_code in ("500",) + (("401",) if method == "post" else ()):
+            error = operation["responses"][error_code]["content"]["application/json"]["schema"]
+            assert error["$ref"].endswith("/DetailErrorResponse")
+        if "{id}" in path or "/orders/" in path:
+            assert "404" in operation["responses"]
+        if method == "post" and path in ("/inventory/products", "/inventory/orders/outbound"):
+            assert "400" in operation["responses"]
+        if method == "post" or "{id}" in path:
+            assert "422" in operation["responses"]
+    for model in ("AssetCreate", "AssetEntryCreate", "AssetExitCreate"):
+        schema = spec["components"]["schemas"][model]
+        assert schema["additionalProperties"] is False
+        assert not {"id", "created_at", "user_uuid", "current_stock"} & schema["properties"].keys()
 
 
 def test_create_product_requires_auth(client: TestClient):
@@ -97,6 +128,11 @@ def test_create_product_success(client: TestClient):
     assert data["name"] == "Portátil 14\" Business"
     assert data["sku"] == "NXV-IT-001"
     assert data["current_stock"] == 0
+    assert set(data) == {"id", "name", "sku", "category", "office", "current_stock"}
+    assert {key: data[key] for key in payload} == payload
+    app.dependency_overrides.pop(get_current_user)
+    assert client.get("/inventory/products").json() == [data]
+    assert client.get(f"/inventory/products/{data['id']}").json() == data
 
 
 def test_create_product_duplicate_sku_fails(client: TestClient):
@@ -148,6 +184,7 @@ def test_get_product_by_id(client: TestClient):
     assert get_res.status_code == 200
     assert get_res.json()["sku"] == "NXV-PER-001"
     assert get_res.json()["current_stock"] == 0
+    assert get_res.json() == create_res.json()
 
     not_found = client.get("/inventory/products/99999")
     assert not_found.status_code == 404
@@ -185,6 +222,13 @@ def test_inbound_order_lifecycle(client: TestClient):
     inbound_data = inbound_res.json()
     assert inbound_data["quantity"] == 10
     assert inbound_data["user_uuid"] == "42"  # String representation of user ID
+    assert set(inbound_data) == set(inbound_payload) | {"id", "created_at", "user_uuid"}
+    assert {key: inbound_data[key] for key in inbound_payload} == inbound_payload
+    datetime.fromisoformat(inbound_data["created_at"])
+    for field, value in (("id", 99), ("created_at", "2030-01-02T03:04:05"), ("user_uuid", "84"), ("current_stock", 99)):
+        rejected = client.post("/inventory/orders/inbound", json={**inbound_payload, field: value})
+        assert rejected.status_code == 422
+    assert client.post("/inventory/orders/inbound", json={**inbound_payload, "asset_id": 99999}).status_code == 404
 
     # Stock should now be 10
     stock_res = client.get(f"/inventory/products/{asset_id}")
@@ -264,6 +308,15 @@ def test_outbound_order_validation_and_insufficient_stock(client: TestClient):
     success_res = client.post("/inventory/orders/outbound", json=valid_payload)
     assert success_res.status_code == 201
     assert success_res.json()["user_uuid"] == "42"
+    outbound_data = success_res.json()
+    assert set(outbound_data) == set(valid_payload) | {"id", "created_at", "user_uuid"}
+    assert {key: outbound_data[key] for key in valid_payload} == valid_payload
+    datetime.fromisoformat(outbound_data["created_at"])
+    for field, value in (("id", 99), ("created_at", "2030-01-02T03:04:05"), ("user_uuid", "84"), ("current_stock", 99)):
+        assert client.post("/inventory/orders/outbound", json={**valid_payload, field: value}).status_code == 422
+    assert client.post("/inventory/orders/outbound", json={**valid_payload, "asset_id": 99999}).status_code == 404
+    app.dependency_overrides.pop(get_current_user)
+    assert client.post("/inventory/orders/outbound", json=valid_payload).status_code == 401
 
     # Stock should now be 2 (5 - 3)
     assert client.get(f"/inventory/products/{asset_id}").json()["current_stock"] == 2
@@ -349,6 +402,7 @@ def test_get_orders_list(client: TestClient):
     )
 
     # List orders
+    app.dependency_overrides.pop(get_current_user)
     orders_res = client.get("/inventory/orders")
     assert orders_res.status_code == 200
     orders = orders_res.json()
@@ -358,6 +412,23 @@ def test_get_orders_list(client: TestClient):
     movement_types = {o["movement_type"] for o in orders}
     assert movement_types == {"inbound", "outbound"}
     for order in orders:
+        assert set(order) == {
+            "id", "movement_type", "asset_id", "asset_name", "asset_sku", "quantity",
+            "office", "supplier", "exit_type", "assigned_to", "created_at", "user_uuid",
+        }
+        assert order["asset_id"] == asset_id
         assert order["asset_name"] == "Hub USB-C"
         assert order["asset_sku"] == "NXV-PER-002"
         assert order["user_uuid"] == "42"
+        datetime.fromisoformat(order["created_at"])
+        if order["movement_type"] == "inbound":
+            assert order["supplier"] == "Office Depot Miami"
+            assert order["quantity"] == 15
+            assert order["exit_type"] is None
+        else:
+            assert order["supplier"] is None
+            assert order["exit_type"] == "consumption"
+            assert order["quantity"] == 4
+        assert order["assigned_to"] is None
+    assert orders == sorted(orders, key=lambda order: (order["created_at"], order["id"]), reverse=True)
+    assert client.get(f"/inventory/products/{asset_id}").json()["current_stock"] == 11

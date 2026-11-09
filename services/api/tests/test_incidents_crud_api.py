@@ -63,6 +63,35 @@ class TestIncidentsCrudAPI(unittest.TestCase):
         self.assertEqual(data["branch"], "central")
         self.assertIn("created_at", data)
         self.assertIn("updated_at", data)
+        self.assertEqual(set(data), {
+            "id", "title", "description", "category", "origin", "branch",
+            "status", "created_at", "updated_at",
+        })
+        self.assertEqual(data["created_at"], data["updated_at"])
+        schema = self.client.get("/openapi.json").json()
+        paths = schema["paths"]
+        list_ref = paths["/api/incidents"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["items"]["$ref"]
+        self.assertTrue(list_ref.endswith("/IncidentListItem"))
+        row_schema = schema["components"]["schemas"]["IncidentListItem"]
+        self.assertEqual(set(row_schema["properties"]), set(data) - {"updated_at"})
+        self.assertEqual(set(row_schema["required"]), set(data) - {"updated_at"})
+        self.assertFalse(row_schema["additionalProperties"])
+        for path, method, code in (
+            ("/api/incidents", "post", "201"),
+            ("/api/incidents/{id}", "get", "200"),
+            ("/api/incidents/{id}/status", "patch", "200"),
+        ):
+            operation = paths[path][method]
+            self.assertTrue(operation["responses"][code]["content"]["application/json"]["schema"]["$ref"].endswith("/IncidentRecord"))
+        for path, method in (
+            ("/api/incidents", "post"), ("/api/incidents", "get"),
+            ("/api/incidents/{id}", "get"), ("/api/incidents/{id}/status", "patch"),
+        ):
+            operation = paths[path][method]
+            self.assertNotIn("security", operation)
+            self.assertIn("400", operation["responses"])
+            self.assertIn("500", operation["responses"])
+            self.assertNotIn("422", operation["responses"])
 
     def test_create_incident_validation_failures(self):
         # Missing required field
@@ -82,6 +111,14 @@ class TestIncidentsCrudAPI(unittest.TestCase):
             payload = self.valid_payload(**{blank_field: "   "})
             response = self.client.post("/api/incidents", json=payload)
             self.assertEqual(response.status_code, 400)
+        for field in ("id", "created_at", "updated_at", "hashed_password", "user_id"):
+            response = self.client.post(
+                "/api/incidents", json=self.valid_payload(**{field: "synthetic-internal"})
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(set(response.json()), {"detail", "errors"})
+            self.assertEqual(set(response.json()["errors"][0]), {"field", "message"})
+        self.assertEqual(self.client.get("/api/incidents").json(), [])
 
         # Invalid enums
         for field, invalid_val in (
@@ -149,6 +186,20 @@ class TestIncidentsCrudAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()), 1)
         self.assertEqual(resp.json()[0]["title"], "Incident 2")
+        for row in resp.json():
+            self.assertEqual(set(row), {
+                "id", "title", "description", "category", "origin",
+                "branch", "status", "created_at",
+            })
+            detail_response = self.client.get(f"/api/incidents/{row['id']}")
+            detail = detail_response.json()
+            self.assertEqual(row, {key: value for key, value in detail.items() if key != "updated_at"})
+            self.assertLess(len(resp.content), len(detail_response.content))
+        all_filters = self.client.get(
+            "/api/incidents?status=open&origin=branch&branch=valencia_operations&category=process_error"
+        )
+        self.assertEqual(all_filters.status_code, 200)
+        self.assertEqual(all_filters.json(), resp.json())
 
         # Filter with no matches
         resp = self.client.get("/api/incidents?branch=remote")
@@ -178,11 +229,15 @@ class TestIncidentsCrudAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["id"], inc_id)
         self.assertEqual(resp.json()["title"], created["title"])
+        self.assertEqual(resp.json(), created)
 
         # Non-existing ID
         not_found = self.client.get("/api/incidents/999999")
         self.assertEqual(not_found.status_code, 404)
         self.assertIn("not found", not_found.json()["detail"].lower())
+        invalid = self.client.get("/api/incidents/not-an-integer")
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(set(invalid.json()), {"detail", "errors"})
 
     # =========================================================================
     # PATCH /api/incidents/{id}/status (Lifecycle transitions)
@@ -206,6 +261,24 @@ class TestIncidentsCrudAPI(unittest.TestCase):
         )
         self.assertEqual(patch2.status_code, 200)
         self.assertEqual(patch2.json()["status"], "resolved")
+        for response in (patch1, patch2):
+            body = response.json()
+            self.assertEqual(set(body), set(created))
+            for key in set(created) - {"status", "updated_at"}:
+                self.assertEqual(body[key], created[key])
+            self.assertGreaterEqual(body["updated_at"], created["updated_at"])
+        self.assertEqual(self.client.get(f"/api/incidents/{inc_id}").json(), patch2.json())
+        summary = self.client.get("/api/incidents/summary").json()
+        self.assertEqual(summary["total"], 1)
+        self.assertEqual(summary["by_status"]["resolved"], 1)
+        for payload in (
+            {"status": "open", "updated_at": "synthetic"},
+            {"status": "unknown"}, {},
+        ):
+            response = self.client.patch(f"/api/incidents/{inc_id}/status", json=payload)
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("errors", response.json())
+        self.assertEqual(self.client.get(f"/api/incidents/{inc_id}").json(), patch2.json())
 
     def test_status_transitions_discard_path(self):
         # open -> discarded
@@ -265,6 +338,12 @@ class TestIncidentsCrudAPI(unittest.TestCase):
         resp = self.client.get("/api/incidents/summary")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
+        self.assertEqual(set(data), {"total", "by_status", "by_category", "by_origin", "by_branch"})
+        for field, keys in (
+            ("by_status", ALLOWED_STATUSES), ("by_category", ALLOWED_CATEGORIES),
+            ("by_origin", ALLOWED_ORIGINS), ("by_branch", ALLOWED_BRANCHES),
+        ):
+            self.assertEqual(set(data[field]), set(keys))
         self.assertEqual(data["total"], 0)
         for st in ALLOWED_STATUSES:
             self.assertEqual(data["by_status"][st], 0)
@@ -293,6 +372,8 @@ class TestIncidentsCrudAPI(unittest.TestCase):
 
         self.assertEqual(data["by_origin"]["customer"], 96)
         self.assertEqual(data["by_branch"]["central"], 96)
+        for field in ("by_status", "by_category", "by_origin", "by_branch"):
+            self.assertEqual(sum(data[field].values()), data["total"])
 
     # =========================================================================
     # Error sanitization (no stack traces on 500)

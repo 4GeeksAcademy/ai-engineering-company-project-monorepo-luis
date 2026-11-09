@@ -2,6 +2,231 @@
 
 Última actualización: 2026-09-25
 
+## Auditoria de serializacion backend — Etapa 8
+
+2026-11-05. Base publicada etapa 7:
+`3a871db73583a52a3fa9c626baaad657ab9346b7`.
+
+- Cierre tecnico: 32 operaciones contrastadas con rutas/OpenAPI, 31 modelos
+  JSON y CSV explicito; inputs separados, sin credenciales en outputs.
+- Suite API completa pytest: 244 tests/121 subtests pasan, dos omitidos
+  Windows/entrypoint. CLI Windows comprobado aparte con DB temporal. Nueve
+  tests analizador y siete Node pasan. Sin repeticion de suite backend.
+- Swagger: registro/login, proveedores/historial y analisis/export ejecutados.
+  CSV real, errores y ausencia de filas/correo comprobados; el usuario confirma
+  que el instructor acepto la excepcion CSV.
+- Usuario autoriza resolver bloqueos previos: proveedores/CSV ahora usan
+  cliente autenticado compartido, Blob y errores JSON/401; directorio recarga
+  al login, limpia al logout y descarta respuestas obsoletas de filtros.
+- Reset tracker inicializa token en estado sin setState en efecto; lint y build
+  globales pasan en replica C: de 44 archivos cotejados, sin `.env*`.
+- Navegador local: tarjetas, historial, incidencias, CSV y registro/perfil/reset
+  tracker comprobados. Candidatos externos mockeados; solo datos sinteticos.
+- **PR manual pendiente por decision del usuario**: `main` <- `docs/auditoria-back`,
+  titulo `feat: serialization audit and implementation`; enlace de preparacion
+  y evidencia final en `docs/serialization-audit.md`. No se afirma PR creada ni
+  entrega al instructor finalizada. Commit/push de cierre y limpieza al terminar.
+
+## Auditoria de serializacion backend — Etapa 7
+
+2026-11-05. Base publicada de etapa 6:
+`95d8b1e6462dd1ffee905ccef04530c81dfe0f5c`; rama limpia `docs/auditoria-back`.
+
+- Contratos de inventario conservados: `AssetRead` seis campos, confirmaciones
+  entrada/salida siete/ocho y `OrderItemRead` plano de doce. Todos justificados
+  en auditoria; sin movimientos/usuario ORM anidados ni metadata editable.
+- Historial corrige cuatro referencias a `movement_type`, `asset_name`,
+  `asset_sku` y condicion de entrada; ahora renderiza tipo/activo/SKU/proveedor.
+- `user_uuid` es ID autenticado como string; ID movimiento acotado por tipo.
+  Precisiones en OpenAPI, junto a errores 400/401/404/500 existentes.
+- 33 tests inventario API/modelos/servicio/seed y siete Node pasan. Fallo de
+  renderizado reproducido antes del cambio y corregido. Sintaxis correcta;
+  sin dependencias, consultas, persistencia, permisos o stock modificados.
+- Lecturas siguen publicas y escrituras autenticadas. Solo uso local/demo
+  y datos sinteticos; esta auditoria no habilita publicar autor/destino reales.
+- Seis V7; las 32 operaciones tienen evidencia tecnica por etapas. Aceptacion
+  global/manual, suite completa y PR quedan para etapa 8; CSV para instructor.
+- Commit/push al cierre; registrar hash al iniciar etapa 8. No avanzar sin
+  autorizacion.
+
+## Auditoria de serializacion backend — Etapa 6
+
+2026-11-05. Base publicada de etapa 5:
+`14ee135e3896ce2bf3fc92f8c66c6e2206ffcf20`; rama limpia `docs/auditoria-back`.
+
+- Listado proveedores usa `SupplierListItem`, diez campos de tarjetas sin
+  `updated_at`; contacto/notas/renovacion y nulls conservados. Detalle/alta/PATCH
+  mantienen `SupplierRecord` completo de once campos y timestamp UTC.
+- PATCH completo conservado por compatibilidad; tarifa actualiza timestamp,
+  estado no. Inputs separados, sin campos server-managed escribibles.
+- OpenAPI documenta errores 401/500 de router y 404 de recurso; sin cambios de
+  permisos, handlers, validacion 422, filtros AND, frontend, storage o versiones.
+- 20 tests focalizados pasan: API/modelos/seed, campos exactos, payload reducido,
+  opcionales, listado vacio, actualizaciones persistidas, escritura rechazada,
+  autenticacion y borrado. Datos temporales, SQLite en memoria; avisos conocidos.
+- Auditoria marca cinco V6 y revalida DELETE V3. Solo seis operaciones inventario
+  pendientes de etapa 7. Validacion manual/Swagger y suite completa en etapa 8.
+- Commit/push al cierre verificados; registrar hash en etapa 7. No avanzar sin
+  autorizacion.
+
+## Auditoria de serializacion backend — Etapa 5
+
+2026-11-05. Base publicada de etapa 4:
+`297622c8c7fac2199145e127a1ed14a6eb035fac`; rama limpia `docs/auditoria-back`.
+
+- `GET /api/incidents` usa `IncidentListItem`, ocho campos de tabla, sin
+  `updated_at`. Cambio intencional documentado; descripcion/fecha de creacion
+  conservadas. Detalle/alta/PATCH mantienen `IncidentRecord` completo.
+- Base de lectura compartida y normalizacion UTC preservadas. Listado valida
+  registro almacenado antes de proyectar; no retorno TinyDB sin control.
+- Resumen conserva total y cuatro dimensiones con claves/ceros. PATCH completo
+  mantenido por compatibilidad, aunque selector solo use estado.
+- Errores CRUD 400/404/500 documentados en OpenAPI; fallback 4XX evita 422
+  automatico que no refleja el handler. No cambio de acceso publico, filtros,
+  transiciones, storage, frontend ni contratos de analisis/CSV.
+- 32 tests focalizados pasan sin omitidos, 5.965 s: CRUD/modelos/analisis HTTP.
+  Metodos existentes ampliados para campos/OpenAPI, reduccion medida en bytes,
+  cuatro filtros AND, campos no escribibles, timestamps y resumen coherente.
+- Diagnosticos sin errores; avisos conocidos sin fallo. Datos/bases temporales
+  e inventario en memoria; sin .env ni sistemas reales.
+- Auditoria marca cinco V5 conservando inicial; quedan 11 operaciones etapas 6/7.
+  Manual UI/Swagger y suite completa en etapa 8. Commit/push al cierre verificados,
+  hash a registrar al comenzar etapa 6; no avanzar automaticamente.
+
+## Auditoria de serializacion backend — Etapa 4
+
+2026-11-04. Base publicada de etapa 3:
+`2ddfb6fa993101ff3b96bc4e129218327a50b57f`; rama limpia `docs/auditoria-back`.
+
+- Analisis declara `IncidentAnalysisResponse` completo (ocho campos y esquema
+  anidado de satisfaccion). Se valida `to_dict()` antes de actualizar ultimo
+  resultado; no publicar dataclass/filas/row_errors. Biblioteca/CSV sin cambios.
+- Contadores no negativos, media null o finita 1-5, categorias/estados helpdesk
+  y claves score 1-5. Un fallo de revalidacion de claves JSON se corrigio con
+  conversion estandar de enteros acotados; payload JSON existente preservado.
+- Export conserva texto CSV y documenta `text/csv`, columnas `metric,value`,
+  metricas, cabeceras y errores JSON en OpenAPI. `response_model=None` intencional,
+  no fingir JSON. Excepcion pendiente de aceptacion del instructor, no bloqueo
+  tecnico ni aprobacion academica final.
+- Errores existentes preservados/documentados: analisis 400/401/413/500 y
+  export 401/404/500. `4XX` en OpenAPI evita 422 automatico incompatible con
+  handler de validacion 400; handlers y permisos no cambiados.
+- 26 tests focalizados pasan sin omitidos, 4.001 s: HTTP analisis/export,
+  modelos incidentes y analizador compartido. Tests existentes ampliados con
+  shape/OpenAPI, header-only, sin puntuaciones, varias infracciones/fila, privacidad,
+  limite de tamano simulado, multipart faltante y fallo interno saneado.
+- Verificacion adicional: 20 agregados invalidos rechazados y 32 operaciones
+  con contratos de exito (31 JSON + 1 CSV), sin JSON de exito vacio.
+  Pylance/diagnosticos y diff correctos; avisos conocidos sin fallo.
+- Auditoria marca V4/V4-CSV, conserva original y documenta evidencia/limites.
+  Swagger manual y suite completa en etapa 8; sin checks frontend ajenos.
+- Cierre con commit/push verificado; registrar hash al iniciar etapa 5.
+  No avanzar a CRUD incidentes sin autorizacion.
+
+## Auditoria de serializacion backend — Etapa 3
+
+2026-11-04. Base publicada de etapa 2:
+`793e49d5562ebc099635c77532631461055daf7e`; rama limpia `docs/auditoria-back`
+al comenzar. Entrada actual; los estados historicos posteriores se conservan.
+
+- Añadido `services/api/response_models.py`: `HealthResponse` con dos constantes
+  obligatorias y `DeletionResponse` comun con ID entero estricto positivo y
+  `deleted: true`; ambos rechazan campos extra.
+- Health y DELETE de usuarios/proveedores declaran `response_model` y construyen
+  esos modelos. Conservan HTTP 200, JSON original, permisos, cascada y errores;
+  sin frontend, dependencias ni cambios de persistencia.
+- Ampliados tests existentes de health/usuarios/proveedores, sin nuevas pruebas
+  en archivos separados: OpenAPI, shape, requeridos, extras y entradas invalidas
+  de modelos; tests de permisos/borrado regresionan el flujo existente.
+- 28 tests focalizados pasan sin omitidos, 30.367 s; SQLite en memoria y TinyDB
+  temporal. Avisos Starlette/httpx y conexiones SQLite de fixtures, sin fallos.
+- OpenAPI confirma 32 operaciones; tres contratos nuevos, 30 response models
+  explicitos en total. Solo analisis JSON y export CSV quedan para etapa 4.
+- Sintaxis Python y `git diff --check` correctos. Auditoria registra V3 para las
+  tres operaciones, preservando estado inicial. Suite completa/Swagger en etapa 8.
+- Cierre con commit/push y verificacion local/remota; registrar hash al iniciar
+  etapa 4. No avanzar automaticamente ni ejecutar checks frontend ajenos.
+
+## Auditoria de serializacion backend — Etapa 1
+
+Actualizado: 2026-11-02. Rama `docs/auditoria-back`; base limpia en
+`6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`. Esta entrada no reemplaza ni declara
+vigentes las ramas/estados historicos de los hitos anteriores.
+
+- Creado `docs/serialization-audit.md`: 32 operaciones con entrada, forma actual,
+  origen, consumidor, clasificacion inicial, objetivo y etapa de verificacion.
+- Confirmado OpenAPI con GET 200 mediante TestClient sin lifespan, sin JWT,
+  bases reales, seeds ni lectura de `.env*`. Python existente de la API; sin
+  instalaciones. Consulta corregida para incluir las rutas de routers.
+- 27 operaciones declaran modelos Pydantic; dos DELETE infieren diccionario
+  generico sin claves fijas; health/analisis carecen de esquema fijo y el export
+  CSV se anuncia incorrectamente como JSON. No se cambiaron contratos.
+- Registro devuelve email y el formulario tracker descarta el body: propuesta
+  de confirmacion separada y ajuste coordinado del tipo del cliente en etapa 2.
+- Consumidores usan descripcion, contacto/notas y autor/destino; justificar
+  cualquier reduccion. Historial inventario espera alias diferentes de los
+  campos canonicos publicados: alinear en etapa 7.
+- Tablero de ocho etapas y flujo de cierre por commit/push documentados.
+  Excepcion CSV requiere confirmar aceptacion del instructor para entrega final.
+- Corregida fila malformada de login en `auditoria-back.md`; enlazado entregable
+  oficial desde guia y README API. Sin nuevas pruebas ni suite de negocio en
+  etapa documental; Swagger/UI y verificacion integral pendientes.
+- Validacion documental satisfactoria: 32 filas numeradas coinciden con OpenAPI;
+  recuentos de clasificacion, enlaces y referencias comprobados. La fila de login
+  coincide con las cuatro columnas del encabezado; `git diff --check` correcto.
+- Publicacion de etapa 1: verificar commit/push al cierre; registrar el hash
+  publicado al comenzar etapa 2. No abrir PR final ni avanzar sin autorizacion.
+
+### Etapa 2 — Autenticacion, usuarios y perfiles
+
+2026-11-02. Base publicada de etapa 1:
+`3c6de178eeaf1360ca346dd4bd8443a344b7968f`; rama limpia `docs/auditoria-back`.
+
+- Registro publico conserva 201 y creacion de usuario/perfil; respuesta separada
+  de `UserResponse`: `AuthActionResponse` con solo `message`, sin email ni
+  metadata/credenciales. Reutiliza esquema existente, sin modelo duplicado.
+- Cliente tracker devuelve `Promise<NexovaAuthActionResponse>` en registro.
+  Formulario sigue haciendo login con su input; no cambio de UX ni API externa.
+- Se mantienen login JSON/OAuth2, me (email propio/rol/perfil), recuperacion,
+  permisos de gestion, listado plano U y perfiles con IDs explicitos read-only.
+  Justificacion y campos originales/cambios registrados en la auditoria.
+- Tests existentes actualizados, sin nueva suite/archivos: confirmacion/OpenAPI,
+  campos exactos, creacion interna y login tras registro, perfil omitido/null.
+- Validacion focalizada: 84 descubiertos, 83 pasan y 1 omitido en Windows.
+  SQLite en memoria, TinyDB temporal y sender inyectado; sin datos/email reales.
+- Bloqueo inicial de etapa 2 (resuelto para validacion el 2026-11-03):
+  `npm` no arranca por politica PowerShell; `npm.cmd` inicia
+  ESLint pero falla `Cannot find module` en `node_modules\zod\v4\index.cjs`.
+  Lint/build del tracker no aprobados; el error precede al analisis de codigo.
+- Dos restauraciones desde lockfile detenidas por falta de finalizacion: online
+  mas de diez minutos en `idealTree buildDeps`; offline encontro cache hits pero
+  no termino tras varios minutos. Registro publico respondio 200; causa exacta
+  no determinada, dependencias locales pueden quedar incompletas. Procesos
+  detenidos, sin cambios de versiones/manifiestos ni nuevos servicios activos.
+- En ese punto se detuvo sin staging/commit/push; cierre posterior abajo.
+- Swagger/UI manuales, documentacion integral de errores OpenAPI y suite completa
+  no declarados completados; permanecen para cierre del hito.
+
+#### Cierre de etapa 2 — 2026-11-03
+
+- E: extremadamente lenta: cinco escrituras/borrados en 9.098 ms frente a 18 ms
+  en C:. Restauracion identica en C: completa, 597 paquetes en 34 segundos; sin
+  cambios de manifiestos/lockfiles. Copia paralela fisica a E: autorizada, pero
+  detenida por lentitud; los enlaces entre unidades exponen errores de Next/SWC.
+- Lint del cliente pasa. Build estandar y TypeScript pasan sobre replica en C:
+  de los 44 archivos actuales versionados del tracker, todos cotejados por SHA-256;
+  sin leer/copiar `.env*` ni parchear codigo/configuracion/dependencias.
+- El build directo del checkout E: con dependencias enlazadas a C: sigue siendo
+  una limitacion del entorno, no se presenta como resuelto. La replica verifica
+  el codigo exacto que se publica, no una variante ni codigo anterior.
+- Backend confirmado otra vez: mismos cuatro modulos focalizados, 84 descubiertos,
+  83 pasan, 1 omitido Windows, 50.672 s; inventario en memoria y auth temporal.
+  Avisos Starlette/httpx y conexiones SQLite de fixtures, sin fallos.
+- Auditoria marca 11 operaciones V2 y etapa 2 completada, conserva estado inicial,
+  justifica campos/relaciones y deja aceptacion manual/global para etapa 8.
+- Commit/push de etapa 2 al cierre, con hash local/remoto verificado; registrar
+  hash publicado al comenzar etapa 3. No avanzar sin autorizacion.
+
 ## Estado inicial observado
 
 - Revisión documental de la etapa 1 completada para `ingenieria-ia.md`, `CONTEXT.md`, `SPEC.md` y README relevantes.

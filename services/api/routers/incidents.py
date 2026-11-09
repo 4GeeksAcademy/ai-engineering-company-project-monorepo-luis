@@ -27,9 +27,12 @@ from services.api.incident_models import (
     ALLOWED_ORIGINS,
     ALLOWED_STATUSES,
     IncidentCreate,
+    IncidentAnalysisResponse,
+    IncidentListItem,
     IncidentRecord,
     IncidentStatusUpdate,
     IncidentSummary,
+    IncidentValidationErrorResponse,
     validate_status_transition,
 )
 from services.api.incident_storage import (
@@ -79,6 +82,9 @@ def _to_incident_record(document: Any) -> IncidentRecord:
     "/summary",
     response_model=IncidentSummary,
     summary="Operational metrics summary across incident dimensions",
+    responses={
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+    },
 )
 def get_incidents_summary() -> IncidentSummary:
     """
@@ -134,6 +140,11 @@ def get_incidents_summary() -> IncidentSummary:
     response_model=IncidentRecord,
     status_code=http_status.HTTP_201_CREATED,
     summary="Create a new incident",
+    responses={
+        400: {"model": IncidentValidationErrorResponse, "description": "Invalid incident payload."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def create_incident(incident: IncidentCreate) -> IncidentRecord:
     """
@@ -161,15 +172,20 @@ def create_incident(incident: IncidentCreate) -> IncidentRecord:
 
 @router.get(
     "",
-    response_model=list[IncidentRecord],
+    response_model=list[IncidentListItem],
     summary="List incidents with optional combinable filters",
+    responses={
+        400: {"model": DetailErrorResponse | IncidentValidationErrorResponse, "description": "Invalid filter or query."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def list_incidents(
     status: Optional[str] = Query(None, description="Filter by status"),
     origin: Optional[str] = Query(None, description="Filter by origin"),
     branch: Optional[str] = Query(None, description="Filter by branch"),
     category: Optional[str] = Query(None, description="Filter by category"),
-) -> list[IncidentRecord]:
+) -> list[IncidentListItem]:
     """
     List all stored incidents.
     Supports combinable filtering by status, origin, branch, and category.
@@ -205,7 +221,7 @@ def list_incidents(
             detail="Error retrieving incidents from storage",
         ) from None
 
-    results: list[IncidentRecord] = []
+    results: list[IncidentListItem] = []
     for doc in docs:
         if status is not None and doc.get("status") != status:
             continue
@@ -215,7 +231,8 @@ def list_incidents(
             continue
         if category is not None and doc.get("category") != category:
             continue
-        results.append(_to_incident_record(doc))
+        record = _to_incident_record(doc)
+        results.append(IncidentListItem.model_validate(record.model_dump(exclude={"updated_at"})))
 
     return results
 
@@ -224,6 +241,12 @@ def list_incidents(
     "/{id}",
     response_model=IncidentRecord,
     summary="Retrieve an incident by ID",
+    responses={
+        400: {"model": IncidentValidationErrorResponse, "description": "Invalid incident ID."},
+        404: {"model": DetailErrorResponse, "description": "Incident not found."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def get_incident(id: int) -> IncidentRecord:
     """
@@ -252,6 +275,12 @@ def get_incident(id: int) -> IncidentRecord:
     "/{id}/status",
     response_model=IncidentRecord,
     summary="Update an incident lifecycle status",
+    responses={
+        400: {"model": DetailErrorResponse | IncidentValidationErrorResponse, "description": "Invalid payload, ID or lifecycle transition."},
+        404: {"model": DetailErrorResponse, "description": "Incident not found."},
+        500: {"model": DetailErrorResponse, "description": "Storage or internal server error."},
+        "4XX": {"model": DetailErrorResponse, "description": "Other client errors; validation uses HTTP 400."},
+    },
 )
 def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRecord:
     """
@@ -298,11 +327,29 @@ def update_incident_status(id: int, update: IncidentStatusUpdate) -> IncidentRec
 
 @router.post(
     "/analyze",
+    response_model=IncidentAnalysisResponse,
     summary="Analyze an uploaded CSV file of incident tickets",
     response_description="Aggregated metrics and breakdown without customer PII",
     dependencies=[Depends(get_current_user)],
+    responses={
+        400: {
+            "model": DetailErrorResponse | IncidentValidationErrorResponse,
+            "description": "Invalid CSV or multipart request; validation errors use HTTP 400.",
+        },
+        401: {
+            "model": DetailErrorResponse,
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {"WWW-Authenticate": {"schema": {"type": "string", "const": "Bearer"}}},
+        },
+        413: {"model": DetailErrorResponse, "description": "CSV exceeds the 25 MiB limit."},
+        500: {"model": DetailErrorResponse, "description": "Analysis or internal server error."},
+        "4XX": {
+            "model": DetailErrorResponse,
+            "description": "Other client errors. Request validation is documented as HTTP 400, not 422.",
+        },
+    },
 )
-async def analyze_incidents(file: UploadFile = File(...)):
+async def analyze_incidents(file: UploadFile = File(...)) -> IncidentAnalysisResponse:
     """
     Accepts a multipart/form-data CSV file.
     Validates file headers and formats, runs deterministic analysis,
@@ -355,19 +402,54 @@ async def analyze_incidents(file: UploadFile = File(...)):
             detail="An error occurred while analyzing the incident file.",
         )
 
+    response = IncidentAnalysisResponse.model_validate(analysis_result.to_dict())
+
     # Store latest result in memory for export
     set_latest_result(analysis_result)
 
-    return analysis_result.to_dict()
+    return response
 
 
 @router.get(
     "/results/export",
+    response_class=Response,
+    response_model=None,
     summary="Export the latest analysis results as a summary CSV",
     response_description="A CSV file containing aggregated metrics (one metric per row)",
     dependencies=[Depends(get_current_user)],
+    responses={
+        200: {
+            "description": (
+                "UTF-8 CSV with header metric,value and one aggregate per row. "
+                "Metrics: total_records, valid_records, invalid_records; category_<lowercase category>; "
+                "status_<lowercase status>; satisfaction_scored_tickets, satisfaction_total_closed, "
+                "satisfaction_average_score (two decimals or N/A); satisfaction_score_1 through "
+                "satisfaction_score_5; invalid_reason_<normalized rule label>. "
+                "No raw tickets, row errors or personal data."
+            ),
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string"},
+                    "example": "metric,value\ntotal_records,0\nvalid_records,0\ninvalid_records,0\n",
+                }
+            },
+            "headers": {
+                "Content-Disposition": {
+                    "schema": {"type": "string", "const": 'attachment; filename="results.csv"'}
+                },
+                "Cache-Control": {"schema": {"type": "string", "const": "no-cache"}},
+            },
+        },
+        401: {
+            "model": DetailErrorResponse,
+            "description": "Missing or invalid Bearer credentials.",
+            "headers": {"WWW-Authenticate": {"schema": {"type": "string", "const": "Bearer"}}},
+        },
+        404: {"model": DetailErrorResponse, "description": "No completed analysis is available."},
+        500: {"model": DetailErrorResponse, "description": "Export or internal server error."},
+    },
 )
-async def export_latest_results():
+async def export_latest_results() -> Response:
     """
     Downloads the results of the most recent analysis execution.
     Contains only aggregated metrics without raw tickets or emails.

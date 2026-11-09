@@ -2,6 +2,185 @@
 
 Centralized FastAPI backend service for Nexova operations and incident analysis.
 
+## Backend serialization audit
+
+The current audit baseline and eight-stage delivery plan are documented in
+[docs/serialization-audit.md](../../docs/serialization-audit.md), with
+[auditoria-back.md](../../auditoria-back.md) as the contextual assignment guide.
+Work stays on `docs/auditoria-back`; each completed stage includes documentation,
+relevant verification, one commit and a push.
+
+Stage 1 (2026-11-02) confirmed 32 operations through OpenAPI and source/consumer
+inspection. It changes documentation only: implementation and business-response
+verification remain pending. Existing JSON dictionaries need explicit field
+contracts; the CSV export must retain its real format and receive accurate
+OpenAPI documentation. Historical stage descriptions below are not a statement
+that the current API lacks authentication.
+
+Stage 2 separates public registration from authenticated user management:
+`POST /users` still returns HTTP 201, now with
+`{"message": "User registered successfully"}` using `AuthActionResponse`.
+It does not echo email, user metadata, contact fields or credentials. Clients
+should log in using their registration input and retrieve their own identity
+through `/auth/me`, which still includes the caller's email, role and profile.
+Registration errors and account/profile creation are unchanged.
+
+Authenticated user list/detail/update responses retain `UserResponse`.
+The admin list stays flat; user IDs identify management routes, email identifies
+the account, role/activation describe the managed state and `created_at` preserves
+the established creation metadata. Self-profile responses retain their explicit
+profile ID and related user ID; these are read-only identifiers, not writable
+ownership fields. Contact updates preserve omitted versus null semantics.
+No permissions, storage or login/password-recovery behavior changes in this stage.
+
+Stage 3 (2026-11-04) adds shared contracts in `response_models.py`:
+
+- `GET /health`: explicit `HealthResponse`, HTTP 200,
+  `{"status": "ok", "service": "nexova-api"}`; still public.
+- Both `DELETE /users/{user_id}` and
+  `DELETE /api/suppliers/{supplier_id}`: explicit `DeletionResponse`, HTTP 200,
+  `{"id": <positive integer>, "deleted": true}`. Both fields are required;
+  additional fields are forbidden. Existing permissions, deletion semantics
+  and errors are unchanged; these endpoints do not switch to HTTP 204.
+
+Stage 3 verification: 28 focused tests passed, including authorization/deletion,
+health and the explicit OpenAPI schemas. The API still has 32 operations;
+analysis JSON and CSV export remain for stage 4, not part of this delivery.
+
+Stage 4 (2026-11-04) completes the analysis/export success contracts:
+
+- `POST /api/incidents/analyze` retains multipart upload (`file`) and now
+  declares `IncidentAnalysisResponse`. Required fields: `total_records`,
+  `valid_records`, `invalid_records`, `category_counts`, `status_counts`,
+  `invalid_breakdown`, `satisfaction`, `errors_count`. Counts are nonnegative;
+  satisfaction contains `scored_tickets`, `total_closed_tickets`,
+  `average_score` (null when no scores, otherwise 1-5), and
+  `score_distribution` (keys `"1"` through `"5"` in JSON).
+  `errors_count` counts rule violations, not invalid rows.
+  The response excludes raw rows and `row_errors`; all existing consumer fields
+  remain. The aggregate is validated before replacing the latest export result.
+- Analysis errors remain JSON: 400 invalid CSV/multipart (including field/message
+  validation issues when applicable), 401 authentication, 413 files above 25 MiB,
+  500 analysis/internal failure. OpenAPI documents a `4XX` fallback so it does not
+  incorrectly infer a 422 validation response; the actual handlers are unchanged.
+- `GET /api/incidents/results/export` remains HTTP 200
+  `text/csv; charset=utf-8`, attachment `results.csv`, `Cache-Control: no-cache`.
+  OpenAPI now documents only `text/csv` for success, with columns `metric,value`;
+  authentication/no-result/internal errors are JSON (401/404/500).
+  Metrics retain totals, `category_<lowercase category>`,
+  `status_<lowercase status>`, `satisfaction_scored_tickets`,
+  `satisfaction_total_closed`, `satisfaction_average_score`,
+  `satisfaction_score_1` through `satisfaction_score_5`, and
+  `invalid_reason_<normalized rule label>`. Average scores use two decimals or
+  `N/A`; rule labels are lowercased with spaces/slashes replaced by underscores.
+
+Stage 4 verification: 26 focused HTTP/domain/analyzer tests passed, including
+empty datasets, missing scores, multiple errors per row, unchanged fixture
+metrics, privacy and real CSV responses through TestClient. All 32 operations
+have explicit success documentation: 31 JSON models and one non-JSON CSV
+exception. Swagger manual acceptance/full regression remain in stage 8; confirm
+the assignment's acceptance of the CSV exception with the instructor.
+
+Stage 5 (2026-11-05) separates incident list rows from detail:
+
+- `GET /api/incidents` returns `IncidentListItem[]`: `id`, `title`,
+  `description`, `category`, `origin`, `branch`, `status`, `created_at`.
+  **Intentional contract reduction:** `updated_at` is no longer returned by the
+  list. The backoffice table does not use it; description and creation date are
+  retained because the table does display them. Consumers needing the last
+  update time should use `GET /api/incidents/{id}`.
+- Creation (201), detail (200) and status updates (200) still return the complete
+  `IncidentRecord`, including `updated_at`. The status action retains its
+  established resource response even though the current selector only reads
+  `status`; this avoids an unnecessary second breaking contract change.
+- List and detail share explicit base fields and UTC creation-time normalization;
+  the detail model adds the update timestamp. Requests remain distinct from
+  responses; IDs/timestamps/internal fields are not writable.
+- Summary retains `total`, `by_status`, `by_category`, `by_origin`, `by_branch`,
+  including all dimension keys and zero counts on an empty database.
+- CRUD OpenAPI now documents actual HTTP 400 validation/filter/transition errors,
+  404 where applicable and 500 errors, rather than automatically suggesting 422.
+  Existing handlers, public CRUD/summary access, filters and lifecycle are unchanged.
+
+Stage 5 verification: 32 focused CRUD/model/analysis HTTP tests passed. Assertions
+cover exact fields and OpenAPI models, smaller list output, all four combined
+filters, server-managed input rejection, unchanged detail/update fields,
+summary consistency and terminal transitions. No frontend or storage changes;
+manual UI/Swagger acceptance and the full suite remain in stage 8.
+
+Stage 6 (2026-11-05) separates supplier card rows from detail:
+
+- `GET /api/suppliers` returns `SupplierListItem[]`: `id`, `name`, `country`,
+  `categories`, `monthly_rate`, `currency`, `status`, `contract_renewal_date`,
+  `contact_email`, `notes`. **Intentional contract reduction:** `updated_at`
+  is omitted only from the list; the backoffice never reads it.
+  Contact/notes and renewal date remain because the cards use them.
+- Creation, detail, rate and status updates retain `SupplierRecord` with the
+  same ten fields plus `updated_at`. Clients needing that timestamp should use
+  detail. The timestamp changes on rate update, not on status update.
+  PATCH keeps the full resource response for compatibility, even though the
+  backoffice discards it and reloads the list.
+- `SupplierListItem` reuses the established supplier field validation and adds
+  the read-only identifier; `SupplierRecord` adds the UTC timestamp.
+  `SupplierCreate` and the rate/status inputs still exclude server-managed fields.
+- Router OpenAPI documents existing 401/500 JSON errors and 404 for detail,
+  updates and deletion. Existing 422 validation, filters combined with AND,
+  authentication and storage semantics are unchanged.
+
+Stage 6 verification: 20 focused API/model/seed tests passed. Exact list/detail
+fields, nullable contact data, smaller serialized list output, empty list,
+full PATCH confirmations, timestamp semantics, invalid writes, authentication
+and deletion remain covered. No frontend or dependency changes; manual
+backoffice/Swagger checks and full regression remain in stage 8.
+
+Stage 7 (2026-11-05) verifies all six inventory operations without reducing
+their established success contracts:
+
+- Catalog/create/detail retain `AssetRead` (six fields). The catalog and movement
+  forms use every field; stock is derived per asset/office and starts at zero.
+- Inbound/outbound confirmations retain `AssetEntryRead` / `AssetExitRead`
+  (seven/eight fields), including movement/asset IDs, timestamp and authenticated
+  author. Full confirmations remain compatible even though the form reloads the
+  catalog rather than using the response body.
+- History retains flat `OrderItemRead` (twelve fields), not nested ORM objects.
+  The backoffice now reads canonical `movement_type`, `asset_name`, `asset_sku`;
+  it previously read nonexistent aliases and displayed empty cells. Supplier,
+  allocation destination, null consumption destination, date and author remain.
+- `user_uuid` is the authenticated numeric user ID encoded as a string, not an
+  actual UUID. Clients cannot write it. Movement IDs are scoped by
+  `movement_type` because inbound/outbound tables can share an ID.
+- OpenAPI documents existing 400 duplicate-SKU/insufficient-stock, 404 missing
+  asset, 401 write authentication and 500 errors with `DetailErrorResponse`.
+  Existing 422 validation remains. GET routes stay public; POST routes require
+  authentication. This audit does not broaden permissions or claim production
+  suitability of public history containing author/destination information.
+
+Stage 7 verification: 33 inventory API/schema/service/seed tests and seven
+backoffice Node tests passed; the existing client test also checks history
+rendering with canonical inbound/allocation/consumption fixtures. No dependency,
+database, calculation or query changes. Browser/Swagger acceptance and the full
+backend suite remain in stage 8.
+
+Stage 8 (2026-11-05) completes technical verification:
+
+- 244 API tests and 121 subtests pass, with two explicit Windows/environment
+  skips; nine analyzer-library tests and seven backoffice tests pass.
+  The installed Windows admin CLI was also checked directly on a temporary DB.
+- Use `uv run --locked --project services\api python -m pytest services\api\tests -q`
+  from the repository root for the whole API suite. Unlike unittest discovery
+  alone, this includes the inventory pytest functions and fixtures.
+- All 32 operations match OpenAPI/route declarations: 31 JSON models and one
+  documented CSV. Six distinct endpoints were exercised through Swagger,
+  including registration/login, supplier/history lists and analysis/export.
+- Backoffice session integration was corrected with user approval: supplier
+  requests and analysis/export reuse the existing authenticated client; CSV is
+  returned as a Blob. Backend permissions and response contracts are unchanged.
+- Tracker lint/build/TypeScript pass on the hash-matched C: replica; browser
+  registration/login/profile and reset-token handling were verified locally.
+- CSV instructor acceptance was confirmed by the user. The user will create the
+  PR to `main` manually; [final audit and PR link](../../docs/serialization-audit.md#publicacion-y-accion-manual-pendiente)
+  record the remaining delivery action. No PR is claimed to exist.
+
 ## Endpoints
 
 ### 1. `POST /api/incidents/analyze`

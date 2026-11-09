@@ -69,7 +69,7 @@ class AssetEntryRead(BaseModel):
     supplier: str
     office: OfficeType
     created_at: datetime
-    user_uuid: str
+    user_uuid: str = Field(description="Authenticated user ID encoded as a string; legacy field name, not a UUID.")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -108,7 +108,7 @@ class AssetExitRead(BaseModel):
     assigned_to: Optional[str] = None
     office: OfficeType
     created_at: datetime
-    user_uuid: str
+    user_uuid: str = Field(description="Authenticated user ID encoded as a string; legacy field name, not a UUID.")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -119,7 +119,7 @@ class AssetExitRead(BaseModel):
 
 class OrderItemRead(BaseModel):
     """Consolidated representation of an inbound or outbound inventory order."""
-    id: int
+    id: int = Field(description="Movement ID within its movement_type; inbound and outbound IDs may overlap.")
     movement_type: MovementType = Field(..., description="'inbound' for entry, 'outbound' for exit")
     asset_id: int
     asset_name: str
@@ -130,7 +130,6 @@ class OrderItemRead(BaseModel):
     exit_type: Optional[ExitType] = None
     assigned_to: Optional[str] = None
     created_at: datetime
-    user_uuid: str
+    user_uuid: str = Field(description="Authenticated user ID encoded as a string; legacy field name, not a UUID.")
 
     model_config = ConfigDict(from_attributes=True)
-

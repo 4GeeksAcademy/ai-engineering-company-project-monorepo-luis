@@ -1,5 +1,80 @@
 # Tech Context
 
+## Auditoria de serializacion — 2026-11-02
+
+Actualizacion 2026-11-05, etapa 8: verificacion tecnica global terminada:
+244 tests API y 121 subtests pasan/dos omitidos; nueve analizador y siete Node.
+Swagger y consumidores locales comprobados; CSV aceptado segun usuario.
+Proveedores/analisis/export reutilizan sesion de `inventoryApi.request`;
+`responseType: "blob"` conserva CSV y errores JSON. Directorio reacciona a
+login/logout y descarta respuestas antiguas. Reset tracker captura token
+inicial en estado y limpia URL en efecto; lint/build/TypeScript pasan en replica
+C: cotejada. Sin deps/permisos/persistencia modificados. PR a main pendiente de
+creacion manual por usuario; enlace/evidencia en auditoria, no PR existente.
+
+Actualizacion 2026-11-05, etapa 7: inventario conserva sus cuatro modelos
+explicitos y shapes (catalogo seis, entrada siete, salida ocho, historial doce).
+Historial consume nombres canonicos `movement_type`, `asset_name`, `asset_sku`;
+`user_uuid` sigue siendo ID autenticado como string, no UUID. ID de movimiento
+acotado por tipo. Errores 400/401/404/500 documentados; GET publicos y POST
+autenticados, stock/consultas/persistencia sin cambios. 33 tests inventario y
+siete Node pasan; renderizado con DOM minimo, no navegador. Todas las 32
+operaciones verificadas tecnicamente por etapas; aceptacion global en etapa 8.
+
+Actualizacion 2026-11-05, etapa 6: proveedores lista `SupplierListItem[]` sin
+`updated_at`, conserva diez campos de tarjetas (incluidos contacto/notas/nulls).
+`SupplierRecord` agrega timestamp para detalle/alta/PATCH. Autenticacion/422/
+filtros y semantica timestamp tarifa/estado preservados; 401/404/500 documentados.
+20 tests focalizados pasan; sin frontend/persistencia/dependencias modificados.
+
+Actualizacion 2026-11-05, etapa 5: listado de incidentes retorna
+`IncidentListItem[]` sin `updated_at`; conserva los ocho campos usados por tabla.
+`IncidentRecord` extiende esa proyeccion para detalle/alta/PATCH, que conservan
+ultima actualizacion. Errores CRUD documentados como 400/404/500 sin cambiar
+handlers/acceso/filtros/transiciones. 32 tests focalizados pasan; sin frontend
+ni persistencia modificados. Campo retirado del listado sigue disponible en detalle.
+
+Actualizacion 2026-11-04, etapa 4: analisis usa `IncidentAnalysisResponse`
+completo con `AnalysisSatisfactionResponse`; modelos en `incident_models.py`,
+distintos de enums/metricas CRUD. Export permanece `Response` CSV, ahora
+documentado explicitamente como texto en OpenAPI, con errores JSON. Superficie:
+32 operaciones, 31 modelos JSON y una excepcion CSV (aceptacion instructor
+pendiente). 26 tests focalizados y 20 casos invalidos comprobados. Sin cambios
+de calculos, consumidor, biblioteca, permisos o persistencia.
+
+Actualizacion 2026-11-04, etapa 3: `response_models.py` define `HealthResponse`
+y `DeletionResponse` compartido por usuarios/proveedores. Health y ambos DELETE
+mantienen HTTP 200/shape, ahora con contratos explicitos de campos. 28 tests
+focalizados y OpenAPI verificados; 32 operaciones, 30 modelos declarados y solo
+analisis/CSV pendientes de etapa 4. No cambios de permisos/frontend/dependencias.
+
+- Referencia del hito: `auditoria-back.md`; entregable y tablero de ocho etapas:
+  `docs/serialization-audit.md`. Rama dedicada `docs/auditoria-back`, base
+  `6d3d493b60cfd5b284ff1e2af25f602c54ed26a4`.
+- FastAPI registra auth, users, profiles, incidents, suppliers e inventory mas
+  health: 32 operaciones confirmadas por OpenAPI/TestClient sin lifespan.
+- Auth/perfiles, incidentes y proveedores usan TinyDB; inventario usa SQLModel
+  con proyecciones explicitas y stock calculado. No confundir las persistencias.
+- La etapa 1 es documental: cuatro respuestas JSON requieren contrato explicito
+  de campos (incluidos DELETE con dict inferido); export mantiene CSV y necesita
+  documentacion OpenAPI correcta. Implementacion/verificacion pendientes.
+- Consumidores principales: backoffice y autenticacion del tracker. La API
+  externa de candidatos del tracker queda fuera del alcance de serializacion.
+- No retirar `user_uuid`, `assigned_to`, descripcion o contacto/notas sin
+  justificar su uso observado. El historial debe alinearse con nombres
+  canonicos de `OrderItemRead` en etapa 7, sin modificar permisos de inventario.
+- Validacion por etapa: tests focalizados existentes; suite backend completa
+  solo en cierre final. Sin lint/typecheck/build Python declarados ni tooling nuevo.
+- Etapa 2: `POST /users` cambia de `UserResponse` a `AuthActionResponse` con
+  `message` (201), sin email ni campos de usuario. Cliente tracker usa el tipo de
+  confirmacion; login posterior conserva el input del formulario. No cambios de
+  permisos, TinyDB ni respuestas de gestion/perfil o `/auth/me`.
+- Etapa 2 validada el 2026-11-03: 83 tests pasan/1 omitido Windows; lint y build
+  TypeScript del tracker pasan en replica C: de los 44 archivos actuales cotejados
+  por SHA-256. Dependencias exactas del lockfile. E: tiene escritura extremadamente
+  lenta; Next/Webpack no tolera aqui dependencias enlazadas entre C: y E:. No
+  confundir build verificado en replica identica con resolver ese limite del entorno.
+
 ## Fuentes de verdad
 
 - `autenticacion.md`: guía del hito AUTH-01; el README oficial de 4Geeks enlazado allí prevalece ante discrepancias. Las referencias temporales `ingenieria-ia.md` y `base-dato-ligero.md` fueron retiradas al completar su función; el directorio de proveedores existente se documenta en el README de la API.

@@ -10,9 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const supplierForm = document.getElementById("supplier-form");
   const countryInput = document.getElementById("supplier-country");
   const currencyInput = document.getElementById("supplier-currency");
-  const apiBaseUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://127.0.0.1:8000"
-    : "";
+  let latestSupplierRequest = 0;
 
   const categoryLabels = {
     job_boards: "Portales de empleo",
@@ -33,47 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
     supplierFeedback.setAttribute("role", isError ? "alert" : "status");
   }
 
-  async function getErrorMessage(response) {
-    try {
-      const errorData = await response.json();
-      if (Array.isArray(errorData.detail)) {
-        return errorData.detail
-          .map((error) => `${error.loc.slice(1).join(".")}: ${error.msg}`)
-          .join("; ");
-      }
-      if (errorData.detail) return String(errorData.detail);
-    } catch (_) {
-      // Sin JSON estructurado en la respuesta
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      return "No tienes autorización para realizar esta operación.";
-    }
-    if (response.status === 404) {
-      return "El proveedor solicitado no fue encontrado.";
-    }
-    if (response.status >= 500) {
-      return "El servicio no está disponible temporalmente. Inténtalo de nuevo más tarde.";
-    }
-    return "La solicitud no pudo completarse. Revisa los datos e intenta nuevamente.";
-  }
-
   async function requestJson(path, options = {}) {
-    let response;
-    try {
-      response = await fetch(`${apiBaseUrl}${path}`, {
-        ...options,
-        headers: {
-          ...(options.body ? { "Content-Type": "application/json" } : {}),
-          ...options.headers,
-        },
-      });
-    } catch (_) {
-      throw new Error("No se pudo conectar con el servidor. Comprueba tu conexión e intenta de nuevo.");
-    }
-
-    if (!response.ok) throw new Error(await getErrorMessage(response));
-    return response.json();
+    return window.inventoryApi.request(path, options);
   }
 
   function makeTextElement(tagName, className, text) {
@@ -192,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         await requestJson(`/api/suppliers/${supplier.id}/rate`, {
           method: "PATCH",
-          body: JSON.stringify({ monthly_rate: Number(rateInput.value) }),
+          body: { monthly_rate: Number(rateInput.value) },
         });
         setFeedback(`Tarifa de ${supplier.name} actualizada.`);
         await loadSuppliers();
@@ -220,9 +179,9 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         await requestJson(`/api/suppliers/${supplier.id}/status`, {
           method: "PATCH",
-          body: JSON.stringify({
+          body: {
             status: supplier.status === "active" ? "suspended" : "active",
-          }),
+          },
         });
         setFeedback(`${supplier.name} actualizado.`);
         await loadSuppliers();
@@ -260,8 +219,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadSuppliers() {
+    const requestId = ++latestSupplierRequest;
     supplierList.setAttribute("aria-busy", "true");
     supplierList.replaceChildren();
+    if (!window.inventoryApi.isAuthenticated()) {
+      supplierCount.textContent = "Inicia sesión";
+      setFeedback("Inicia sesión para consultar el directorio de proveedores.");
+      supplierList.setAttribute("aria-busy", "false");
+      return;
+    }
     supplierCount.textContent = "Cargando proveedores…";
     const params = new URLSearchParams();
     if (countryFilter.value) params.set("country", countryFilter.value);
@@ -270,6 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const suppliers = await requestJson(`/api/suppliers${query ? `?${query}` : ""}`);
+      if (requestId !== latestSupplierRequest) return;
       supplierCount.textContent = `${suppliers.length} ${suppliers.length === 1 ? "proveedor" : "proveedores"}`;
       if (!suppliers.length) {
         supplierList.appendChild(makeTextElement("p", "supplier-empty", "No hay proveedores para estos filtros."));
@@ -277,6 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       suppliers.forEach((supplier) => supplierList.appendChild(renderSupplier(supplier)));
     } catch (error) {
+      if (requestId !== latestSupplierRequest) return;
       supplierCount.textContent = "No disponible";
       const errorWrapper = document.createElement("div");
       errorWrapper.className = "supplier-empty";
@@ -296,7 +264,9 @@ document.addEventListener("DOMContentLoaded", () => {
       supplierList.replaceChildren(errorWrapper);
       setFeedback(error.message, true);
     } finally {
-      supplierList.setAttribute("aria-busy", "false");
+      if (requestId === latestSupplierRequest) {
+        supplierList.setAttribute("aria-busy", "false");
+      }
     }
   }
 
@@ -334,7 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await requestJson("/api/suppliers", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       });
       supplierForm.reset();
       currencyInput.value = countryInput.value === "Spain" ? "EUR" : "USD";
@@ -355,5 +325,9 @@ document.addEventListener("DOMContentLoaded", () => {
   categoryFilter.addEventListener("change", loadSuppliers);
   refreshButton.addEventListener("click", loadSuppliers);
 
+  window.inventoryApi.onAuthStateChanged(() => {
+    setFeedback("");
+    loadSuppliers();
+  });
   loadSuppliers();
 });
