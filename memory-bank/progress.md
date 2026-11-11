@@ -368,3 +368,8 @@ Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralize
   - `incident-list.png` (listado con datos cargados)
   - `incident-summary.png` (resumen con métricas operativas)
 - Documentación de entrega completa creada en `docs/DELIVERY_CENTRALIZED_INCIDENT_MANAGER.md`.
+
+### Plan de telemetría — Etapa 1: catálogo de oportunidades
+- Creado `docs/telemetry/telemetry-plan.md` con el flujo de inventario, los cinco eventos obligatorios del briefing y catorce oportunidades identificadas en inventario/negocio, autenticación, rendimiento, errores y navegación.
+- Cada evento incluye su hipótesis y la decisión habilitada. Se documentaron restricciones de privacidad y los temas reservados para las etapas de esquemas y estrategia de entrega.
+- No se implementó código de instrumentación. Etapas 2 y 3 pendientes.
