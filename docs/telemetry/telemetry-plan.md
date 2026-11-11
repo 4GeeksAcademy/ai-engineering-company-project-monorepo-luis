@@ -101,10 +101,73 @@ Se proponen catorce eventos adicionales en cinco categorías. Se conservarán en
 | `backoffice_section_viewed` | Un operador navega a una sección del backoffice. | Capturamos `backoffice_section_viewed` porque necesitamos saber qué secciones se usan y en qué secuencia general, lo que nos permite priorizar mejoras de navegación y contenido operativo. |
 | `backoffice_flow_abandoned` | Un operador inicia un flujo definido del backoffice y lo deja sin completar. | Capturamos `backoffice_flow_abandoned` porque necesitamos saber qué flujos se interrumpen con mayor frecuencia, lo que nos permite investigar pasos confusos o bloqueos operativos. La señal se limita al nombre del flujo y no reconstruye navegación individual innecesaria. |
 
-## Límites para las siguientes etapas
+## Estrategia de entrega
 
-- El contrato de `event-schemas.json` define para cada evento el allowlist explícito y la obligatoriedad de cada propiedad. Para eventos de inventario de un producto concreto, `office`, `product_id`, `product_category`, `programme_id`, `quantity` y `currency` forman el conjunto mínimo, sujeto a las excepciones contextuales documentadas en las tablas de propiedades del catálogo: eventos iniciados antes de seleccionar un producto pueden omitir sus datos; `quantity` aplica cuando hay cantidad observada o intentada; y búsquedas sin producto seleccionado no inventan cantidad ni moneda de producto.
+`stream` se reserva para señales que requieren detección o respuesta operativa en segundos; objetivo inicial: disponible para consumidores operativos en menos de 60 segundos. `batch` se procesa cada hora y se consolida en agregados diarios: es suficiente para analizar tendencias de consumo, uso y fricción, sin interrumpir operaciones por variaciones de un solo evento. La frecuencia es una hipótesis inicial para revisar con Operaciones antes de instrumentar.
+
+| `event_type` | Entrega | Motivo de negocio u operación |
+|---|---|---|
+| `inbound_order_created` | Batch | Planificar producción según la demanda acumulada; una alerta por cada lote no cambia una decisión de segundos. |
+| `outbound_order_created` | Batch | Analizar consumo por programa y ritmo de reposición en periodos, no actuar sobre cada entrega individual. |
+| `stock_threshold_triggered` | Stream | La falta de material puede bloquear formación o incorporación; Operaciones necesita actuar en cuanto se cruza el mínimo. |
+| `direct_stock_edit_rejected` | Stream | El rechazo indica un posible problema de trazabilidad o permisos que debe investigarse sin esperar al informe periódico. |
+| `kit_cost_variance_detected` | Stream | Compras y responsables necesitan conocer el aumento anómalo al registrarse la entrada para evaluar renegociación o alternativa. |
+| `inventory_item_viewed` | Batch | El interés por producto se interpreta como tendencia agregada, no como una alerta por cada consulta. |
+| `inventory_order_validation_failed` | Batch | Los fallos de validación guían mejoras de formulario y capacitación al acumularse; no requieren escalar cada error de operador. |
+| `inventory_order_abandoned` | Batch | La fricción se evalúa por tasas y pasos de abandono en ventanas periódicas; una interrupción individual no es accionable en tiempo real. |
+| `inventory_threshold_acknowledged` | Batch | La cobertura de atención a alertas se revisa como tendencia para ajustar seguimiento; el disparo original ya viaja por stream. |
+| `inventory_search_performed` | Batch | La encontrabilidad y uso de filtros se analizan de forma agregada para mejorar catálogo y navegación. |
+| `auth_login_failed` | Stream | Una ráfaga de fallos puede impedir el acceso operativo y debe detectarse rápidamente; se agrupa para limitar ruido sin registrar credenciales ni identidad escrita. |
+| `auth_session_expired` | Batch | La frecuencia de expiraciones informa ajustes de experiencia y política de sesión; un caso aislado no requiere intervención inmediata. |
+| `auth_login_succeeded` | Batch | El volumen de accesos sirve para planificación de soporte y análisis de uso, no para alertas por cada autenticación correcta. |
+| `api_latency_recorded` | Stream | La degradación de latencia puede bloquear órdenes activas; las medidas se necesitan con rapidez para detectar problemas por grupo de ruta. |
+| `page_load_recorded` | Batch | Los tiempos de carga se usan para priorizar optimizaciones de vistas con datos agregados; un solo tiempo no justifica una alerta. |
+| `api_request_failed` | Stream | Errores repetidos pueden impedir entradas, salidas o acceso; la primera señal se entrega pronto para iniciar diagnóstico. |
+| `frontend_uncaught_error` | Stream | Una excepción no capturada puede interrumpir inmediatamente el backoffice; se necesita conocer el error para mitigar el impacto operativo. |
+| `backoffice_section_viewed` | Batch | La popularidad y secuencia de secciones orientan mejoras de navegación y se analizan como patrones, no en segundos. |
+| `backoffice_flow_abandoned` | Batch | Las tasas de abandono y pasos problemáticos requieren agregación para distinguir fricción recurrente de interrupciones aisladas. |
+
+### Throttle, debounce y agregación
+
+- **`api_latency_recorded`:** procesar en stream, con muestreo determinista del 10% de solicitudes exitosas por debajo de 1.000 ms y del 100% de las solicitudes que alcancen o superen 1.000 ms o fallen. `sample_rate` registra la probabilidad aplicada (`0.1` o `1.0`) para ponderar estimaciones; así se limita volumen sin ocultar latencias lentas ni fallos.
+- **`api_request_failed`:** emitir de inmediato el primer fallo de cada combinación `route_group` + método + estado + `error_code`; durante una ventana fija de 60 segundos, acumular duplicados y emitir un resumen al cierre si los hubo. `occurrence_count` indica cuántos fallos adicionales representa el resumen y `window_seconds` vale `60`; la primera señal no se retrasa ni se pierde el total.
+- **`frontend_uncaught_error`:** misma ventana de 60 segundos, agrupando solo por `error_fingerprint` sanitizado y `page_id`; mantener la primera emisión inmediata y un resumen con `occurrence_count` para duplicados. No se agrupa ni registra el texto o stack original.
+- **`auth_login_failed`:** agrupar por método y código controlado de fallo durante 60 segundos. Emitir el primer intento enseguida y resumir repeticiones con `occurrence_count`/`window_seconds`; no utilizar email, nombre, IP ni credenciales como clave de agrupación.
+- **`inventory_item_viewed`:** agrupar vistas por producto, oficina, programa, sesión y ventana de 5 minutos; emitir el conteo `occurrence_count` al cerrar la ventana o terminar la sesión, lo que ocurra primero. El análisis necesita demanda por producto, no una señal por cada render o apertura repetida.
+- **`inventory_search_performed`:** aplicar debounce de 500 ms desde la última edición de búsqueda y emitir una sola vez cuando se complete la búsqueda o se apliquen filtros; nunca enviar texto libre. Registrar `result_count` y filtros controlados mantiene la señal de encontrabilidad sin capturar el término introducido.
+- **`backoffice_section_viewed`:** emitir al cambiar realmente de sección, no en re-renderizados; no debounce de transiciones reales para preservar la secuencia de navegación.
+- Para eventos de resumen, generar un `eventId` propio y conservar como `requestId` el de la primera ocurrencia que representa el resumen como ancla de correlación; no combinar request IDs. El resto de eventos de inventario se emite una vez por transición confirmada. Las repeticiones causadas por reintentos deben conservar el `eventId` original o deduplicarse por identificador estable de orden/transición antes de contabilizarse, sin duplicar movimientos de stock.
+
+## Riesgos, privacidad y exclusiones
+
+### Riesgos y mitigaciones
+
+- **Identificadores seudónimos:** `userId`, `sessionId`, identificadores de producto/programa y referencias opacas de proveedor siguen siendo datos sensibles por su capacidad de vinculación. Limitar acceso por rol, restringir el uso a análisis operativo y acordar retención con el responsable de datos antes de instrumentar.
+- **Alertas duplicadas o incorrectas:** asegurar emisión después de persistir la orden; deduplicar reintentos por evento/orden; comprobar el cálculo del stock después de cada entrada o salida antes de disparar un umbral.
+- **Muestreo y métricas sesgadas:** conservar `sample_rate`, aplicar ponderación al calcular percentiles y contar el 100% de respuestas lentas y fallidas; revisar periódicamente que el muestreo represente las rutas utilizadas.
+- **Coste y ruido de alta frecuencia:** aplicar solo las ventanas, agregaciones y muestreo declarados; conservar conteos agregados y la primera señal urgente para no borrar incidentes relevantes.
+- **Comparación entre oficinas:** no sumar importes de EUR y USD como si fueran una sola moneda. Informar costos por oficina/moneda o aplicar una conversión fuera de la capa de telemetría y bajo una política financiera explícita.
+- **Abandono ambiguo:** `inventory_order_abandoned` y `backoffice_flow_abandoned` se emiten únicamente por cancelación explícita o timeout definido del flujo (30 minutos sin actividad en el flujo); no inferir abandono a partir de cierre de pestaña o expiración de sesión solamente.
+
+### Eventos y datos excluidos
+
+- No capturar nombres, emails, teléfonos, credenciales, tokens, datos de candidatos/clientes/consultores/agentes, direcciones IP, geolocalización ni identificadores publicitarios.
+- No capturar texto libre de búsquedas, rutas URL completas, parámetros de consulta, cuerpos de solicitudes/respuestas, mensajes de error crudos, trazas de stack ni contenido de formularios. Usar códigos, grupos y fingerprints sanitizados.
+- No reconstruir grabaciones de sesión ni clickstreams detallados de una persona; la navegación se limita a secciones y flujos controlados, con acceso y retención acotados.
+- No registrar ediciones directas de stock como cambios válidos: solo se mide su rechazo; toda variación efectiva permanece ligada a una orden trazable.
+- Se descartaría un evento adicional que no habilite una decisión concreta, duplique otra señal o requiera datos personales no necesarios. El idioma de interfaz puede registrarse como dimensión independiente; nunca se usa como sustituto de oficina.
+
+### Oportunidades consideradas y descartadas
+
+- `inventory_search_query_entered`: descartado porque el texto libre puede contener nombres u otra información sensible; `inventory_search_performed` con filtros controlados y `result_count` basta para decidir mejoras de catálogo.
+- `recipient_identity_recorded`: descartado porque el nombre o contacto del destinatario no es necesario para analizar consumo por programa; `recipient_type` y los identificadores opacos del material son suficientes.
+- `api_request_payload_captured`: descartado por riesgo de capturar credenciales, datos personales o contenido de negocio, además de su alto volumen; los grupos de ruta y códigos de error permiten priorizar fallos.
+- `stock_directly_changed`: descartado como evento válido porque una edición directa no debe modificar el inventario; solo se mide el rechazo mediante `direct_stock_edit_rejected`, y los cambios reales se trazan por órdenes.
+- `backoffice_session_replayed`: descartado por la exposición desproporcionada de contenido e interacción individual y por su coste; las métricas agregadas y errores sanitizados cubren las decisiones definidas.
+
+## Límites de implementación
+
+- El contrato de `event-schemas.json` define para cada evento el allowlist explícito y la obligatoriedad de cada propiedad. Los eventos de inventario siempre incluyen `office` y la moneda derivada de la oficina (`currency`); los eventos relativos a un producto incluyen `product_id`, `product_category` y `programme_id` cuando el producto ya está seleccionado. `quantity` aplica cuando hay cantidad observada o intentada; las búsquedas sin producto seleccionado no inventan cantidad ni identificadores de producto.
 - Los importes conservarán la moneda de la oficina (`EUR` en Valencia, `USD` en Miami); no se mezclarán idioma de interfaz y oficina.
 - En `auth_login_failed`, `sessionId` y `userId` se incluyen como `null` cuando el intento no corresponde a una sesión ni a una identidad conocida. No se incorporarán credenciales, emails, nombres, direcciones IP, texto libre de error o contenido de solicitudes para resolver esa situación.
-- La estrategia stream/batch, la limitación de eventos de alta frecuencia, los riesgos y las exclusiones se documentarán en la etapa 3.
-- `inventory_order_abandoned` requiere una definición de cierre de flujo que distinga abandono de una sesión simplemente interrumpida; no se inferirá el abandono solo por una sesión expirada.
+- `inventory_order_abandoned` y `backoffice_flow_abandoned` requieren cancelación explícita o timeout del flujo definido como 30 minutos sin actividad; no se inferirá el abandono por cierre de pestaña o expiración de sesión solamente.

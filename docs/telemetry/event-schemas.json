@@ -129,14 +129,16 @@
       "event_type": "inventory_item_viewed",
       "classification": "identified_opportunity",
       "category": "inventory_business",
-      "description": "An operator opens a product detail in the inventory.",
+      "description": "An operator opens a product detail in the inventory; repeated views may be represented as a time-window aggregate.",
       "properties": {
         "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office whose inventory is being viewed."},
         "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the viewed product."},
         "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
         "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
         "quantity": {"type": "integer", "required": true, "minimum": 0, "description": "Available stock displayed at view time."},
-        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation."}
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation."},
+        "occurrence_count": {"type": "integer", "required": true, "minimum": 1, "description": "Number of product views represented by this event in the aggregation window."},
+        "window_seconds": {"type": "integer", "required": true, "minimum": 1, "description": "Aggregation window length in seconds."}
       }
     },
     {
@@ -152,7 +154,7 @@
         "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Product category when known."},
         "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme identifier when known."},
         "quantity": {"type": ["integer", "null"], "required": false, "description": "Quantity submitted, if available and safe to represent."},
-        "currency": {"type": ["string", "null"], "required": false, "enum": ["EUR", "USD", null], "description": "Office currency when a product or cost is in context."}
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Currency derived from office (EUR for Valencia, USD for Miami), even when validation fails before product selection."}
       }
     },
     {
@@ -169,7 +171,7 @@
         "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Product category if known."},
         "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme identifier if known."},
         "quantity": {"type": ["integer", "null"], "required": false, "description": "Quantity if entered."},
-        "currency": {"type": ["string", "null"], "required": false, "enum": ["EUR", "USD", null], "description": "Office currency when cost is in context."}
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Currency derived from office (EUR for Valencia, USD for Miami), even when the flow ends before cost entry."}
       }
     },
     {
@@ -194,6 +196,7 @@
       "description": "An operator searches or filters inventory without recording free-text query content.",
       "properties": {
         "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office whose inventory is searched."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Currency derived from office (EUR for Valencia, USD for Miami)."},
         "result_count": {"type": "integer", "required": true, "minimum": 0, "description": "Number of matching products."},
         "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Category filter, if selected."},
         "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme filter, if selected."},
@@ -207,7 +210,9 @@
       "description": "An authentication attempt fails, including invalid credentials.",
       "properties": {
         "auth_method": {"type": "string", "required": true, "enum": ["password", "sso", "other"], "description": "Authentication method category."},
-        "failure_code": {"type": "string", "required": true, "enum": ["invalid_credentials", "account_locked", "provider_unavailable", "other"], "description": "Controlled failure category; no submitted credentials, email, or username."}
+        "failure_code": {"type": "string", "required": true, "enum": ["invalid_credentials", "account_locked", "provider_unavailable", "other"], "description": "Controlled failure category; no submitted credentials, email, or username."},
+        "occurrence_count": {"type": "integer", "required": true, "minimum": 1, "description": "Number of matching failures represented in the aggregation window."},
+        "window_seconds": {"type": "integer", "required": true, "minimum": 1, "description": "Aggregation window length in seconds."}
       }
     },
     {
@@ -237,7 +242,8 @@
         "route_group": {"type": "string", "required": true, "enum": ["auth", "inventory_read", "inbound_order", "outbound_order", "reporting", "other"], "description": "Controlled route group; never a raw URL or query string."},
         "http_method": {"type": "string", "required": true, "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OTHER"], "description": "HTTP method."},
         "status_code": {"type": ["integer", "null"], "required": true, "minimum": 100, "maximum": 599, "description": "HTTP response status, or null if no response was received."},
-        "duration_ms": {"type": "number", "required": true, "minimum": 0, "description": "Request duration in milliseconds."}
+        "duration_ms": {"type": "number", "required": true, "minimum": 0, "description": "Request duration in milliseconds."},
+        "sample_rate": {"type": "number", "required": true, "minimum": 0.01, "maximum": 1, "description": "Probability that this request was selected; 0.1 for routine sampled requests and 1 for slow requests or failures."}
       }
     },
     {
@@ -255,23 +261,27 @@
       "event_type": "api_request_failed",
       "classification": "identified_opportunity",
       "category": "errors",
-      "description": "An API request fails before completing the requested operation.",
+      "description": "An API request fails before completing the requested operation; repeated failures may be represented as a burst summary.",
       "properties": {
         "route_group": {"type": "string", "required": true, "enum": ["auth", "inventory_read", "inbound_order", "outbound_order", "reporting", "other"], "description": "Controlled route group; never a raw URL or query string."},
         "http_method": {"type": "string", "required": true, "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OTHER"], "description": "HTTP method."},
         "status_code": {"type": ["integer", "null"], "required": true, "minimum": 100, "maximum": 599, "description": "HTTP response status, or null if no response was received."},
-        "error_code": {"type": "string", "required": true, "enum": ["timeout", "network_error", "client_error", "server_error", "other"], "description": "Controlled error category; no raw response body or exception text."}
+        "error_code": {"type": "string", "required": true, "enum": ["timeout", "network_error", "client_error", "server_error", "other"], "description": "Controlled error category; no raw response body or exception text."},
+        "occurrence_count": {"type": "integer", "required": true, "minimum": 1, "description": "Number of matching failures represented by this event."},
+        "window_seconds": {"type": "integer", "required": true, "minimum": 1, "description": "Burst aggregation window length in seconds."}
       }
     },
     {
       "event_type": "frontend_uncaught_error",
       "classification": "identified_opportunity",
       "category": "errors",
-      "description": "The frontend encounters an uncaught exception during backoffice use.",
+      "description": "The frontend encounters an uncaught exception during backoffice use; repeated identical errors may be represented as a burst summary.",
       "properties": {
         "error_fingerprint": {"type": "string", "required": true, "minLength": 1, "description": "Stable non-reversible fingerprint derived from a sanitized error signature; not the raw message or stack."},
         "page_id": {"type": "string", "required": true, "enum": ["dashboard", "inventory", "inbound_orders", "outbound_orders", "reports", "settings", "other"], "description": "Controlled page identifier."},
-        "release_version": {"type": ["string", "null"], "required": false, "description": "Application release identifier, if available."}
+        "release_version": {"type": ["string", "null"], "required": false, "description": "Application release identifier, if available."},
+        "occurrence_count": {"type": "integer", "required": true, "minimum": 1, "description": "Number of matching exceptions represented by this event."},
+        "window_seconds": {"type": "integer", "required": true, "minimum": 1, "description": "Burst aggregation window length in seconds."}
       }
     },
     {

@@ -372,9 +372,14 @@ Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralize
 ### Plan de telemetría — Etapa 1: catálogo de oportunidades
 - Creado `docs/telemetry/telemetry-plan.md` con el flujo de inventario, los cinco eventos obligatorios del briefing y catorce oportunidades identificadas en inventario/negocio, autenticación, rendimiento, errores y navegación.
 - Cada evento incluye su hipótesis y la decisión habilitada. Se documentaron restricciones de privacidad y los temas reservados para las etapas de esquemas y estrategia de entrega.
-- No se implementó código de instrumentación. La etapa 2 define los esquemas; la etapa 3 de entrega y riesgos queda pendiente.
+- No se implementó código de instrumentación. Las etapas 2 y 3 completan esquemas, entrega y riesgos, descritos a continuación.
 
 ### Plan de telemetría — Etapa 2: envelope y esquemas
 - Definido el envelope común con los ocho campos requeridos, ISO 8601, correlación y representación nullable de identidad/sesión cuando el usuario aún no está autenticado.
 - Creado `docs/telemetry/event-schemas.json` con contratos de propiedades, allowlists, tipos, obligatoriedad, descripciones y restricciones para los 19 eventos del catálogo.
-- Documentadas en el plan las reglas de validación combinada del envelope y el contrato específico de cada evento. Etapa 3 pendiente; sin código de instrumentación.
+- Documentadas en el plan las reglas de validación del envelope y el contrato específico de cada evento. El registro personalizado pasó validación estructural y consistencia con el catálogo; sin código de instrumentación.
+
+### Plan de telemetría — Etapa 3: entrega, frecuencia y privacidad
+- Definida la decisión stream/batch con justificación de urgencia para los 19 eventos, junto con cadencias y objetivos de disponibilidad.
+- Añadidas políticas de muestreo, debounce y agregación con ventanas y contadores; actualizados los esquemas de eventos de alta frecuencia para expresar muestras y conteos sin perder señales.
+- Documentados riesgos, mitigaciones, exclusiones y la regla de 30 minutos para distinguir abandono de expiración/cierre de sesión.
