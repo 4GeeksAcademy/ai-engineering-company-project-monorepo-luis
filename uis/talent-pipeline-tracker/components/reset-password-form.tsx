@@ -20,8 +20,10 @@ import {
 export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [token] = useState(() => searchParams.get("token")?.trim() || null);
-  const isTokenMissing = token === null;
+  const [token] = useState<string | null>(
+    () => searchParams.get("token")?.trim() ?? null,
+  );
+  const isTokenMissing = !token;
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function ResetPasswordForm() {
 
   useEffect(() => {
     if (token) {
-      // Remove the token from the URL immediately so it is not leaked or kept in browser history
+      // Keep the initial token in component state while removing it from the URL.
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, [token]);

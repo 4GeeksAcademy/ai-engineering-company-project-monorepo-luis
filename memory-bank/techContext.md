@@ -100,6 +100,8 @@ analisis/CSV pendientes de etapa 4. No cambios de permisos/frontend/dependencias
 - El tracker consume `https://playground.4geeks.com/tracker/api/v1`; revisar `SPEC.md` para rutas, modelos y comportamiento.
 - El directorio de proveedores guarda TinyDB en `services/api/data/suppliers.json` por defecto, o en `NEXOVA_SUPPLIERS_DB_PATH` si se configura. El archivo local de datos está excluido de Git.
 - El comando idempotente `uv run seed` se ejecuta desde `services/api`; la API y sus datos comerciales permanecen en alcance local/demo.
+- Etapa de caching: `services/api/response_cache.py` mantiene caché TTL en proceso para `GET /api/incidents/summary` (30 s) y `GET /inventory/products` (15 s); las rutas de escritura correspondientes invalidan sus entradas. No se comparte entre workers y las escrituras fuera de esas rutas solo quedan acotadas por el TTL. Ver `CACHING_REPORT.md`.
+- Etapa frontend de caching: `CandidateForm` se carga dinámicamente en alta/edición y `candidate-list.tsx` memoiza filas/tarjetas según `candidates`. TypeScript y lint dirigido pasan; build sigue bloqueado por una ruta local irresuelta de Next.js, documentada en `CACHING_REPORT.md`.
 - La tecnología e integración de datos del nuevo backoffice quedan por decidir al implementarlo. Reutilizar la API del tracker solo si cubre los requisitos del backoffice.
 - No crear un backend por defecto. Si se necesita, debe vivir bajo `services/` y seguir sus convenciones.
 
