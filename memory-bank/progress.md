@@ -383,3 +383,8 @@ Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralize
 - Definida la decisión stream/batch con justificación de urgencia para los 19 eventos, junto con cadencias y objetivos de disponibilidad.
 - Añadidas políticas de muestreo, debounce y agregación con ventanas y contadores; actualizados los esquemas de eventos de alta frecuencia para expresar muestras y conteos sin perder señales.
 - Documentados riesgos, mitigaciones, exclusiones y la regla de 30 minutos para distinguir abandono de expiración/cierre de sesión.
+
+### Plan de telemetría — Etapa 4: validación y PR
+- Validación final satisfactoria: JSON parseable, 19 eventos alineados entre catálogo y registro, 5 obligatorios, 14 oportunidades, cinco categorías y una decisión stream/batch por evento. `git diff --check` limpio.
+- La comparación de GitHub confirma que `docs/telemetry-plan` puede fusionarse automáticamente con `main`; no hay PR abierto para esta rama.
+- El PR con título `docs: telemetry design plan` sigue pendiente: el navegador solicita iniciar sesión, `gh` no está instalado y las herramientas GitHub disponibles no permiten crear PRs.
