@@ -593,3 +593,23 @@ Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralize
   - `incident-list.png` (listado con datos cargados)
   - `incident-summary.png` (resumen con métricas operativas)
 - Documentación de entrega completa creada en `docs/DELIVERY_CENTRALIZED_INCIDENT_MANAGER.md`.
+
+### Plan de telemetría — Etapa 1: catálogo de oportunidades
+- Creado `docs/telemetry/telemetry-plan.md` con el flujo de inventario, los cinco eventos obligatorios del briefing y catorce oportunidades identificadas en inventario/negocio, autenticación, rendimiento, errores y navegación.
+- Cada evento incluye su hipótesis y la decisión habilitada. Se documentaron restricciones de privacidad y los temas reservados para las etapas de esquemas y estrategia de entrega.
+- No se implementó código de instrumentación. Las etapas 2 y 3 completan esquemas, entrega y riesgos, descritos a continuación.
+
+### Plan de telemetría — Etapa 2: envelope y esquemas
+- Definido el envelope común con los ocho campos requeridos, ISO 8601, correlación y representación nullable de identidad/sesión cuando el usuario aún no está autenticado.
+- Creado `docs/telemetry/event-schemas.json` con contratos de propiedades, allowlists, tipos, obligatoriedad, descripciones y restricciones para los 19 eventos del catálogo.
+- Documentadas en el plan las reglas de validación del envelope y el contrato específico de cada evento. El registro personalizado pasó validación estructural y consistencia con el catálogo; sin código de instrumentación.
+
+### Plan de telemetría — Etapa 3: entrega, frecuencia y privacidad
+- Definida la decisión stream/batch con justificación de urgencia para los 19 eventos, junto con cadencias y objetivos de disponibilidad.
+- Añadidas políticas de muestreo, debounce y agregación con ventanas y contadores; actualizados los esquemas de eventos de alta frecuencia para expresar muestras y conteos sin perder señales.
+- Documentados riesgos, mitigaciones, exclusiones y la regla de 30 minutos para distinguir abandono de expiración/cierre de sesión.
+
+### Plan de telemetría — Etapa 4: validación y PR
+- Validación final satisfactoria: JSON parseable, 19 eventos alineados entre catálogo y registro, 5 obligatorios, 14 oportunidades, cinco categorías y una decisión stream/batch por evento. `git diff --check` limpio.
+- La comparación de GitHub confirma que `docs/telemetry-plan` puede fusionarse automáticamente con `main`; no hay PR abierto para esta rama.
+- El PR con título `docs: telemetry design plan` sigue pendiente: el navegador solicita iniciar sesión, `gh` no está instalado y las herramientas GitHub disponibles no permiten crear PRs.
