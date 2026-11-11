@@ -1,0 +1,301 @@
+{
+  "formatVersion": "1.0",
+  "description": "Custom event registry format. Each event's properties map is its complete allowlist. Property definitions use JSON Schema type/constraint keywords plus required (boolean) and description. To validate an event, require exactly the envelope fields below, verify event_type exists, then validate properties against that event's definitions. Reject unknown keys at both levels.",
+  "envelope": {
+    "required": ["eventId", "timestamp", "sessionId", "userId", "event_type", "schemaVersion", "requestId", "properties"],
+    "additionalProperties": false,
+    "properties": {
+      "eventId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique event identifier."
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "ISO 8601 timestamp including timezone."
+      },
+      "sessionId": {
+        "type": ["string", "null"],
+        "description": "Opaque session identifier; null when no session exists."
+      },
+      "userId": {
+        "type": ["string", "null"],
+        "description": "Opaque internal user identifier; null when the user is not known."
+      },
+      "event_type": {
+        "type": "string",
+        "description": "Must match one event_type in the events registry, using entity_action taxonomy."
+      },
+      "schemaVersion": {
+        "type": "string",
+        "const": "1.0",
+        "description": "Version of this event contract."
+      },
+      "requestId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Opaque correlation identifier shared across frontend, backend, and logs."
+      },
+      "properties": {
+        "type": "object",
+        "description": "Event-specific payload; validate against the properties allowlist for event_type."
+      }
+    }
+  },
+  "events": [
+    {
+      "event_type": "inbound_order_created",
+      "classification": "mandatory_briefing",
+      "category": "inventory_business",
+      "description": "A supplier delivery of training or onboarding material is confirmed and recorded as an inbound order.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office that owns the inventory; determines the local currency."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the received product."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 1, "description": "Number of units received in this order line."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency; EUR for Valencia and USD for Miami. No telemetry-layer conversion."},
+        "unit_cost": {"type": "number", "required": true, "minimum": 0, "description": "Cost per unit in the office currency."},
+        "supplier_ref": {"type": "string", "required": true, "minLength": 1, "description": "Opaque business identifier for the supplier; never a contact person's name or details."},
+        "total_cost": {"type": "number", "required": false, "minimum": 0, "description": "Optional order-line total in the office currency when available."}
+      }
+    },
+    {
+      "event_type": "outbound_order_created",
+      "classification": "mandatory_briefing",
+      "category": "inventory_business",
+      "description": "A delivery of a kit or certificate is confirmed and recorded as an outbound order.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office that owns the inventory."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the delivered product."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 1, "description": "Number of units delivered in this order line."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency; included for consistent inventory aggregation."},
+        "recipient_type": {"type": "string", "required": true, "enum": ["client", "candidate", "consultant", "support_agent"], "description": "Recipient category only; no recipient name or personal identifier."}
+      }
+    },
+    {
+      "event_type": "stock_threshold_triggered",
+      "classification": "mandatory_briefing",
+      "category": "inventory_business",
+      "description": "A product's available stock falls below its configured minimum.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office that owns the inventory."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the product below threshold."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 0, "description": "Available stock observed when the threshold is crossed."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation; no conversion."},
+        "threshold_quantity": {"type": "integer", "required": true, "minimum": 0, "description": "Configured minimum stock that was crossed."}
+      }
+    },
+    {
+      "event_type": "direct_stock_edit_rejected",
+      "classification": "mandatory_briefing",
+      "category": "inventory_business",
+      "description": "The system rejects an attempt to change stock outside a traceable inbound or outbound order.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office where the attempt occurred."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the affected product."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "description": "Signed quantity change the rejected attempt requested; no stock change is applied."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation."},
+        "rejection_code": {"type": "string", "required": true, "enum": ["order_required", "permission_denied", "invalid_operation"], "description": "Controlled reason for rejecting the direct stock change."}
+      }
+    },
+    {
+      "event_type": "kit_cost_variance_detected",
+      "classification": "mandatory_briefing",
+      "category": "inventory_business",
+      "description": "An inbound order's unit cost exceeds the configured variance threshold against the same product and supplier's history.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office that owns the inventory."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the product."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 1, "description": "Number of units in the inbound order line."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for all cost values; no conversion."},
+        "unit_cost": {"type": "number", "required": true, "minimum": 0, "description": "Current unit cost in the office currency."},
+        "baseline_unit_cost": {"type": "number", "required": true, "minimum": 0, "description": "Historical comparison unit cost in the same currency."},
+        "variance_percent": {"type": "number", "required": true, "description": "Percentage variance from the historical unit cost."},
+        "threshold_percent": {"type": "number", "required": true, "minimum": 0, "description": "Configured percentage threshold that triggered this event."},
+        "supplier_ref": {"type": "string", "required": true, "minLength": 1, "description": "Opaque business identifier for the supplier; no contact-person details."}
+      }
+    },
+    {
+      "event_type": "inventory_item_viewed",
+      "classification": "identified_opportunity",
+      "category": "inventory_business",
+      "description": "An operator opens a product detail in the inventory.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office whose inventory is being viewed."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the viewed product."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 0, "description": "Available stock displayed at view time."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation."}
+      }
+    },
+    {
+      "event_type": "inventory_order_validation_failed",
+      "classification": "identified_opportunity",
+      "category": "inventory_business",
+      "description": "An inbound or outbound order cannot proceed because a validation fails.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office where the order is being entered."},
+        "order_type": {"type": "string", "required": true, "enum": ["inbound", "outbound"], "description": "Kind of order being validated."},
+        "validation_code": {"type": "string", "required": true, "enum": ["missing_field", "invalid_quantity", "unknown_product", "insufficient_stock", "invalid_cost", "other"], "description": "Controlled validation failure; never include submitted text."},
+        "product_id": {"type": ["string", "null"], "required": false, "description": "Opaque product identifier when selected; omitted or null before selection."},
+        "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Product category when known."},
+        "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme identifier when known."},
+        "quantity": {"type": ["integer", "null"], "required": false, "description": "Quantity submitted, if available and safe to represent."},
+        "currency": {"type": ["string", "null"], "required": false, "enum": ["EUR", "USD", null], "description": "Office currency when a product or cost is in context."}
+      }
+    },
+    {
+      "event_type": "inventory_order_abandoned",
+      "classification": "identified_opportunity",
+      "category": "inventory_business",
+      "description": "An explicitly cancelled or timed-out inbound or outbound order flow is not confirmed.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office where the order flow started."},
+        "order_type": {"type": "string", "required": true, "enum": ["inbound", "outbound"], "description": "Kind of order flow abandoned."},
+        "last_step": {"type": "string", "required": true, "enum": ["product_selection", "quantity_entry", "cost_entry", "review", "confirmation"], "description": "Last controlled step reached."},
+        "abandonment_trigger": {"type": "string", "required": true, "enum": ["explicit_cancel", "flow_timeout"], "description": "Explicit cancellation or defined flow timeout; a session expiry alone is not sufficient."},
+        "product_id": {"type": ["string", "null"], "required": false, "description": "Opaque product identifier if one was selected."},
+        "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Product category if known."},
+        "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme identifier if known."},
+        "quantity": {"type": ["integer", "null"], "required": false, "description": "Quantity if entered."},
+        "currency": {"type": ["string", "null"], "required": false, "enum": ["EUR", "USD", null], "description": "Office currency when cost is in context."}
+      }
+    },
+    {
+      "event_type": "inventory_threshold_acknowledged",
+      "classification": "identified_opportunity",
+      "category": "inventory_business",
+      "description": "An operator acknowledges a low-stock threshold alert.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office that owns the inventory."},
+        "product_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque identifier of the product below threshold."},
+        "product_category": {"type": "string", "required": true, "enum": ["training_kit", "certification", "onboarding_equipment"], "description": "Nexova product category."},
+        "programme_id": {"type": "string", "required": true, "minLength": 1, "description": "Opaque programme or area identifier."},
+        "quantity": {"type": "integer", "required": true, "minimum": 0, "description": "Available stock when the alert is acknowledged."},
+        "currency": {"type": "string", "required": true, "enum": ["EUR", "USD"], "description": "Office currency for consistent inventory aggregation."},
+        "trigger_event_id": {"type": "string", "required": true, "format": "uuid", "description": "eventId of the corresponding stock_threshold_triggered event."}
+      }
+    },
+    {
+      "event_type": "inventory_search_performed",
+      "classification": "identified_opportunity",
+      "category": "inventory_business",
+      "description": "An operator searches or filters inventory without recording free-text query content.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Office whose inventory is searched."},
+        "result_count": {"type": "integer", "required": true, "minimum": 0, "description": "Number of matching products."},
+        "product_category": {"type": ["string", "null"], "required": false, "enum": ["training_kit", "certification", "onboarding_equipment", null], "description": "Category filter, if selected."},
+        "programme_id": {"type": ["string", "null"], "required": false, "description": "Opaque programme filter, if selected."},
+        "filters_used": {"type": "array", "required": false, "items": {"type": "string", "enum": ["category", "programme", "availability"]}, "description": "Controlled names of filters applied; no query text."}
+      }
+    },
+    {
+      "event_type": "auth_login_failed",
+      "classification": "identified_opportunity",
+      "category": "authentication",
+      "description": "An authentication attempt fails, including invalid credentials.",
+      "properties": {
+        "auth_method": {"type": "string", "required": true, "enum": ["password", "sso", "other"], "description": "Authentication method category."},
+        "failure_code": {"type": "string", "required": true, "enum": ["invalid_credentials", "account_locked", "provider_unavailable", "other"], "description": "Controlled failure category; no submitted credentials, email, or username."}
+      }
+    },
+    {
+      "event_type": "auth_session_expired",
+      "classification": "identified_opportunity",
+      "category": "authentication",
+      "description": "An authenticated session expires and requires the operator to authenticate again.",
+      "properties": {
+        "expiration_reason": {"type": "string", "required": true, "enum": ["idle_timeout", "maximum_lifetime", "revoked", "other"], "description": "Controlled reason the session ended."}
+      }
+    },
+    {
+      "event_type": "auth_login_succeeded",
+      "classification": "identified_opportunity",
+      "category": "authentication",
+      "description": "A user successfully authenticates to the backoffice.",
+      "properties": {
+        "auth_method": {"type": "string", "required": true, "enum": ["password", "sso", "other"], "description": "Authentication method category."}
+      }
+    },
+    {
+      "event_type": "api_latency_recorded",
+      "classification": "identified_opportunity",
+      "category": "performance",
+      "description": "The duration and result of an API request are measured.",
+      "properties": {
+        "route_group": {"type": "string", "required": true, "enum": ["auth", "inventory_read", "inbound_order", "outbound_order", "reporting", "other"], "description": "Controlled route group; never a raw URL or query string."},
+        "http_method": {"type": "string", "required": true, "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OTHER"], "description": "HTTP method."},
+        "status_code": {"type": ["integer", "null"], "required": true, "minimum": 100, "maximum": 599, "description": "HTTP response status, or null if no response was received."},
+        "duration_ms": {"type": "number", "required": true, "minimum": 0, "description": "Request duration in milliseconds."}
+      }
+    },
+    {
+      "event_type": "page_load_recorded",
+      "classification": "identified_opportunity",
+      "category": "performance",
+      "description": "The load duration of a backoffice view is measured.",
+      "properties": {
+        "page_id": {"type": "string", "required": true, "enum": ["dashboard", "inventory", "inbound_orders", "outbound_orders", "reports", "settings", "other"], "description": "Controlled page identifier."},
+        "duration_ms": {"type": "number", "required": true, "minimum": 0, "description": "View load duration in milliseconds."},
+        "navigation_type": {"type": "string", "required": true, "enum": ["navigate", "reload", "back_forward", "other"], "description": "Browser navigation category."}
+      }
+    },
+    {
+      "event_type": "api_request_failed",
+      "classification": "identified_opportunity",
+      "category": "errors",
+      "description": "An API request fails before completing the requested operation.",
+      "properties": {
+        "route_group": {"type": "string", "required": true, "enum": ["auth", "inventory_read", "inbound_order", "outbound_order", "reporting", "other"], "description": "Controlled route group; never a raw URL or query string."},
+        "http_method": {"type": "string", "required": true, "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OTHER"], "description": "HTTP method."},
+        "status_code": {"type": ["integer", "null"], "required": true, "minimum": 100, "maximum": 599, "description": "HTTP response status, or null if no response was received."},
+        "error_code": {"type": "string", "required": true, "enum": ["timeout", "network_error", "client_error", "server_error", "other"], "description": "Controlled error category; no raw response body or exception text."}
+      }
+    },
+    {
+      "event_type": "frontend_uncaught_error",
+      "classification": "identified_opportunity",
+      "category": "errors",
+      "description": "The frontend encounters an uncaught exception during backoffice use.",
+      "properties": {
+        "error_fingerprint": {"type": "string", "required": true, "minLength": 1, "description": "Stable non-reversible fingerprint derived from a sanitized error signature; not the raw message or stack."},
+        "page_id": {"type": "string", "required": true, "enum": ["dashboard", "inventory", "inbound_orders", "outbound_orders", "reports", "settings", "other"], "description": "Controlled page identifier."},
+        "release_version": {"type": ["string", "null"], "required": false, "description": "Application release identifier, if available."}
+      }
+    },
+    {
+      "event_type": "backoffice_section_viewed",
+      "classification": "identified_opportunity",
+      "category": "navigation",
+      "description": "An operator navigates to a backoffice section.",
+      "properties": {
+        "office": {"type": "string", "required": true, "enum": ["valencia", "miami"], "description": "Operator's office, kept separate from interface language."},
+        "section_id": {"type": "string", "required": true, "enum": ["dashboard", "inventory", "inbound_orders", "outbound_orders", "reports", "settings"], "description": "Controlled section identifier."},
+        "interface_language": {"type": ["string", "null"], "required": false, "enum": ["es", "en", null], "description": "Interface language, an independent dimension from office."}
+      }
+    },
+    {
+      "event_type": "backoffice_flow_abandoned",
+      "classification": "identified_opportunity",
+      "category": "navigation",
+      "description": "A defined backoffice flow is explicitly cancelled or times out before completion.",
+      "properties": {
+        "flow_id": {"type": "string", "required": true, "enum": ["inventory_inbound_order", "inventory_outbound_order", "inventory_search", "other"], "description": "Controlled flow identifier."},
+        "last_step": {"type": "string", "required": true, "enum": ["start", "data_entry", "review", "confirmation", "other"], "description": "Last controlled step reached."},
+        "abandonment_trigger": {"type": "string", "required": true, "enum": ["explicit_cancel", "flow_timeout"], "description": "Explicit cancellation or defined flow timeout; session expiry alone is insufficient."},
+        "elapsed_seconds": {"type": "integer", "required": true, "minimum": 0, "description": "Elapsed time from flow start until cancellation or timeout."}
+      }
+    }
+  ]
+}

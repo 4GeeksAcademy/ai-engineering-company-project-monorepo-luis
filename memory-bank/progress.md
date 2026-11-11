@@ -372,4 +372,9 @@ Actualizado: 2026-10-20. Proyecto completado al 100% en la rama `docs/centralize
 ### Plan de telemetría — Etapa 1: catálogo de oportunidades
 - Creado `docs/telemetry/telemetry-plan.md` con el flujo de inventario, los cinco eventos obligatorios del briefing y catorce oportunidades identificadas en inventario/negocio, autenticación, rendimiento, errores y navegación.
 - Cada evento incluye su hipótesis y la decisión habilitada. Se documentaron restricciones de privacidad y los temas reservados para las etapas de esquemas y estrategia de entrega.
-- No se implementó código de instrumentación. Etapas 2 y 3 pendientes.
+- No se implementó código de instrumentación. La etapa 2 define los esquemas; la etapa 3 de entrega y riesgos queda pendiente.
+
+### Plan de telemetría — Etapa 2: envelope y esquemas
+- Definido el envelope común con los ocho campos requeridos, ISO 8601, correlación y representación nullable de identidad/sesión cuando el usuario aún no está autenticado.
+- Creado `docs/telemetry/event-schemas.json` con contratos de propiedades, allowlists, tipos, obligatoriedad, descripciones y restricciones para los 19 eventos del catálogo.
+- Documentadas en el plan las reglas de validación combinada del envelope y el contrato específico de cada evento. Etapa 3 pendiente; sin código de instrumentación.

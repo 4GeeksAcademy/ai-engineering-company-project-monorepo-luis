@@ -2,9 +2,26 @@
 
 ## Alcance de esta etapa
 
-Este documento inicia el diseño con el catálogo de eventos y el flujo de inventario. La etapa 1 define qué señales capturar y qué decisiones permiten; todavía no especifica los esquemas JSON ni la entrega stream/batch, que se completarán en las etapas siguientes. No se implementa instrumentación.
+El catálogo de eventos y el flujo de inventario se definieron en la etapa 1. Esta etapa agrega el envelope común y los contratos JSON por evento; la estrategia stream/batch y sus controles operativos se completan en la etapa 3. No se implementa instrumentación.
 
 El catálogo contiene **19 eventos**: **5 obligatorios del briefing** y **14 oportunidades identificadas**, distribuidos entre inventario/negocio, autenticación, rendimiento, errores y navegación.
+
+## Envelope estándar
+
+Cada evento se valida como un objeto con estos ocho campos de nivel superior, sin claves adicionales:
+
+| Campo | Tipo | Obligatorio | Regla |
+|---|---|---|---|
+| `eventId` | string | Sí | UUID único por evento, generado antes de emitirlo. |
+| `timestamp` | string | Sí | Fecha y hora ISO 8601 con zona horaria, por ejemplo `2026-11-11T20:00:00Z`. |
+| `sessionId` | string o `null` | Sí | Identificador opaco de sesión; `null` cuando el evento ocurre antes de establecer sesión. |
+| `userId` | string o `null` | Sí | Identificador interno opaco; `null` si aún no se conoce al usuario, como en un intento de acceso anónimo. No usar email ni nombre como identificador. |
+| `event_type` | string | Sí | Uno de los 19 nombres de evento enumerados en este plan. |
+| `schemaVersion` | string | Sí | Versión del contrato, inicialmente `1.0`. |
+| `requestId` | string | Sí | Identificador de correlación opaco para enlazar frontend, backend y logs; no debe contener datos de usuario. |
+| `properties` | object | Sí | Payload validado contra el allowlist del `event_type`; se rechazan propiedades no declaradas. |
+
+`event-schemas.json` usa un formato de registro JSON personalizado, no un único JSON Schema draft-07. El documento contiene `formatVersion`, la definición común `envelope` y la lista `events`; cada evento tiene un allowlist explícito de `properties`. Para validar una instancia, se comprueba el envelope y luego `properties` contra la definición asociada al `event_type`; ambas capas rechazan campos desconocidos. Las definiciones de propiedad usan tipos y restricciones JSON Schema, además de `required` y `description` como metadatos del registro.
 
 ## Contexto y restricciones de negocio
 
@@ -86,8 +103,8 @@ Se proponen catorce eventos adicionales en cinco categorías. Se conservarán en
 
 ## Límites para las siguientes etapas
 
-- Los eventos de inventario deben poder relacionarse con `office`, `product_id`, `product_category`, `programme_id`, `quantity` y `currency` cuando esos datos apliquen. En la etapa de esquemas se definirán explícitamente campos obligatorios y condicionales por evento.
+- El contrato de `event-schemas.json` define para cada evento el allowlist explícito y la obligatoriedad de cada propiedad. Para eventos de inventario de un producto concreto, `office`, `product_id`, `product_category`, `programme_id`, `quantity` y `currency` forman el conjunto mínimo, sujeto a las excepciones contextuales documentadas en las tablas de propiedades del catálogo: eventos iniciados antes de seleccionar un producto pueden omitir sus datos; `quantity` aplica cuando hay cantidad observada o intentada; y búsquedas sin producto seleccionado no inventan cantidad ni moneda de producto.
 - Los importes conservarán la moneda de la oficina (`EUR` en Valencia, `USD` en Miami); no se mezclarán idioma de interfaz y oficina.
-- El envelope común y la representación de eventos de autenticación sin identidad conocida se definirán en la etapa 2. No se incorporarán credenciales, emails, nombres ni otros datos personales para resolver esa situación.
-- Los esquemas y allowlists por evento se definirán en la etapa 2. La estrategia stream/batch, la limitación de eventos de alta frecuencia, los riesgos y las exclusiones se documentarán en la etapa 3.
+- En `auth_login_failed`, `sessionId` y `userId` se incluyen como `null` cuando el intento no corresponde a una sesión ni a una identidad conocida. No se incorporarán credenciales, emails, nombres, direcciones IP, texto libre de error o contenido de solicitudes para resolver esa situación.
+- La estrategia stream/batch, la limitación de eventos de alta frecuencia, los riesgos y las exclusiones se documentarán en la etapa 3.
 - `inventory_order_abandoned` requiere una definición de cierre de flujo que distinga abandono de una sesión simplemente interrumpida; no se inferirá el abandono solo por una sesión expirada.
