@@ -1,5 +1,59 @@
 # Nexova Operations API
 
+## Telemetry capture — stage 1
+
+`POST /telemetry/events` is a temporary, local/demo receiver. It accepts a JSON
+object with only `events`, an array of 0–500 events. Empty batches return
+`200 {"received": 0}`. Valid batches return `200 {"received": N}`.
+The endpoint is intentionally anonymous so events before authentication can be
+received without sending credentials. This does not authorize public deployment.
+
+`services/api/telemetry.py` defines `TelemetryEvent`, `TelemetryBatch` and
+`TelemetryReceived`. Each event requires exactly the eight approved envelope
+fields, a UUID event ID, a timezone-aware ISO timestamp, version `1.0`, and a
+nonempty request ID. Unknown fields and event types are rejected.
+Property allowlists, required fields, types, enums, numeric/string bounds and
+array-item constraints come from the custom registry
+[`event-schemas.json`](../../docs/telemetry/event-schemas.json).
+Keep that file available at its repository path when running the API.
+Office/currency pairs must be Valencia/EUR or Miami/USD.
+
+An invalid event rejects the entire batch with HTTP 422 and only
+`{"detail": "Invalid telemetry batch"}`; invalid keys, values and validation
+messages are never echoed. The application logger records only batch count
+and controlled event types, not event bodies or identifiers. Producers must
+still supply only approved opaque identifiers, never personal data: contract
+validation is not a general-purpose detector of PII inside string values.
+
+`TELEMETRY_ENDPOINT` is read from the process environment during API startup.
+Absent/blank means `None` and does not prevent startup. If configured, it must
+be an HTTP(S) URL without credentials, query or fragment; invalid configuration
+fails startup naming only the variable. The loaded value is available as
+`app.state.telemetry_endpoint`, but this stub never forwards requests.
+For local synthetic checks, a nonsecret example in PowerShell is:
+
+```powershell
+$env:TELEMETRY_ENDPOINT = "http://127.0.0.1:8000/telemetry/events"
+```
+
+Existing JWT startup requirements remain unchanged. No `.env` file is needed
+or modified. Telemetry has **no persistence, event-ID deduplication, consumers
+or delivery guarantee** in this stage. Repeated IDs are accepted; HTTP 200
+confirms contract validation only. Inventory and frontend remain unchanged.
+
+Verification on 2026-11-13: 48 focused telemetry/JWT tests passed, with the
+existing Starlette/httpx deprecation warning. The telemetry tests replace
+database initialization and use only synthetic events. One pre-existing
+missing `DetailErrorResponse` import in the incidents router blocked application
+loading; the user authorized restoring that import without other incident changes.
+
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests\test_telemetry_api.py services\api\tests\test_security.py -q
+```
+
+No Python lint/typecheck/build command is declared for this API. Frontend,
+browser evidence and end-to-end capture belong to the following stages.
+
 Centralized FastAPI backend service for Nexova operations and incident analysis.
 
 ## Backend serialization audit

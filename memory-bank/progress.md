@@ -2,6 +2,24 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 1
+
+2026-11-13. Rama `docs/telemetry-front`, base `98a831e`.
+
+- Stub FastAPI `/telemetry/events` con envelope de ocho campos y validacion
+  del catalogo aprobado de 19 eventos/allowlists. Rechazo atomico y sanitizado;
+  respuesta 200 con received, incluido lote vacio; limite de 500 eventos.
+- Sin persistencia, reenvio ni deduplicacion. Logs solo cantidad/event_type.
+  Variable opcional TELEMETRY_ENDPOINT validada al arrancar, sin secretos.
+- 48 tests de telemetria y regresion JWT pasan, con aviso Starlette/httpx
+  conocido. Tests de telemetria omiten inicializacion de bases. No suite global,
+  navegador ni instrumentacion frontend en esta etapa.
+- Error previo de carga por import faltante DetailErrorResponse en incidents
+  corregido unicamente con autorizacion explicita del usuario.
+- README API actualizado; siguiente paso es etapa 2, TelemetryService.
+  Ampliacion del inventario y ruta de rechazo directo aprobadas en etapa 0
+  quedan pendientes para soportar instrumentacion real, sin datos inventados.
+
 ## Auditoria de serializacion backend — Etapa 8
 
 2026-11-05. Base publicada etapa 7:

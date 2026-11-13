@@ -1,5 +1,21 @@
 # Tech Context
 
+## Telemetria frontend — etapa 1 (2026-11-13)
+
+- Rama `docs/telemetry-front`: receptor temporal `POST /telemetry/events`,
+  anonimo local/demo, sin persistir, reenviar ni deduplicar eventos.
+- Modelos y validacion en `services/api/telemetry.py`; propiedades tomadas del
+  registry aprobado, envelope estricto, errores HTTP 422 genericos y logs solo
+  de cantidad/tipos controlados. Lotes de 0 a 500; vacio devuelve received=0.
+- `TELEMETRY_ENDPOINT` opcional desde entorno al arrancar: HTTP(S), sin
+  credenciales/query/fragmento; estado en app.state.telemetry_endpoint.
+  JWT mantiene su configuracion obligatoria. No lectura de `.env`.
+- 48 tests focalizados telemetria/JWT pasan; sin bases reales, frontend,
+  dependencias o dominio de inventario modificados. Import faltante de
+  DetailErrorResponse en incidents restaurado con autorizacion del usuario.
+- Siguiente etapa: servicio central frontend. La ampliacion de dominio para
+  los cinco eventos obligatorios sigue pendiente; no inventar campos o capturas.
+
 ## Auditoria de serializacion — 2026-11-02
 
 Actualizacion 2026-11-05, etapa 8: verificacion tecnica global terminada:
