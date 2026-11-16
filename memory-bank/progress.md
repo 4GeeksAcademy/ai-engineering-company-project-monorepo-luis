@@ -2,6 +2,27 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 2
+
+2026-11-16. Rama `docs/telemetry-front`, base `28a147c`.
+
+- Servicio central implementado, integrado en cuatro paginas sin instrumentar
+  negocio ni modificar inventario/autenticacion existentes. Configuracion
+  estatica publica y contrato generado/verificable desde el registry aprobado.
+- Cola/batching/retries/Beacon/fallback con limites de eventos/bytes, envelope
+  automatico, validacion estricta y aislamiento de credenciales/PII del cliente.
+- Politicas confirmadas por usuario: 500 eventos incluyendo en vuelo, rechazar
+  nuevos al llenarse, tres reintentos adicionales 1/2/4 s, UUID de sesion por
+  login/logout; userId interno de profile.user_id como string o null; requestId
+  UUID hasta integrar correlacion real en instrumentacion.
+- 19 pruebas Node pasan, sincronizacion de contrato y sintaxis comprobadas.
+  Prueba navegador local con API/colector mockeados: lote sintetico de 20,
+  ocho campos y respuesta received=20; sin afirmar E2E real ni evidencia final.
+- Pendiente etapa 3: ampliar dominio aprobado y capturar cinco eventos reales,
+  correlacionar operaciones sin inventar datos ni inferir exito de un clic.
+  No se han anadido emisores, Web Vitals ni persistencia. Receptor sin cookies
+  requerido para sendBeacon; entrega best effort, no exactamente una vez.
+
 ## Telemetria frontend — Etapa 1
 
 2026-11-13. Rama `docs/telemetry-front`, base `98a831e`.

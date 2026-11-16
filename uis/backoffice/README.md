@@ -1,5 +1,111 @@
 # Nexova Backoffice
 
+## Telemetria — etapa 2
+
+El servicio central expone solo `window.Telemetry.track(eventType, properties)`.
+Retorna `true` si encola el evento y `false` si esta desactivado o lo rechaza;
+no retorna una promesa ni garantiza entrega. Esta etapa carga el servicio en
+las cuatro paginas, pero **todavia no instrumenta operaciones de negocio,
+autenticacion, errores ni navegacion**.
+
+### Configuracion estatica
+
+Antes de cargar el servicio, el despliegue configura
+`window.__TELEMETRY_ENDPOINT__` en `telemetry-config.js` (o en un script anterior).
+Ejemplo publico, solo para datos sinteticos locales:
+
+```js
+window.__TELEMETRY_ENDPOINT__ = "http://127.0.0.1:8000/telemetry/events";
+```
+
+Es el equivalente de configuracion de ejecucion para este sitio estatico:
+no usa Next.js, variables de proceso en el browser ni secretos. La version
+incluida tiene endpoint vacio: no encola, no crea temporizadores y muestra
+una advertencia controlada. Cambiar la configuracion requiere recargar.
+La URL puede ser relativa al documento o HTTP(S) absoluta, nunca con
+credenciales, query o fragmento. El receptor debe admitir el origen del panel
+por CORS. No se usa el cliente autenticado `inventoryApi.request` para enviarla.
+
+Los envios `fetch` usan `credentials: "omit"` y no incluyen Authorization.
+**`sendBeacon` no permite omitir las cookies automaticas del navegador**:
+usar un receptor/origen sin cookies ni credenciales HTTP, tambien en pruebas;
+no configurar un colector compartido con sesiones personales.
+
+### Contrato y sesion
+
+- El contrato estatico `telemetry-contract.js` se genera desde
+  `docs/telemetry/event-schemas.json`; no mantener otro catalogo a mano.
+  Regenerar tras cambios aprobados del contrato:
+
+  ```powershell
+  node uis\backoffice\generate-telemetry-contract.mjs
+  node uis\backoffice\generate-telemetry-contract.mjs --check
+  ```
+
+- `track()` comprueba allowlist, obligatoriedad, tipos, enums, limites,
+  elementos de arrays y correspondencia oficina/moneda. Rechaza propiedades
+  extra; no corrige ni completa datos de negocio inventados.
+- Crea el envelope de ocho campos y serializa una instantanea al encolar:
+  UUID para `eventId`, hora ISO de creacion y `schemaVersion: "1.0"`.
+- Genera un UUID opaco de sesion al reconocer una sesion autenticada, lo
+  conserva por pestaña en `sessionStorage` y lo rota en login; logout/401 lo
+  elimina mediante el observador central existente. Sin almacenamiento
+  disponible conserva solo la sesion en memoria, sin impedir autenticacion.
+- `userId` usa exclusivamente `String(profile.user_id)` cuando es un entero
+  interno positivo seguro; nunca email/nombre ni contenido del token.
+  Sin usuario/sesion conocidos, sus campos correspondientes son `null`.
+  Son identificadores seudonimos sensibles, no datos anonimizados.
+- Actualmente el cliente no expone IDs de solicitud: `requestId` es un UUID
+  nuevo por evento. La correlacion con operaciones frontend/backend queda
+  pendiente para su instrumentacion; no se usa el ultimo request global.
+- Requiere `crypto.randomUUID` (contexto seguro, incluido localhost); si falta,
+  rechaza captura con advertencia sin afectar al backoffice.
+
+### Transporte y limites
+
+- Cola solo en memoria: hasta 500 eventos incluidos los que estan en vuelo;
+  al llenarse rechaza los nuevos. No guarda eventos en storage ni en perfiles.
+- Envia hasta 20 eventos cada 10 segundos o al alcanzar 20 pendientes.
+  Los lotes pueden contener menos eventos por temporizador/cierre o tamano.
+  Cada evento admite hasta 8 KiB serializados; cada body, hasta 60 KiB.
+- Solo un lote activo. Ante fallo HTTP/red o timeout de 5 segundos hace hasta
+  tres reintentos adicionales, a 1/2/4 segundos; conserva body, IDs y timestamp.
+  Descarta el lote agotado y continua. Las advertencias usan codigos fijos
+  una vez por codigo y documento, sin cuerpos, errores crudos ni identificadores.
+- `visibilitychange` a oculto y `pagehide` intentan `sendBeacon`; si falta,
+  lanza excepcion o retorna false, usan `fetch` con `keepalive` sin bloquear.
+  No duplican un lote cuyo fetch sigue en vuelo.
+- Limita el total intentado mientras esta oculta a 60 KiB para respetar el
+  presupuesto del navegador. Lo que no cabe espera en memoria a que vuelva a
+  estar visible; se pierde si el documento se destruye.
+- Entrega **best effort**, no exactamente una vez: Beacon true solo confirma
+  que el navegador acepto el envio. Un timeout/respuesta perdida puede causar
+  reentrega; el stub no deduplica ni persiste. Evitar duplicados de negocio y
+  correlacionar respuestas queda para las etapas de instrumentacion.
+
+### Verificacion de etapa 2 — 2026-11-16
+
+```powershell
+node --test uis\backoffice\tests\test_telemetry.mjs uis\backoffice\tests\test_inventory_api.mjs
+node uis\backoffice\generate-telemetry-contract.mjs --check
+node --check uis\backoffice\telemetry.js
+node --check uis\backoffice\telemetry-config.js
+```
+
+Pasan 19 pruebas: 12 del servicio y siete existentes. Reloj/transporte simulados
+comprueban 10 s/20 eventos, envelope, sesion, allowlists de los 19 eventos,
+1/2/4 s, limite de cola, timeout, Beacon/fallback, concurrencia, presupuesto de
+bytes y funcionamiento sin configuracion/storage/UUID.
+
+Navegador local: pagina de inventario carga el servicio; 20 llamadas sinteticas
+producen un lote con ocho campos por evento y respuesta `received: 20`, sin
+excepciones de pagina tras recarga controlada. API y receptor **simulados por
+Playwright**, no verificacion extremo a extremo con FastAPI. La apertura inicial
+sin API mostro el error de conexion esperado del inventario; la recarga uso
+respuestas sinteticas. En las cuatro paginas se comprobo tambien la carga de
+`track()`, el rechazo de un evento desconocido y abrir/cerrar el dialogo de login,
+sin excepciones de pagina. Evidencia con API real y flujos completos sigue pendiente.
+
 Panel interno de referencia para el contexto de negocio y las etapas del proceso de talento. Se mantiene separado del sitio público y del tracker de candidatos.
 
 ## Alcance de datos

@@ -1,5 +1,27 @@
 # Tech Context
 
+## Telemetria frontend — etapa 2 (2026-11-16)
+
+- `uis/backoffice/telemetry.js` expone unicamente Telemetry.track(tipo, propiedades)
+  y se carga en las cuatro paginas. Sin instrumentacion automatica aun.
+- Configuracion publica estatica en telemetry-config.js mediante
+  window.__TELEMETRY_ENDPOINT__, vacia/desactivada por defecto. Contrato JS
+  generado desde el registry aprobado con generate-telemetry-contract.mjs;
+  --check detecta desincronizacion sin dependencias/build nuevo.
+- Cola memoria 500 incluyendo en vuelo; rechaza nuevos si llena; maximo 8 KiB
+  por evento/60 KiB por lote, 20 eventos o 10 s, timeout 5 s y tres reintentos
+  1/2/4 s conservando envelope/body. Beacon/fallback keepalive al ocultar/pagehide,
+  sin reenviar fetch en vuelo, presupuesto oculto 60 KiB. Entrega best effort.
+- Sesion UUID por pestaña observando login/logout/401 existentes; userId usa
+  profile.user_id interno como string o null. requestId UUID generado; no hay
+  aun correlacion de operaciones. Sin storage queda sesion en memoria.
+- Fetch omite credenciales. Beacon no permite suprimir cookies automaticas:
+  receptor debe estar libre de cookies/credenciales. Sin endpoint/UUID, captura
+  desactivada con advertencias controladas, sin afectar a operaciones.
+- 19 tests Node pasan (12 servicio + 7 existentes), sintaxis y --check pasan.
+  Navegador inventario verifica lote sintetico de 20 y envelope de ocho campos
+  con API/receptor mockeados; no sustituye E2E FastAPI de etapa final.
+
 ## Telemetria frontend — etapa 1 (2026-11-13)
 
 - Rama `docs/telemetry-front`: receptor temporal `POST /telemetry/events`,
