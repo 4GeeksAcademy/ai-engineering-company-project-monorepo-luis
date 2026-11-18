@@ -2,6 +2,16 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 6
+
+2026-11-18. Rama `docs/telemetry-front`, base `a62ad67`.
+
+- Evidencia sanitizada y matriz de emisores en el README del backoffice.
+  Chromium y FastAPI real verificaron lote temporizado, umbral de 20,
+  cierre simulado, recuperacion y operaciones con colector bloqueado.
+- 19 pruebas Node y 64 FastAPI pasan. Persiste el fallo previo de OpenAPI
+  (`KeyError: '500'` en `test_get_products_empty`). No se hizo merge.
+
 ## Telemetria frontend — Etapa 5
 
 2026-11-18. Rama `docs/telemetry-front`, base `5c3f656`.

@@ -1,5 +1,57 @@
 # Nexova Backoffice
 
+## Entrega de captura de telemetria — etapa 6
+
+PR a `main`: **`feat: telemetry event capture`**. No hacer merge antes de la
+revision. El receptor temporal valida y cuenta eventos; **no los persiste**.
+
+| Eventos | Emisor |
+| --- | --- |
+| Obligatorios: `inbound_order_created`, `outbound_order_created`, `stock_threshold_triggered`, `direct_stock_edit_rejected`, `kit_cost_variance_detected` | Cliente de inventario, a partir de las confirmaciones de FastAPI. |
+| `page_load_recorded`, `frontend_uncaught_error`, `backoffice_section_viewed` | `telemetry-technical.js`. |
+| `auth_login_succeeded`, `auth_login_failed`, `api_latency_recorded`, `api_request_failed` | Cliente API y autenticacion central. |
+| `inventory_order_abandoned` | Formulario de movimientos, solo cancelacion explicita. |
+
+El servicio central envia hasta 20 eventos cada 10 s o al llegar al umbral,
+intenta Beacon al ocultar/salir y usa `fetch` con `keepalive` como alternativa.
+Hace hasta tres reintentos (1/2/4 s). Configurar `window.__TELEMETRY_ENDPOINT__`
+y, para navegacion, `window.__TELEMETRY_OFFICE__` en
+[`telemetry-config.js`](./telemetry-config.js). Entrega best effort: un
+reintento conserva el ID, pero el stub no deduplica. No hay Web Vitals.
+
+### Evidencia de red sanitizada (2026-11-18)
+
+Chromium y FastAPI en loopback, en origenes distintos, SQLite en memoria y
+cuenta sintetica aislada. El receptor no se simulo; la unica intercepcion de
+red abortaba POST de telemetria para comprobar el fallo y la recuperacion.
+
+| Caso | Resultado observado |
+| --- | --- |
+| Temporizador | `POST /telemetry/events` → HTTP 200, `{"received":2}`. |
+| Umbral de 20 | `POST /telemetry/events` → HTTP 200, `{"received":20}`, 20 IDs distintos. |
+| `pagehide` sintetico | El envio de cierre llego a FastAPI: HTTP 200, `{"received":1}`. |
+| Primer intento abortado | Reintento a los 1.036 s, mismo body, HTTP 200; no dos lotes aceptados en este escenario. |
+| Receptor bloqueado | Registro e inicio de sesion, entrada de 2 unidades, consulta de stock (2) y cierre de sesion operativos. |
+
+El lote de 20 tenia los campos `eventId`, `timestamp`, `sessionId`, `userId`,
+`event_type`, `schemaVersion`, `requestId` y `properties`. Se comprobo que esa
+peticion no incluia `Authorization` ni `Cookie`. El extracto y su captura
+sanitizada omiten los valores de los eventos y los identificadores. No se
+repitieron en navegador todos los escenarios de inventario de la etapa 3.
+
+```powershell
+node --test uis\backoffice\tests\test_telemetry.mjs uis\backoffice\tests\test_inventory_api.mjs
+node uis\backoffice\generate-telemetry-contract.mjs --check
+$env:DATABASE_URL = 'sqlite://'
+uv run --locked --project services\api python -m pytest services\api\tests\test_telemetry_api.py services\api\tests\test_inventory_api.py services\api\tests\test_inventory_service.py services\api\tests\test_security.py -q
+```
+
+Node: 19 pasan y el contrato generado coincide. FastAPI: 64 pasan y falla
+`test_get_products_empty` (`KeyError: '500'` en OpenAPI, discrepancia ya
+identificada en la rama base). No se cambio el contrato ajeno a telemetria.
+Los tiempos completos de backoff, fallback y presupuesto de envio se
+comprobaron con las pruebas Node.
+
 ## Oportunidades de telemetria — etapa 5
 
 | Evento | Punto de captura |
