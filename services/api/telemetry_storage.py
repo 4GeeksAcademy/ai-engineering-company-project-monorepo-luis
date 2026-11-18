@@ -89,9 +89,14 @@ def create_telemetry_engine(db_url: Optional[str] = None) -> Engine:
     """Create a new SQLAlchemy engine for telemetry persistence."""
     url = normalize_db_url(db_url) if db_url else get_telemetry_database_url()
     connect_args: dict[str, Any] = {}
+    engine_kwargs: dict[str, Any] = {"echo": False}
     if url.startswith("sqlite"):
+        from sqlalchemy.pool import StaticPool
+
         connect_args["check_same_thread"] = False
-    return create_engine(url, echo=False, connect_args=connect_args)
+        if ":memory:" in url:
+            engine_kwargs["poolclass"] = StaticPool
+    return create_engine(url, connect_args=connect_args, **engine_kwargs)
 
 
 def get_telemetry_engine() -> Engine:

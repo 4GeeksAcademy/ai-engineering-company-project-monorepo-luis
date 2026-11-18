@@ -152,6 +152,12 @@ class TelemetryBatch(BaseModel):
     events: list[TelemetryEvent] = Field(max_length=500)
 
 
+class RawTelemetryBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    events: list[Any] = Field(max_length=500)
+
+
 class TelemetryReceived(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
