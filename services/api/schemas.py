@@ -18,6 +18,7 @@ CategoryType = Literal["hardware", "peripherals", "office_supplies", "training_m
 OfficeType = Literal["Valencia", "Miami"]
 ExitType = Literal["allocation", "consumption"]
 MovementType = Literal["inbound", "outbound"]
+RecipientType = Literal["client", "candidate", "consultant", "support_agent"]
 
 
 # ==========================================
@@ -57,8 +58,16 @@ class AssetEntryCreate(BaseModel):
     quantity: int = Field(..., gt=0, description="Units received, must be positive")
     supplier: str = Field(..., min_length=1, description="Supplier name")
     office: OfficeType = Field(..., description="Receiving office (Valencia or Miami)")
+    supplier_id: int | None = Field(default=None, gt=0, strict=True)
+    unit_cost_cents: int | None = Field(default=None, ge=0, le=1_000_000_000, strict=True)
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_cost(self) -> "AssetEntryCreate":
+        if (self.supplier_id is None) != (self.unit_cost_cents is None):
+            raise ValueError("Supplier ID and unit cost must be supplied together")
+        return self
 
 
 class AssetEntryRead(BaseModel):
@@ -85,6 +94,7 @@ class AssetExitCreate(BaseModel):
     exit_type: ExitType = Field(..., description="Type of exit: allocation or consumption")
     assigned_to: Optional[str] = Field(default=None, description="Mandatory for allocation, null for consumption")
     office: OfficeType = Field(..., description="Office where exit occurs (Valencia or Miami)")
+    recipient_type: RecipientType | None = None
 
     model_config = ConfigDict(extra="forbid")
 

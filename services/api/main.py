@@ -14,14 +14,17 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from services.api.database import init_db
+from services.api.inventory_telemetry import REQUEST_ID_HEADER, SIGNALS_HEADER, load_inventory_facts
 from services.api.response_models import HealthResponse
 from services.api.routers.auth import router as auth_router
 from services.api.routers.incidents import router as incidents_router
 from services.api.routers.inventory import router as inventory_router
 from services.api.routers.profiles import router as profiles_router
 from services.api.routers.suppliers import router as suppliers_router
+from services.api.routers.telemetry import router as telemetry_router
 from services.api.routers.users import router as users_router
 from services.api.security import load_jwt_settings
+from services.api.telemetry import load_telemetry_endpoint
 
 _NO_PREVIOUS_JWT_SETTINGS = object()
 
@@ -31,15 +34,28 @@ async def lifespan(application: FastAPI):
     previous_settings = getattr(
         application.state, "jwt_settings", _NO_PREVIOUS_JWT_SETTINGS
     )
+    telemetry_endpoint = load_telemetry_endpoint()
+    inventory_facts = load_inventory_facts()
+    previous_endpoint = getattr(
+        application.state, "telemetry_endpoint", _NO_PREVIOUS_JWT_SETTINGS
+    )
     application.state.jwt_settings = load_jwt_settings()
-    init_db()
+    application.state.telemetry_endpoint = telemetry_endpoint
+    previous_facts = getattr(application.state, "inventory_facts", None)
+    application.state.inventory_facts = inventory_facts
     try:
+        init_db()
         yield
     finally:
         if previous_settings is _NO_PREVIOUS_JWT_SETTINGS:
             del application.state.jwt_settings
         else:
             application.state.jwt_settings = previous_settings
+        if previous_endpoint is _NO_PREVIOUS_JWT_SETTINGS:
+            del application.state.telemetry_endpoint
+        else:
+            application.state.telemetry_endpoint = previous_endpoint
+        application.state.inventory_facts = previous_facts
 
 app = FastAPI(
     title="Nexova Operations API",
@@ -55,6 +71,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[REQUEST_ID_HEADER, SIGNALS_HEADER],
 )
 
 # Register routers
@@ -64,12 +81,15 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(inventory_router)
+app.include_router(telemetry_router)
 
 
 @app.exception_handler(RequestValidationError)
 async def sanitize_auth_validation_errors(
     request: Request, error: RequestValidationError
 ) -> JSONResponse:
+    if request.url.path == "/telemetry/events":
+        return JSONResponse(status_code=422, content={"detail": "Invalid telemetry batch"})
     if request.url.path == "/api/incidents" or request.url.path.startswith("/api/incidents"):
         errors = []
         for item in error.errors():

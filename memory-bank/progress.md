@@ -2,6 +2,92 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 6
+
+2026-11-18. Rama `docs/telemetry-front`, base `a62ad67`.
+
+- Evidencia sanitizada y matriz de emisores en el README del backoffice.
+  Chromium y FastAPI real verificaron lote temporizado, umbral de 20,
+  cierre simulado, recuperacion y operaciones con colector bloqueado.
+- 19 pruebas Node y 64 FastAPI pasan. Persiste el fallo previo de OpenAPI
+  (`KeyError: '500'` en `test_get_products_empty`). No se hizo merge.
+
+## Telemetria frontend — Etapa 5
+
+2026-11-18. Rama `docs/telemetry-front`, base `5c3f656`.
+
+- Cinco oportunidades acordadas: exito y fallo de autenticacion, latencia y
+  fallos del cliente API central y cancelacion explicita de orden. Seis
+  exclusiones y Web Vitals documentados en el README del backoffice.
+- Pasan las 19 pruebas Node existentes. Una comprobacion sintetica confirmo
+  los cinco eventos, resumen de 60 s, umbral de 1.000 ms y cancelacion sin
+  envio activo. No se verifico E2E en navegador.
+- Siguiente etapa: verificacion extremo a extremo y entrega.
+
+## Telemetria frontend — Etapa 4
+
+2026-11-18. Rama `docs/telemetry-front`, base `ec5e442`.
+
+- Piso tecnico en las cuatro paginas: errores sanitizados con resumen de
+  60 s, tiempo de carga y cambios de seccion con oficina explicita por despliegue.
+- 19 pruebas Node existentes pasan y se verificaron los tres eventos con un
+  navegador simulado. Verificacion extremo a extremo sigue pendiente.
+- Siguiente etapa: oportunidades priorizadas.
+
+## Telemetria frontend — Etapa 3
+
+2026-11-18. Rama `docs/telemetry-front`, base `26e86f3`.
+
+- Cinco eventos de inventario conectados a respuestas autoritativas, con
+  `X-Request-ID` y un solo emisor frontend. Catalogo por producto/oficina,
+  coste confirmado, destinatario controlado y rechazo HTTP 409 sin escritura.
+- Backend: escenario sintetico en memoria verifico los cinco tipos, diez
+  eventos aceptados por el stub real y ausencia de nombres; 55 pruebas
+  existentes pasan. Una falla de OpenAPI exige respuestas 500 ausentes en
+  la rama base; no se cambio ese contrato ajeno. 19 pruebas Node pasan.
+- No se verifico E2E en navegador ni se rellenaron datos historicos. El
+  catalogo requiere configuracion; siguientes etapas cubren piso tecnico
+  y verificacion final.
+
+## Telemetria frontend — Etapa 2
+
+2026-11-16. Rama `docs/telemetry-front`, base `28a147c`.
+
+- Servicio central implementado, integrado en cuatro paginas sin instrumentar
+  negocio ni modificar inventario/autenticacion existentes. Configuracion
+  estatica publica y contrato generado/verificable desde el registry aprobado.
+- Cola/batching/retries/Beacon/fallback con limites de eventos/bytes, envelope
+  automatico, validacion estricta y aislamiento de credenciales/PII del cliente.
+- Politicas confirmadas por usuario: 500 eventos incluyendo en vuelo, rechazar
+  nuevos al llenarse, tres reintentos adicionales 1/2/4 s, UUID de sesion por
+  login/logout; userId interno de profile.user_id como string o null; requestId
+  UUID hasta integrar correlacion real en instrumentacion.
+- 19 pruebas Node pasan, sincronizacion de contrato y sintaxis comprobadas.
+  Prueba navegador local con API/colector mockeados: lote sintetico de 20,
+  ocho campos y respuesta received=20; sin afirmar E2E real ni evidencia final.
+- Pendiente etapa 3: ampliar dominio aprobado y capturar cinco eventos reales,
+  correlacionar operaciones sin inventar datos ni inferir exito de un clic.
+  No se han anadido emisores, Web Vitals ni persistencia. Receptor sin cookies
+  requerido para sendBeacon; entrega best effort, no exactamente una vez.
+
+## Telemetria frontend — Etapa 1
+
+2026-11-13. Rama `docs/telemetry-front`, base `98a831e`.
+
+- Stub FastAPI `/telemetry/events` con envelope de ocho campos y validacion
+  del catalogo aprobado de 19 eventos/allowlists. Rechazo atomico y sanitizado;
+  respuesta 200 con received, incluido lote vacio; limite de 500 eventos.
+- Sin persistencia, reenvio ni deduplicacion. Logs solo cantidad/event_type.
+  Variable opcional TELEMETRY_ENDPOINT validada al arrancar, sin secretos.
+- 48 tests de telemetria y regresion JWT pasan, con aviso Starlette/httpx
+  conocido. Tests de telemetria omiten inicializacion de bases. No suite global,
+  navegador ni instrumentacion frontend en esta etapa.
+- Error previo de carga por import faltante DetailErrorResponse en incidents
+  corregido unicamente con autorizacion explicita del usuario.
+- README API actualizado; siguiente paso es etapa 2, TelemetryService.
+  Ampliacion del inventario y ruta de rechazo directo aprobadas en etapa 0
+  quedan pendientes para soportar instrumentacion real, sin datos inventados.
+
 ## Auditoria de serializacion backend — Etapa 8
 
 2026-11-05. Base publicada etapa 7:

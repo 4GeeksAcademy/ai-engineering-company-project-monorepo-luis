@@ -80,6 +80,12 @@
         <input type="number" id="inbound-quantity" name="quantity" min="1" required />
         <label for="inbound-supplier">Proveedor</label>
         <input type="text" id="inbound-supplier" name="supplier" required />
+        <label for="inbound-supplier-id">Proveedor del directorio (para registrar coste)</label>
+        <select id="inbound-supplier-id" name="supplier_id">
+          <option value="">Sin proveedor del directorio</option>
+        </select>
+        <label for="inbound-unit-cost">Coste unitario en la moneda de la oficina</label>
+        <input type="number" id="inbound-unit-cost" min="0" max="10000000" step="0.01" disabled />
         <label for="inbound-office">Oficina</label>
         <select id="inbound-office" name="office" required>
           <option value="">Selecciona</option>
@@ -107,6 +113,14 @@
         </select>
         <label for="outbound-assigned" id="outbound-assigned-label">Asignado a</label>
         <input type="text" id="outbound-assigned" name="assigned_to" />
+        <label for="outbound-recipient">Categoría de destinatario</label>
+        <select id="outbound-recipient" name="recipient_type">
+          <option value="">No aplica o no se conoce</option>
+          <option value="client">Cliente</option>
+          <option value="candidate">Candidato</option>
+          <option value="consultant">Consultor</option>
+          <option value="support_agent">Agente de soporte</option>
+        </select>
         <label for="outbound-office">Oficina</label>
         <select id="outbound-office" name="office" required>
           <option value="">Selecciona</option>
@@ -119,7 +133,29 @@
       </form>
     </dialog>
 
+    <dialog id="direct-dialog" class="form-dialog" aria-labelledby="direct-title">
+      <form id="direct-form" class="form-content">
+        <h2 id="direct-title">Solicitar cambio directo de stock</h2>
+        <p>Los cambios sin una orden se rechazan. Esta solicitud no modifica existencias.</p>
+        <label for="direct-sku">SKU</label>
+        <input type="text" id="direct-sku" readonly />
+        <label for="direct-office">Oficina</label>
+        <select id="direct-office" required></select>
+        <label for="direct-quantity">Cambio solicitado (positivo o negativo)</label>
+        <input type="number" id="direct-quantity" min="-2147483647" max="2147483647" step="1" required />
+        <div class="form-actions">
+          <button type="submit" class="form-submit">Enviar solicitud</button>
+          <button type="button" class="form-cancel" data-action="close">Cerrar</button>
+        </div>
+        <div class="form-feedback" role="status" aria-live="polite" hidden></div>
+      </form>
+    </dialog>
+
     <script src="./inventory-api.js"></script>
+    <script src="./telemetry-config.js"></script>
+    <script src="./telemetry-contract.js"></script>
+    <script src="./telemetry.js"></script>
+    <script src="./telemetry-technical.js"></script>
     <script src="./auth.js"></script>
     <script src="./inventory-view.js" type="module"></script>
     <script src="./inventory-form.js" type="module"></script>

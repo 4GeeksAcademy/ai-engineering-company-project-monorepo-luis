@@ -1,5 +1,68 @@
 # Tech Context
 
+## Telemetria frontend — etapa 5 (2026-11-18)
+
+- Cliente API central emite tiempos y fallos con dimensiones controladas;
+  muestreo rutinario 10%, fallos y solicitudes de 1.000 ms o mas al 100%.
+- Fallos API/login se agregan en ventanas de 60 s; el fallo de login no
+  incorpora identidad ni sesion. Se registra cancelacion explicita de orden
+  sin inferir abandono de una interrupcion o cierre de pagina.
+
+## Telemetria frontend — etapa 4 (2026-11-18)
+
+- `telemetry-technical.js` usa exclusivamente `Telemetry.track` para errores
+  no capturados, Navigation Timing y transiciones entre secciones aprobadas.
+- `window.__TELEMETRY_OFFICE__` es opcional: solo habilita navegacion en un
+  despliegue de una oficina. No se deduce del idioma ni del inventario.
+
+## Telemetria frontend — etapa 3 (2026-11-18)
+
+- `INVENTORY_TELEMETRY_CATALOG` aporta programa, categoria y configuracion
+  opcional de minimo/variacion por producto y oficina. Nuevo historial de
+  costes confirmado por entrada sin modificar tablas legacy.
+- El cliente de inventario lee senales controladas en cabeceras CORS de
+  respuestas 201/409 y usa su UUID como requestId. API no envia telemetria.
+- Escrituras de inventario serializadas solo en un proceso local/demo;
+  sin idempotencia de ordenes, persistencia de eventos ni backfill.
+
+## Telemetria frontend — etapa 2 (2026-11-16)
+
+- `uis/backoffice/telemetry.js` expone unicamente Telemetry.track(tipo, propiedades)
+  y se carga en las cuatro paginas. Sin instrumentacion automatica aun.
+- Configuracion publica estatica en telemetry-config.js mediante
+  window.__TELEMETRY_ENDPOINT__, vacia/desactivada por defecto. Contrato JS
+  generado desde el registry aprobado con generate-telemetry-contract.mjs;
+  --check detecta desincronizacion sin dependencias/build nuevo.
+- Cola memoria 500 incluyendo en vuelo; rechaza nuevos si llena; maximo 8 KiB
+  por evento/60 KiB por lote, 20 eventos o 10 s, timeout 5 s y tres reintentos
+  1/2/4 s conservando envelope/body. Beacon/fallback keepalive al ocultar/pagehide,
+  sin reenviar fetch en vuelo, presupuesto oculto 60 KiB. Entrega best effort.
+- Sesion UUID por pestaña observando login/logout/401 existentes; userId usa
+  profile.user_id interno como string o null. requestId UUID generado; no hay
+  aun correlacion de operaciones. Sin storage queda sesion en memoria.
+- Fetch omite credenciales. Beacon no permite suprimir cookies automaticas:
+  receptor debe estar libre de cookies/credenciales. Sin endpoint/UUID, captura
+  desactivada con advertencias controladas, sin afectar a operaciones.
+- 19 tests Node pasan (12 servicio + 7 existentes), sintaxis y --check pasan.
+  Navegador inventario verifica lote sintetico de 20 y envelope de ocho campos
+  con API/receptor mockeados; no sustituye E2E FastAPI de etapa final.
+
+## Telemetria frontend — etapa 1 (2026-11-13)
+
+- Rama `docs/telemetry-front`: receptor temporal `POST /telemetry/events`,
+  anonimo local/demo, sin persistir, reenviar ni deduplicar eventos.
+- Modelos y validacion en `services/api/telemetry.py`; propiedades tomadas del
+  registry aprobado, envelope estricto, errores HTTP 422 genericos y logs solo
+  de cantidad/tipos controlados. Lotes de 0 a 500; vacio devuelve received=0.
+- `TELEMETRY_ENDPOINT` opcional desde entorno al arrancar: HTTP(S), sin
+  credenciales/query/fragmento; estado en app.state.telemetry_endpoint.
+  JWT mantiene su configuracion obligatoria. No lectura de `.env`.
+- 48 tests focalizados telemetria/JWT pasan; sin bases reales, frontend,
+  dependencias o dominio de inventario modificados. Import faltante de
+  DetailErrorResponse en incidents restaurado con autorizacion del usuario.
+- Siguiente etapa: servicio central frontend. La ampliacion de dominio para
+  los cinco eventos obligatorios sigue pendiente; no inventar campos o capturas.
+
 ## Auditoria de serializacion — 2026-11-02
 
 Actualizacion 2026-11-05, etapa 8: verificacion tecnica global terminada:

@@ -40,6 +40,7 @@ from services.api.incident_storage import (
     open_incident_table,
 )
 from services.api.response_cache import response_cache
+from services.api.response_models import DetailErrorResponse
 
 router = APIRouter(
     prefix="/api/incidents",

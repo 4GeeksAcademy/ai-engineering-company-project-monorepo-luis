@@ -54,6 +54,14 @@ class AssetEntry(SQLModel, table=True):
     asset: Optional[Asset] = Relationship(back_populates="entries")
 
 
+class AssetEntryCost(SQLModel, table=True):
+    """Confirmed purchase cost, separate from legacy entries without a cost."""
+
+    entry_id: int = Field(primary_key=True, foreign_key="asset_entry.id")
+    supplier_id: int = Field(index=True)
+    unit_cost_cents: int
+
+
 class AssetExit(SQLModel, table=True):
     """Outbound asset movement representing allocation or consumption."""
 
