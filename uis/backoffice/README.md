@@ -1,5 +1,22 @@
 # Nexova Backoffice
 
+## Telemetria tecnica — etapa 4
+
+- `page_load_recorded` usa Navigation Timing al terminar la carga. Si el
+  navegador no ofrece la medicion, no envia un cero inventado.
+- `frontend_uncaught_error` captura errores de ventana y promesas rechazadas
+  sin manejar. El fingerprint SHA-256 se calcula solo con una firma controlada:
+  script local permitido y posicion, o una categoria generica. No lee mensajes,
+  stacks ni motivos de rechazo. Por documento, envia la primera ocurrencia y
+  resume las repetidas al cerrar 60 segundos; limita a 64 grupos simultaneos.
+- `backoffice_section_viewed` requiere `window.__TELEMETRY_OFFICE__` en
+  [telemetry-config.js](./telemetry-config.js): `valencia` o `miami`, solo cuando
+  el despliegue corresponde a una oficina. En un despliegue compartido, dejar
+  vacio para omitir navegacion sin afectar a errores y rendimiento.
+  Resumen mapea a `dashboard`, Catalogo y Movimientos a `inventory`, e Historial
+  a `reports`. Enlaces internos al mismo resumen y recargas no cuentan como
+  cambios de seccion. La deduplicacion entre paginas usa `sessionStorage`.
+
 ## Telemetria de inventario — etapa 3
 
 Con el receptor frontend habilitado y `INVENTORY_TELEMETRY_CATALOG` configurado

@@ -1,5 +1,12 @@
 # Tech Context
 
+## Telemetria frontend — etapa 4 (2026-11-18)
+
+- `telemetry-technical.js` usa exclusivamente `Telemetry.track` para errores
+  no capturados, Navigation Timing y transiciones entre secciones aprobadas.
+- `window.__TELEMETRY_OFFICE__` es opcional: solo habilita navegacion en un
+  despliegue de una oficina. No se deduce del idioma ni del inventario.
+
 ## Telemetria frontend — etapa 3 (2026-11-18)
 
 - `INVENTORY_TELEMETRY_CATALOG` aporta programa, categoria y configuracion

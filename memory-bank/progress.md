@@ -2,6 +2,16 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 4
+
+2026-11-18. Rama `docs/telemetry-front`, base `ec5e442`.
+
+- Piso tecnico en las cuatro paginas: errores sanitizados con resumen de
+  60 s, tiempo de carga y cambios de seccion con oficina explicita por despliegue.
+- 19 pruebas Node existentes pasan y se verificaron los tres eventos con un
+  navegador simulado. Verificacion extremo a extremo sigue pendiente.
+- Siguiente etapa: oportunidades priorizadas.
+
 ## Telemetria frontend — Etapa 3
 
 2026-11-18. Rama `docs/telemetry-front`, base `26e86f3`.
