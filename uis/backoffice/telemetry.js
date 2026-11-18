@@ -225,12 +225,13 @@
       ? correlationId : uuid();
     if (!eventId || !requestId) return false;
     updateSession();
-    const user = authenticated() ? global.inventoryApi.getUser() : null;
+    const anonymous = eventType === "auth_login_failed";
+    const user = !anonymous && authenticated() ? global.inventoryApi.getUser() : null;
     const internalId = user && user.profile && user.profile.user_id;
     const event = {
       eventId,
       timestamp: new Date().toISOString(),
-      sessionId,
+      sessionId: anonymous ? null : sessionId,
       userId: Number.isSafeInteger(internalId) && internalId > 0 ? String(internalId) : null,
       event_type: eventType,
       schemaVersion: "1.0",

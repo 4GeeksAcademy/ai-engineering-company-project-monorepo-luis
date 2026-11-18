@@ -1,5 +1,13 @@
 # Tech Context
 
+## Telemetria frontend — etapa 5 (2026-11-18)
+
+- Cliente API central emite tiempos y fallos con dimensiones controladas;
+  muestreo rutinario 10%, fallos y solicitudes de 1.000 ms o mas al 100%.
+- Fallos API/login se agregan en ventanas de 60 s; el fallo de login no
+  incorpora identidad ni sesion. Se registra cancelacion explicita de orden
+  sin inferir abandono de una interrupcion o cierre de pagina.
+
 ## Telemetria frontend — etapa 4 (2026-11-18)
 
 - `telemetry-technical.js` usa exclusivamente `Telemetry.track` para errores

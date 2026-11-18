@@ -2,6 +2,18 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 5
+
+2026-11-18. Rama `docs/telemetry-front`, base `5c3f656`.
+
+- Cinco oportunidades acordadas: exito y fallo de autenticacion, latencia y
+  fallos del cliente API central y cancelacion explicita de orden. Seis
+  exclusiones y Web Vitals documentados en el README del backoffice.
+- Pasan las 19 pruebas Node existentes. Una comprobacion sintetica confirmo
+  los cinco eventos, resumen de 60 s, umbral de 1.000 ms y cancelacion sin
+  envio activo. No se verifico E2E en navegador.
+- Siguiente etapa: verificacion extremo a extremo y entrega.
+
 ## Telemetria frontend — Etapa 4
 
 2026-11-18. Rama `docs/telemetry-front`, base `ec5e442`.

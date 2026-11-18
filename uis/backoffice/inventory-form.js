@@ -4,6 +4,7 @@
 const OFFICES = ['Valencia', 'Miami'];
 
 let currentAssetId = null;
+let formVersion = 0;
 let supplierLoad = 0;
 
 function getParts(mode) {
@@ -81,6 +82,7 @@ async function loadSuppliers() {
 
 function openForm({ mode, assetId, sku, office }) {
   const { dialog, form, feedback } = getParts(mode);
+  formVersion++;
   form.reset();
   feedback.hidden = true;
   currentAssetId = assetId;
@@ -127,8 +129,10 @@ async function handleSubmit(mode, event) {
   event.preventDefault();
   const { dialog, form, feedback, submit } = getParts(mode);
   if (!form.reportValidity()) return;
+  const version = formVersion;
 
   const send = async () => {
+    if (version !== formVersion || !dialog.open || submit.disabled) return;
     submit.disabled = true;
     showFeedback(feedback, 'Guardando…', 'info');
     try {
@@ -159,12 +163,35 @@ async function handleSubmit(mode, event) {
   }
 }
 
+function trackCancellation(mode) {
+  const { dialog, submit } = getParts(mode);
+  if (!dialog.open || submit.disabled || mode === 'direct') return;
+  const office = document.getElementById(`${mode}-office`).value;
+  if (!OFFICES.includes(office)) return;
+  const quantity = document.getElementById(`${mode}-quantity`).valueAsNumber;
+  const cost = mode === 'inbound' ? document.getElementById('inbound-unit-cost') : null;
+  window.Telemetry?.track('inventory_order_abandoned', {
+    office: office.toLowerCase(),
+    currency: office === 'Valencia' ? 'EUR' : 'USD',
+    order_type: mode,
+    last_step: cost && !cost.disabled && cost.value ? 'cost_entry'
+      : Number.isSafeInteger(quantity) ? 'quantity_entry' : 'product_selection',
+    abandonment_trigger: 'explicit_cancel',
+    ...(Number.isSafeInteger(currentAssetId) && currentAssetId > 0 ? { product_id: String(currentAssetId) } : {}),
+    ...(Number.isSafeInteger(quantity) ? { quantity } : {}),
+  });
+}
+
 function init() {
   ['inbound', 'outbound', 'direct'].forEach((mode) => {
     const { dialog, form } = getParts(mode);
     if (!dialog || !form) return;
     form.addEventListener('submit', (e) => handleSubmit(mode, e));
-    form.querySelector('[data-action="close"]').addEventListener('click', () => dialog.close());
+    form.querySelector('[data-action="close"]').addEventListener('click', () => {
+      trackCancellation(mode);
+      dialog.close();
+    });
+    dialog.addEventListener('cancel', () => trackCancellation(mode));
   });
   document.getElementById('outbound-type')?.addEventListener('change', syncAssignedField);
   document.getElementById('inbound-supplier-id')?.addEventListener('change', syncSupplierFields);

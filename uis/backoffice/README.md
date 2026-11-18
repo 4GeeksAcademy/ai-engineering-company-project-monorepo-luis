@@ -1,5 +1,26 @@
 # Nexova Backoffice
 
+## Oportunidades de telemetria — etapa 5
+
+| Evento | Punto de captura |
+| --- | --- |
+| `auth_login_succeeded` | Cliente de autenticacion central, una vez establecida la sesion. |
+| `auth_login_failed` | Intento rechazado por la API o fallo de transporte durante login; siempre anonimo, con codigo controlado. Emite el primero y resume repeticiones por metodo y codigo tras 60 s. |
+| `api_latency_recorded` | Cliente API central: tiempo hasta recibir las cabeceras o fallar. Muestreo determinista por ID del 10% de exitos debajo de 1.000 ms; 100% de lentas y fallidas. |
+| `api_request_failed` | Cliente API central: primer fallo y resumen de repeticiones tras 60 s, por grupo de ruta, metodo, estado y codigo. No cubre peticiones fuera del cliente central ni el colector. |
+| `inventory_order_abandoned` | Boton Cancelar o Escape en una orden abierta, sin envio activo. No se infiere abandono de una recarga, expiracion o cierre de pagina. |
+
+No se envian URLs, consultas, credenciales, cuerpos ni errores crudos. Los
+resumenes se mantienen en memoria y pueden perderse al cerrar el documento.
+
+Exclusiones acordadas: `auth_session_expired` (401 no distingue expiracion),
+`inventory_item_viewed` (sin vista de detalle), `inventory_threshold_acknowledged`
+(sin accion de reconocimiento), `inventory_search_performed` (los filtros
+pueden mezclar oficinas), `inventory_order_validation_failed` (sin captura
+unificada por codigo aprobado) y `backoffice_flow_abandoned` (no se duplica la
+cancelacion y no hay otro flujo priorizado). No se amplia el esquema para Web
+Vitals.
+
 ## Telemetria tecnica — etapa 4
 
 - `page_load_recorded` usa Navigation Timing al terminar la carga. Si el
