@@ -89,6 +89,54 @@ uv run --locked --project services\api python -m pytest services\api\tests\test_
 No Python lint/typecheck/build command is declared for this API. Frontend,
 browser evidence and end-to-end capture belong to the following stages.
 
+## Application Telemetry — Storage (Supabase / PostgreSQL)
+
+`POST /telemetry/events` replaces the temporary stub with persistent atomic bulk
+storage in Supabase / PostgreSQL.
+
+### Architecture and Isolation
+- **Table:** `telemetry_events` defined in [`services/api/migrations/001_telemetry_events.sql`](migrations/001_telemetry_events.sql).
+  Contains exactly 8 columns: `id` (UUID), `timestamp` (timestamptz UTC), `service` (text),
+  `event_type` (text), `level` (text: info/warn/error), `value` (numeric or NULL),
+  `message` (text or NULL), `tags` (jsonb).
+- **Indexes:** B-tree on `timestamp`, B-tree on `event_type`, and GIN on `tags` (`USING gin (tags)`).
+- **Inmutability:** Append-only event store. RLS is enabled; no UPDATE or DELETE policies are granted.
+- **Engine Isolation:** Telemetry uses an isolated `MetaData` instance in [`services/api/telemetry_storage.py`](telemetry_storage.py)
+  completely independent of `SQLModel.metadata`. Telemetry never pollutes inventory/auth tables,
+  and local SQLite fallback is strictly prohibited. `SUPABASE_DB_URL` (or PostgreSQL `DATABASE_URL`)
+  is required for persistence.
+
+### Batch Processing and Response Contract
+- Accepts a JSON object `{ "events": [...] }` (0 to 500 items).
+- Each item is validated individually via `TelemetryEvent.model_validate(raw)`.
+  Invalid items increment `rejected` and do not cancel the batch.
+- Valid items are mapped to database rows and inserted in a single atomic bulk operation
+  inside one transaction (`store_telemetry_events`).
+- Response format (HTTP 200):
+  ```json
+  {"received": N, "stored": M, "rejected": R}
+  ```
+- Empty batch returns `200 {"received": 0, "stored": 0, "rejected": 0}` with zero DB calls.
+- If database insertion fails, transaction is rolled back completely and returns HTTP 503.
+- Malformed containers (missing `events`, non-array, exceeding 500 items, invalid JSON) return HTTP 422.
+
+### Controlled Mapping and Privacy
+- `service`: Fixed constant `"backoffice"` (never arbitrary client input).
+- `level`: Deterministic mapping (`error` for failed requests, uncaught errors, login failures, rejected edits;
+  `warn` for stock thresholds, cost variance, session expiration, abandoned flows; `info` by default).
+- `value`: Unambiguous latency in milliseconds (`duration_ms`) for performance events; `None` for business events.
+- `message`: `None` by default to prevent leaking free text or PII.
+- `tags`: Validated `properties` adhering to allowlist from [`event-schemas.json`](../../docs/telemetry/event-schemas.json).
+- Application logging records only `received`, `stored`, `rejected` and controlled `event_type` names.
+  Bodies, tags, headers, event/user IDs, and database credentials are never logged.
+
+### Verification
+Execute telemetry tests with:
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests\test_telemetry_api.py services\api\tests\test_telemetry_mapping.py services\api\tests\test_telemetry_storage.py services\api\tests\test_security.py -q
+```
+75 focused telemetry and security tests passed. Frontend remains completely unchanged.
+
 Centralized FastAPI backend service for Nexova operations and incident analysis.
 
 ## Backend serialization audit
