@@ -1,5 +1,15 @@
 # Tech Context
 
+## Telemetria frontend — etapa 3 (2026-11-18)
+
+- `INVENTORY_TELEMETRY_CATALOG` aporta programa, categoria y configuracion
+  opcional de minimo/variacion por producto y oficina. Nuevo historial de
+  costes confirmado por entrada sin modificar tablas legacy.
+- El cliente de inventario lee senales controladas en cabeceras CORS de
+  respuestas 201/409 y usa su UUID como requestId. API no envia telemetria.
+- Escrituras de inventario serializadas solo en un proceso local/demo;
+  sin idempotencia de ordenes, persistencia de eventos ni backfill.
+
 ## Telemetria frontend — etapa 2 (2026-11-16)
 
 - `uis/backoffice/telemetry.js` expone unicamente Telemetry.track(tipo, propiedades)

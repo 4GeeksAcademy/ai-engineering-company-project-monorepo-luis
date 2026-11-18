@@ -14,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from services.api.database import init_db
+from services.api.inventory_telemetry import REQUEST_ID_HEADER, SIGNALS_HEADER, load_inventory_facts
 from services.api.response_models import HealthResponse
 from services.api.routers.auth import router as auth_router
 from services.api.routers.incidents import router as incidents_router
@@ -34,13 +35,16 @@ async def lifespan(application: FastAPI):
         application.state, "jwt_settings", _NO_PREVIOUS_JWT_SETTINGS
     )
     telemetry_endpoint = load_telemetry_endpoint()
+    inventory_facts = load_inventory_facts()
     previous_endpoint = getattr(
         application.state, "telemetry_endpoint", _NO_PREVIOUS_JWT_SETTINGS
     )
     application.state.jwt_settings = load_jwt_settings()
     application.state.telemetry_endpoint = telemetry_endpoint
-    init_db()
+    previous_facts = getattr(application.state, "inventory_facts", None)
+    application.state.inventory_facts = inventory_facts
     try:
+        init_db()
         yield
     finally:
         if previous_settings is _NO_PREVIOUS_JWT_SETTINGS:
@@ -51,6 +55,7 @@ async def lifespan(application: FastAPI):
             del application.state.telemetry_endpoint
         else:
             application.state.telemetry_endpoint = previous_endpoint
+        application.state.inventory_facts = previous_facts
 
 app = FastAPI(
     title="Nexova Operations API",
@@ -66,6 +71,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[REQUEST_ID_HEADER, SIGNALS_HEADER],
 )
 
 # Register routers

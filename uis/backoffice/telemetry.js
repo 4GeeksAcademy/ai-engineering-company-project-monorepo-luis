@@ -210,7 +210,7 @@
     deliver(active);
   }
 
-  function track(eventType, properties) {
+  function track(eventType, properties, correlationId) {
     if (!endpoint || !definitions.size) return false;
     if (!validProperties(eventType, properties)) {
       warn("invalid_event");
@@ -221,7 +221,8 @@
       return false;
     }
     const eventId = uuid();
-    const requestId = uuid();
+    const requestId = typeof correlationId === "string" && uuidPattern.test(correlationId)
+      ? correlationId : uuid();
     if (!eventId || !requestId) return false;
     updateSession();
     const user = authenticated() ? global.inventoryApi.getUser() : null;

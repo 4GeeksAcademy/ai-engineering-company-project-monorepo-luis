@@ -2,6 +2,21 @@
 
 Última actualización: 2026-09-25
 
+## Telemetria frontend — Etapa 3
+
+2026-11-18. Rama `docs/telemetry-front`, base `26e86f3`.
+
+- Cinco eventos de inventario conectados a respuestas autoritativas, con
+  `X-Request-ID` y un solo emisor frontend. Catalogo por producto/oficina,
+  coste confirmado, destinatario controlado y rechazo HTTP 409 sin escritura.
+- Backend: escenario sintetico en memoria verifico los cinco tipos, diez
+  eventos aceptados por el stub real y ausencia de nombres; 55 pruebas
+  existentes pasan. Una falla de OpenAPI exige respuestas 500 ausentes en
+  la rama base; no se cambio ese contrato ajeno. 19 pruebas Node pasan.
+- No se verifico E2E en navegador ni se rellenaron datos historicos. El
+  catalogo requiere configuracion; siguientes etapas cubren piso tecnico
+  y verificacion final.
+
 ## Telemetria frontend — Etapa 2
 
 2026-11-16. Rama `docs/telemetry-front`, base `28a147c`.

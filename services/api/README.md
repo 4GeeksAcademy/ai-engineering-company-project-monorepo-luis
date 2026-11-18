@@ -1,5 +1,40 @@
 # Nexova Operations API
 
+## Inventory signals for frontend telemetry — stage 3
+
+Configure `INVENTORY_TELEMETRY_CATALOG` as a JSON array at startup. Each entry
+identifies an existing asset and office and defines its approved opaque programme
+and telemetry category, independently of the legacy inventory category. Stock
+minimum and cost-variance percentage are optional and have no inferred defaults.
+Example for a synthetic local asset (replace the ID with its actual local ID):
+
+```powershell
+$env:INVENTORY_TELEMETRY_CATALOG = '[{"asset_id":1,"office":"Valencia","programme_id":"demo-1","product_category":"training_kit","minimum_stock":5,"variance_threshold_percent":20}]'
+```
+
+No configured asset/office means no inventory telemetry for that pair. Existing
+orders are not backfilled. Entries can add a verified directory `supplier_id`
+and `unit_cost_cents` together; exits can add the controlled `recipient_type`.
+Legacy requests and order response bodies remain compatible. The new business
+table `assetentrycost` is created at startup without altering the existing order
+tables; it stores only confirmed cost history, not telemetry events.
+
+The API attaches allowlisted properties to `X-Inventory-Telemetry` after order
+commit, alongside a server-generated `X-Request-ID`. Both headers are exposed
+via CORS. Threshold signals require `before >= minimum > after`. Cost variance
+must strictly exceed the configured percentage, relative to the most recent
+confirmed cost for the same product, supplier and office. Missing or zero
+baselines do not produce a variance signal. `PATCH /inventory/products/{id}/stock`
+requires authentication and rejects a valid direct-change request with HTTP 409
+without writing stock; `quantity` is the signed requested change.
+No supplier names or recipient names are included in these signals.
+
+Inventory API writes are serialized within one process for reliable stock
+crossings and cost comparisons in local/demo use. Multi-worker ordering,
+inventory request idempotency and reliable telemetry delivery are not provided.
+The inventory API never forwards telemetry itself; the frontend is the sole
+producer. The temporary telemetry receiver remains non-persistent.
+
 ## Telemetry capture — stage 1
 
 `POST /telemetry/events` is a temporary, local/demo receiver. It accepts a JSON

@@ -15,6 +15,29 @@
     USER: "nexova_auth_user",
   };
 
+  const movementEvents = {
+    inbound: new Set(["inbound_order_created", "kit_cost_variance_detected"]),
+    outbound: new Set(["outbound_order_created", "stock_threshold_triggered"]),
+    rejection: new Set(["direct_stock_edit_rejected"]),
+  };
+
+  function captureMovement(response, kind) {
+    if (!global.Telemetry || response.status !== (kind === "rejection" ? 409 : 201)) return;
+    try {
+      const header = response.headers.get("X-Inventory-Telemetry");
+      if (!header) return;
+      const requestId = response.headers.get("X-Request-ID");
+      const seen = new Set();
+      for (const { event_type, properties } of JSON.parse(header)) {
+        if (!movementEvents[kind].has(event_type) || seen.has(event_type)) continue;
+        seen.add(event_type);
+        global.Telemetry.track(event_type, properties, requestId);
+      }
+    } catch {
+      global.console.warn("[telemetry] invalid_inventory_signals");
+    }
+  }
+
   /**
    * Custom structured error for API failures
    */
@@ -157,7 +180,7 @@
     // ==========================================
 
     async request(endpoint, options = {}) {
-      const { responseType = "json", ...requestOptions } = options;
+      const { responseType = "json", movementKind, ...requestOptions } = options;
       const url = `${this.baseUrl}${endpoint}`;
       const headers = {
         Accept: "application/json",
@@ -188,6 +211,8 @@
           `No se pudo conectar con el servidor backend (${this.baseUrl}). Verifica que la API esté activa.`
         );
       }
+
+      if (movementKind) captureMovement(response, movementKind);
 
       if (response.ok && responseType === "blob") {
         return response.blob();
@@ -307,6 +332,7 @@
      */
     async createInboundOrder(payload) {
       return this.request("/inventory/orders/inbound", {
+        movementKind: "inbound",
         method: "POST",
         body: payload,
       });
@@ -319,7 +345,19 @@
      */
     async createOutboundOrder(payload) {
       return this.request("/inventory/orders/outbound", {
+        movementKind: "outbound",
         method: "POST",
+        body: payload,
+      });
+    }
+
+    async rejectDirectStockEdit(assetId, payload) {
+      if (!Number.isSafeInteger(assetId) || assetId <= 0) {
+        throw new ApiError(400, "ID inválido", "El ID del activo debe ser un entero positivo.");
+      }
+      return this.request(`/inventory/products/${assetId}/stock`, {
+        movementKind: "rejection",
+        method: "PATCH",
         body: payload,
       });
     }

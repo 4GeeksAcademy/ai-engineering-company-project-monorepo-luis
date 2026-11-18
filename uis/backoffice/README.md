@@ -1,5 +1,27 @@
 # Nexova Backoffice
 
+## Telemetria de inventario — etapa 3
+
+Con el receptor frontend habilitado y `INVENTORY_TELEMETRY_CATALOG` configurado
+en la [API](../../services/api/README.md), en Movimientos:
+
+- **Entrada:** selecciona un proveedor del directorio y registra el coste
+  unitario en la moneda de la oficina. Se mide la entrada confirmada y, cuando
+  corresponda, la variacion frente al ultimo coste confirmado comparable.
+- **Salida:** indica una categoria de destinatario si aplica para medir la
+  entrega. Un cruce del minimo configurado se mide independientemente de que
+  la salida tenga categoria de destinatario.
+- **Cambio directo:** envia una solicitud de ajuste con cantidad firmada.
+  La API la rechaza y el stock permanece intacto. Abrir o cancelar el
+  formulario no emite el evento.
+
+Los cinco eventos se encolan solo a partir de las confirmaciones de la API.
+El cliente central procesa cada tipo una vez por respuesta y pasa el UUID
+`X-Request-ID` al servicio para correlacionar el envelope. Los formularios no
+envian telemetria directamente. No se incluyen nombres de proveedor,
+destinatarios ni campos libres. Sin datos aprobados, no se completa el evento
+con valores inventados. Las operaciones legacy siguen disponibles.
+
 ## Telemetria — etapa 2
 
 El servicio central expone solo `window.Telemetry.track(eventType, properties)`.
@@ -55,9 +77,8 @@ no configurar un colector compartido con sesiones personales.
   interno positivo seguro; nunca email/nombre ni contenido del token.
   Sin usuario/sesion conocidos, sus campos correspondientes son `null`.
   Son identificadores seudonimos sensibles, no datos anonimizados.
-- Actualmente el cliente no expone IDs de solicitud: `requestId` es un UUID
-  nuevo por evento. La correlacion con operaciones frontend/backend queda
-  pendiente para su instrumentacion; no se usa el ultimo request global.
+- `requestId` usa el UUID de respuesta para las confirmaciones de inventario
+  instrumentadas; si no hay uno valido, el servicio genera un UUID por evento.
 - Requiere `crypto.randomUUID` (contexto seguro, incluido localhost); si falta,
   rechaza captura con advertencia sin afectar al backoffice.
 

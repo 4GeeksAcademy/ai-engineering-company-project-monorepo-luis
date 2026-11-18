@@ -14,7 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, select
 
-from services.api.models import Asset, AssetEntry, AssetExit
+from services.api.models import Asset, AssetEntry, AssetEntryCost, AssetExit
 from services.api.schemas import (
     AssetCreate,
     AssetEntryCreate,
@@ -188,6 +188,13 @@ def register_inbound_order(
         user_uuid=user_uuid,
     )
     session.add(entry)
+    if payload.supplier_id is not None and payload.unit_cost_cents is not None:
+        session.flush()
+        assert entry.id is not None
+        session.add(AssetEntryCost(
+            entry_id=entry.id, supplier_id=payload.supplier_id,
+            unit_cost_cents=payload.unit_cost_cents,
+        ))
     session.commit()
     session.refresh(entry)
 

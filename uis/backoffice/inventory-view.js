@@ -82,6 +82,17 @@ function renderTable(products) {
     tdActions.appendChild(btnIn);
     tdActions.appendChild(document.createTextNode(' '));
     tdActions.appendChild(btnOut);
+    if (document.getElementById('direct-dialog')) {
+      const direct = document.createElement('button');
+      direct.type = 'button';
+      direct.className = 'action-btn direct-btn';
+      direct.textContent = 'Cambio directo';
+      direct.dataset.id = p.id;
+      direct.dataset.sku = p.sku;
+      direct.dataset.office = p.office ?? '';
+      tdActions.appendChild(document.createTextNode(' '));
+      tdActions.appendChild(direct);
+    }
     tr.appendChild(tdActions);
 
     tbody.appendChild(tr);
@@ -148,9 +159,10 @@ function init() {
   document.getElementById('category-filter').addEventListener('change', loadAndRender);
   // Delegated click handling for action buttons
   document.getElementById('catalog-container').addEventListener('click', (e) => {
-    const btn = e.target.closest('.inbound-btn, .outbound-btn');
+    const btn = e.target.closest('.inbound-btn, .outbound-btn, .direct-btn');
     if (!btn) return;
-    const mode = btn.classList.contains('inbound-btn') ? 'inbound' : 'outbound';
+    const mode = btn.classList.contains('inbound-btn') ? 'inbound'
+      : btn.classList.contains('direct-btn') ? 'direct' : 'outbound';
     const { id, sku, office } = btn.dataset;
     // Pages without the form dialogs (inventory.html) link to the movements page instead.
     if (!document.getElementById(`${mode}-dialog`)) {

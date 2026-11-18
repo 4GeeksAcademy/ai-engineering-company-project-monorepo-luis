@@ -1,8 +1,11 @@
 """FastAPI Router for Nexova Inventory operations under /inventory."""
 
 from collections.abc import Hashable
+from decimal import Decimal
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import Session
 
 from services.api.auth_dependencies import get_current_user
@@ -10,14 +13,24 @@ from services.api.auth_models import UserRecord
 from services.api.database import get_db
 from services.api.response_models import DetailErrorResponse
 from services.api.inventory_service import (
+    calculate_asset_stock,
     create_asset,
+    get_asset_by_id,
     get_asset_read,
     list_assets,
     list_orders,
     register_inbound_order,
     register_outbound_order,
 )
+from services.api.inventory_telemetry import (
+    InventoryFacts,
+    attach_signals,
+    movement_lock,
+    previous_unit_cost,
+    signal,
+)
 from services.api.response_cache import response_cache
+from services.api.routers.suppliers import get_supplier
 from services.api.schemas import (
     AssetCreate,
     AssetEntryCreate,
@@ -26,10 +39,15 @@ from services.api.schemas import (
     AssetExitRead,
     AssetRead,
     OrderItemRead,
+    OfficeType,
 )
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
 PRODUCTS_CACHE_TTL_SECONDS = 15
+
+
+def _facts(request: Request, asset_id: int, office: str) -> InventoryFacts | None:
+    return (getattr(request.app.state, "inventory_facts", None) or {}).get((asset_id, office))
 
 
 def _products_cache_key(session: Session) -> tuple[str, Hashable]:
@@ -96,13 +114,38 @@ def get_product_by_id(id: int, session: Session = Depends(get_db)) -> AssetRead:
 )
 def post_inbound_order(
     payload: AssetEntryCreate,
+    request: Request,
+    response: Response,
     session: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> AssetEntryRead:
     """Register stock arrival from supplier. Requires authentication."""
-    user_uuid = str(current_user.id)
-    created = register_inbound_order(session, payload, user_uuid=user_uuid)
+    facts = _facts(request, payload.asset_id, payload.office)
+    supplier_id, cents = payload.supplier_id, payload.unit_cost_cents
+    signals = []
+    with movement_lock:
+        if supplier_id is not None and cents is not None:
+            supplier = get_supplier(supplier_id)
+            payload = payload.model_copy(update={"supplier": supplier.name})
+            threshold = facts.variance_threshold_percent if facts else None
+            baseline = previous_unit_cost(session, payload.asset_id, payload.office, supplier_id) if threshold is not None else None
+            if facts:
+                properties = {
+                    **facts.properties(payload.quantity),
+                    "unit_cost": cents / 100,
+                    "supplier_ref": str(supplier_id),
+                }
+                signals.append(signal("inbound_order_created", properties))
+                if threshold is not None and baseline is not None and baseline > 0:
+                    variance = Decimal(cents - baseline) * 100 / baseline
+                    if variance > threshold:
+                        signals.append(signal("kit_cost_variance_detected", {
+                            **properties, "baseline_unit_cost": baseline / 100,
+                            "variance_percent": float(variance), "threshold_percent": float(threshold),
+                        }))
+        created = register_inbound_order(session, payload, user_uuid=str(current_user.id))
     response_cache.invalidate(_products_cache_key(session))
+    attach_signals(response, signals)
     return created
 
 
@@ -119,6 +162,8 @@ def post_inbound_order(
 )
 def post_outbound_order(
     payload: AssetExitCreate,
+    request: Request,
+    response: Response,
     session: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> AssetExitRead:
@@ -128,10 +173,50 @@ def post_outbound_order(
     Rejects with 400 and exact error message if stock is insufficient.
     Requires authentication.
     """
-    user_uuid = str(current_user.id)
-    created = register_outbound_order(session, payload, user_uuid=user_uuid)
+    facts = _facts(request, payload.asset_id, payload.office)
+    minimum = facts.minimum_stock if facts else None
+    signals = []
+    with movement_lock:
+        before = calculate_asset_stock(session, payload.asset_id, payload.office) if minimum is not None else None
+        created = register_outbound_order(session, payload, user_uuid=str(current_user.id))
+    if facts and payload.recipient_type is not None:
+        signals.append(signal("outbound_order_created", {
+            **facts.properties(created.quantity), "recipient_type": payload.recipient_type,
+        }))
+    if facts and minimum is not None and before is not None and before >= minimum > before - created.quantity:
+        signals.append(signal("stock_threshold_triggered", {
+            **facts.properties(before - created.quantity), "threshold_quantity": minimum,
+        }))
     response_cache.invalidate(_products_cache_key(session))
+    attach_signals(response, signals)
     return created
+
+
+class DirectStockEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    office: OfficeType
+    quantity: int = Field(strict=True, ge=-2_147_483_647, le=2_147_483_647)
+
+
+@router.patch(
+    "/products/{id}/stock",
+    status_code=status.HTTP_409_CONFLICT,
+    response_model=DetailErrorResponse,
+    summary="Reject a direct stock change; an inventory order is required",
+    dependencies=[Depends(get_current_user)],
+)
+def reject_direct_stock_edit(
+    id: int, payload: DirectStockEdit, request: Request, session: Session = Depends(get_db),
+) -> JSONResponse:
+    get_asset_by_id(session, id)
+    facts = _facts(request, id, payload.office)
+    response = JSONResponse(status_code=409, content={"detail": "Registra una orden de entrada o salida para modificar existencias."})
+    signals = [signal("direct_stock_edit_rejected", {
+        **facts.properties(payload.quantity), "rejection_code": "order_required",
+    })] if facts else []
+    attach_signals(response, signals)
+    return response
 
 
 @router.get(
