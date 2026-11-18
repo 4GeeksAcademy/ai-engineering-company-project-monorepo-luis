@@ -302,3 +302,22 @@ def test_invalid_endpoint_configuration_fails_safely(client, monkeypatch, value)
         with TestClient(app):
             pass
     assert value not in str(error.value)
+
+
+def test_telemetry_does_not_pollute_sqlmodel_metadata_or_inventory():
+    """Verify that telemetry_events is strictly isolated from SQLModel.metadata and inventory tables."""
+    from sqlmodel import SQLModel
+    from sqlalchemy import inspect
+    from services.api.database import init_db
+
+    # telemetry_events must NOT be registered in SQLModel.metadata
+    assert "telemetry_events" not in SQLModel.metadata.tables
+
+    # Running init_db on a clean SQLite engine must not create telemetry_events table
+    test_db_engine = create_engine("sqlite:///:memory:")
+    init_db(target_engine=test_db_engine)
+    table_names = inspect(test_db_engine).get_table_names()
+
+    assert "telemetry_events" not in table_names
+    assert "asset" in table_names or len(table_names) > 0  # Inventory tables were created
+
