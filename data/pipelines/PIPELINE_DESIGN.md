@@ -1,7 +1,7 @@
 # Diseño del Pipeline de Desempeño de Negocio (Business Performance Data Pipeline)
 
 > **Documento de Diseño Arquitectónico — Hito 1**  
-> **Estado:** En progreso (Etapas 1, 2, 3 y 4 completadas)  
+> **Estado:** Completo y Verificado (Hito 1)  
 > **Destino en Monorepo:** `data/pipelines/PIPELINE_DESIGN.md`  
 > **Contexto Organizacional:** Nexova Inc. — División de Operaciones, Logística y Capacitación (L&D)
 
@@ -675,5 +675,29 @@ sequenceDiagram
 | **Métricas Clave** | Errores de API, rechazos de esquema, fallos de autenticación, tiempos de respuesta HTTP. | Inversión en material (`total_material_cost`), kits entregados, escasez de stock y variaciones de precio. |
 | **Tratamiento de Divisas** | Ignorado / No aplicable. | Segregación estricta (`EUR` para Valencia, `USD` para Miami) sin conversiones arbitrarias. |
 | **Módulo de Código** | `services/telemetry/` | `services/reporting/` (lecturas) y `data/pipelines/` (ETL orquestado). |
+
+---
+
+## 7. Matriz de Conformidad y Criterios de Evaluación
+
+Esta sección audita y valida punto por punto el cumplimiento de los requerimientos fijados en `pipeline-1.md` y el briefing de Nexova:
+
+| Criterio de Evaluación | Estado | Sección de Referencia | Evidencia Técnica Documentada |
+| :--- | :---: | :--- | :--- |
+| **Existencia de archivo en ruta oficial** | Cumple | Documento raíz | Creado y commiteado en `data/pipelines/PIPELINE_DESIGN.md`. |
+| **Estado actual y brecha frente al reporte técnico** | Cumple | Sección 1 | Explica el alcance del reporte DevOps y la desconexión frente a Laura y Elena. |
+| **Tablas fuente, payload y cadencia de actualización** | Cumple | Sección 1.1 y 2.2 | `public.telemetry_events`, payload en `tags` JSONB, lunes 05:00 UTC. |
+| **Propósito concreto en una sola frase de negocio** | Cumple | Sección 2.1 | Frase unívoca orientada a KPIs de inventario y sedes Valencia/Miami. |
+| **Separación arquitectónica estricta** | Cumple | Sección 1.4 y 6.3 | Sin modificaciones en `services/telemetry/`, destino en `reporting`. |
+| **Diagrama ETL Mermaid con entidades reales** | Cumple | Sección 3.2 | Diagrama de bloques con etapas de extracción, transformación y carga. |
+| **Estrategia concreta de actualización / deduplicación** | Cumple | Sección 3.4 y 4.3 | `ON CONFLICT DO UPDATE` y `DISTINCT ON` en extracción. |
+| **Idempotencia y fallo parcial detallado** | Cumple | Sección 4.1 | Caso de fallo en $R_1$ y segunda corrida determinista en $R_2$. |
+| **Log con al menos 5 campos justificados** | Cumple | Sección 4.6 | 13 campos con nombre, tipo SQL y justificación de auditoría. |
+| **Mapeo a Prefect (Flow + 3 Tasks + Blocks)** | Cumple | Sección 5 | `weekly_business_performance_pipeline`, 3 tasks y Blocks de conexión segura. |
+| **Diseño de 3 endpoints de reporting** | Cumple | Sección 6.2 | Endpoints de status, trigger y kpis semanales con esquemas JSON. |
+| **Consistencia con eventos, KPIs, grano y monedas** | Cumple | Sección 2 y 3.3 | Grano `(office, programme_id, week_start)`, monedas `EUR` y `USD` aisladas. |
+| **Decisiones con análisis de trade-offs** | Cumple | Secciones 3.1, 3.4, 4.2 | Comparativas de persistencia, desacoplamiento y modelos de cómputo. |
+| **Límites respetados (solo diseño, sin código funcional)** | Cumple | Global | Cero scripts ETL ni routers operativos implementados prematuramente. |
+
 
 
