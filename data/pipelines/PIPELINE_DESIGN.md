@@ -1,7 +1,7 @@
 # Diseño del Pipeline de Desempeño de Negocio (Business Performance Data Pipeline)
 
 > **Documento de Diseño Arquitectónico — Hito 1**  
-> **Estado:** En progreso (Etapas 1 y 2 completadas)  
+> **Estado:** En progreso (Etapas 1, 2 y 3 completadas)  
 > **Destino en Monorepo:** `data/pipelines/PIPELINE_DESIGN.md`  
 > **Contexto Organizacional:** Nexova Inc. — División de Operaciones, Logística y Capacitación (L&D)
 
@@ -271,3 +271,157 @@ Para mantener la separación arquitectónica exigida por Nexova:
 - El módulo de ingeniería y observabilidad técnica permanece confinado en `services/telemetry/`.
 - El nuevo consumo de analítica de negocio se establece en `services/reporting/`.
 - La orquestación y transformación residen exclusivamente en `data/pipelines/`. Los servicios en `services/reporting/` únicamente consultan la tabla `reporting.weekly_office_program_performance` y la tabla de logs de ejecución, actuando como capa de servicio ligera sin lógica ETL acoplada.
+
+---
+
+## 4. Resiliencia, Idempotencia y Auditoría de Ejecución
+
+### 4.1. Idempotencia y Recuperación ante Fallos Parciales
+
+#### Escenario de Fallo Parcial:
+Considérese una corrida programada con identificador $R_1$ que procesa la semana ISO comprendida entre `2026-11-16` y `2026-11-23`:
+1. La tarea de extracción obtiene 1.450 eventos relevantes de `telemetry_events`.
+2. La tarea de transformación calcula en memoria 8 registros agregados correspondientes a combinaciones activas de `(office, programme_id, week_start)`.
+3. Durante la fase de carga, la transacción procesa e inserta exitosamente las primeras 5 filas en `reporting.weekly_office_program_performance`.
+4. Al intentar insertar la sexta fila, se produce una desconexión abrupta de socket o *timeout* con la instancia de PostgreSQL/Supabase. La ejecución falla y el estado del flow se marca como `FAILED`.
+
+#### Comportamiento en la Segunda Corrida ($R_2$):
+Cuando el sistema reintenta la ejecución (sea por política de reintento automático de Prefect o por detonación manual del operador):
+1. **Lectura Limpia:** La corrida $R_2$ genera un nuevo `run_id`, reevalúa la ventana completa `[week_start, week_end)` desde la fuente de verdad inmutable (`telemetry_events`), y regenera las 8 tuplas consolidadas en memoria.
+2. **Aplicación del Atomic UPSERT:** Gracias a la sentencia `ON CONFLICT (office, programme_id, week_start) DO UPDATE`:
+   - Las 5 tuplas previamente registradas por $R_1$ **no provocan errores de clave duplicada** ni sufren sumas acumuladas erróneas (`total = total + nuevo`). En su lugar, sus métricas son sobreescritas de forma determinista con el agregado completo calculado por $R_2$.
+   - Los campos de auditoría de esas 5 tuplas se actualizan: `run_id = R_2` y `computed_at = clock_timestamp()`.
+   - Las 3 tuplas restantes que nunca llegaron a persistirse en $R_1$ son insertadas limpiamente.
+3. **Resultado Garantizado:** La tabla analítica queda en un estado 100% íntegro, idéntico al que habría existido si $R_1$ no hubiese fallado, sin registros parciales huérfanos ni duplicación de importes.
+
+---
+
+### 4.2. Tratamiento de Eventos Tardíos (Late-Arriving Events)
+
+En sistemas distribuidos y aplicaciones móviles de almacén, ciertos eventos pueden emitirse con retraso debido a desconexiones de red local o colas de sincronización offline (e.g. un pedido de recepción ocurrido el viernes a las 18:00 UTC que el cliente de almacén envía a la API el martes siguiente a las 09:00 UTC).
+
+#### Estrategia de Recálculo de Ventana Retroactiva:
+- **Detección y Criterio de Corte:** Cada evento en `telemetry_events` almacena su marca de tiempo del hecho real en `timestamp`.
+- **Ventana de Estabilidad y Re-ejecución:**
+  - El pipeline semanal por defecto procesa la semana inmediata anterior ($W_{-1}$).
+  - Adicionalmente, el pipeline admite como parámetro opcional `target_week_start`. Para absorber eventos tardíos, se define una política de **recálculo móvil con ventana de amortiguación**: cada ejecución semanal recalcula tanto la semana recién cerrada ($W_{-1}$) como la semana previa inmediata ($W_{-2}$).
+- **Trazabilidad del Recálculo:**
+  - Cuando se reprocesa una semana pasada, el UPSERT sobreescribe los valores actualizados reflejando los nuevos eventos tardíos incorporados.
+  - El log de ejecución registra formalmente el evento de recálculo:
+    - `window_start`: Fecha de la semana pasada reprocesada.
+    - `trigger_mode`: `'late_event_recalc'` o `'backfill'`.
+    - `records_extracted`: Total de eventos procesados (incluyendo los tardíos).
+  - De este modo, Laura y Elena siempre observan métricas históricas reconciliadas y auditables, sabiendo exactamente qué corrida actualizó los números por última vez.
+
+---
+
+### 4.3. Deduplicación en Origen y Reintentos de Red
+
+Los clientes HTTP y emisores de telemetría implementan reintentos automáticos ante errores de red, lo que puede provocar que un mismo evento de negocio llegue duplicado al endpoint `POST /telemetry/events`.
+
+- **Mecanismo de Descarte en Extracción:**
+  Aunque cada inserción en `telemetry_events` recibe un `id` UUID único en base de datos, el envelope original en el campo `tags` preserva el `eventId` emitido por el cliente o el `requestId`.
+  La consulta de extracción implementa deduplicación estricta a nivel de evento de negocio antes de aplicar las sumas analíticas:
+  ```sql
+  WITH deduplicated_events AS (
+      SELECT DISTINCT ON (COALESCE(tags->>'eventId', id::text))
+          id,
+          timestamp,
+          event_type,
+          tags
+      FROM public.telemetry_events
+      WHERE timestamp >= :window_start 
+        AND timestamp < :window_end
+        AND event_type IN (
+            'inbound_order_created',
+            'outbound_order_created',
+            'stock_threshold_triggered',
+            'kit_cost_variance_detected'
+        )
+      ORDER BY COALESCE(tags->>'eventId', id::text), timestamp ASC
+  )
+  SELECT * FROM deduplicated_events;
+  ```
+- **Garantía:** Si un cliente retransmitió el mismo `inbound_order_created` tres veces por fallos intermitentes de red, el pipeline computa el costo del pedido una sola vez.
+
+---
+
+### 4.4. Control de Concurrencia y Solapamiento de Corridas
+
+Existe el riesgo de que una ejecución programada automática (lunes 05:00 UTC) coincida con una detonación manual solicitada por un administrador a través del endpoint de la API.
+
+#### Mecanismo de Bloqueo Distribuido (Advisory Locks):
+Para impedir que dos instancias concurrentes modifiquen la misma partición semanal al mismo tiempo:
+1. Al iniciar la tarea de carga para una ventana específica `week_start`, el pipeline solicita un bloqueo a nivel de sesión en PostgreSQL mediante:
+   ```sql
+   SELECT pg_try_advisory_lock(hashtext('pipeline_perf_' || :week_start::text));
+   ```
+2. **Comportamiento si el bloqueo se obtiene:** La corrida adquiere el cerrojo exclusivo, ejecuta la transacción de carga, actualiza los logs y libera el candado al finalizar (`pg_advisory_unlock`).
+3. **Comportamiento si el bloqueo está ocupado:** La segunda corrida detecta el bloqueo activo y adopta una de las siguientes políticas configuradas:
+   - *Modo Espera (Backoff):* Espera hasta 60 segundos a que la primera corrida concluya.
+   - *Modo Aborto Seguro (Skip):* Si la primera corrida concluyó exitosamente mientras esperaba, la segunda se marca en los logs como `SKIPPED` con el mensaje: *"Ventana semanal ya en procesamiento por corrida concurrente activa"*, evitando contención o corrupción de datos.
+
+---
+
+### 4.5. Observabilidad, Diagnóstico de Incidentes y Recuperabilidad
+
+El diseño establece mecanismos explícitos para diagnosticar los tres escenarios típicos de fallo o anomalía:
+
+| Escenario Observado | Causa Raíz Posible | Mecanismo de Diagnóstico y Acción |
+| :--- | :--- | :--- |
+| **Actividad en cero (0 registros o conteos en 0)** | 1) Sede sin operaciones reales (e.g. semana festiva).<br/>2) Falla masiva en colector de telemetría o frontend que dejó de emitir eventos. | El pipeline corre con éxito (`status = 'COMPLETED'`), pero registra `records_extracted = 0`. Se emite una alerta de observabilidad si el volumen cae a cero para una sede habitualmente activa, permitiendo a ingeniería revisar el colector sin corromper la tabla de negocio. |
+| **Pipeline no corrió** | Fallo del scheduler de Prefect, agente caído o servicio sin alimentación eléctrica. | Monitoreo externo sobre el endpoint `GET /reporting/status`: si `now() - last_success_run > 7 días`, se dispara alerta de severidad alta (SLA breach). |
+| **Caída de Base de Datos durante la ejecución** | Pérdida de conectividad con Supabase, reinicio de base de datos o saturación de conexiones. | Prefect aplica política de 3 reintentos automáticos con retroceso exponencial (30s, 60s, 120s). Si la BD no responde, el flow finaliza como `FAILED`, registra la excepción en el log local/Prefect Cloud y envía notificación de fallo al canal de operaciones. Los datos de la semana anterior permanecen intactos. |
+
+---
+
+### 4.6. Especificación Formal de la Tabla de Auditoría (`reporting.pipeline_execution_logs`)
+
+Para cumplir con el estándar corporativo de auditoría de Nexova, se diseña la tabla `reporting.pipeline_execution_logs` con especificación estricta de tipos de datos y la justificación de auditoría de cada campo:
+
+```sql
+CREATE TABLE reporting.pipeline_execution_logs (
+    run_id UUID PRIMARY KEY,
+    flow_name VARCHAR(100) NOT NULL,
+    trigger_mode VARCHAR(20) NOT NULL,
+    window_start DATE NOT NULL,
+    window_end DATE NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    finished_at TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL,
+    checkpoint_phase VARCHAR(50) NOT NULL,
+    records_extracted INTEGER NOT NULL DEFAULT 0,
+    records_loaded INTEGER NOT NULL DEFAULT 0,
+    error_details TEXT,
+    execution_context JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    CONSTRAINT chk_log_status CHECK (
+        status IN ('RUNNING', 'COMPLETED', 'FAILED', 'SKIPPED', 'ABORTED')
+    ),
+    CONSTRAINT chk_log_trigger CHECK (
+        trigger_mode IN ('scheduled', 'manual', 'backfill', 'late_event_recalc')
+    )
+);
+
+CREATE INDEX idx_pipeline_logs_status_window 
+    ON reporting.pipeline_execution_logs (window_start DESC, started_at DESC);
+```
+
+#### Catálogo de Campos y Justificación de Auditoría:
+
+| Campo | Tipo SQL | Justificación de Auditoría y Observabilidad |
+| :--- | :--- | :--- |
+| `run_id` | `UUID` | Identificador unívoco global de la corrida. Permite trazar exactamente qué ejecución calculó cada fila en `reporting.weekly_office_program_performance`. |
+| `flow_name` | `VARCHAR(100)` | Nombre formal del flow orquestado en Prefect (`weekly_business_performance_pipeline`). Facilita la auditoría ante la incorporación de futuros pipelines. |
+| `trigger_mode` | `VARCHAR(20)` | Discrimina si la corrida fue automática (`scheduled`), disparada por usuario (`manual`) o un reproceso histórico (`backfill` / `late_event_recalc`). |
+| `window_start` | `DATE` | Límite inferior UTC de la semana calendario evaluada. Clave para verificar qué periodo cubrió la corrida. |
+| `window_end` | `DATE` | Límite superior UTC de la semana evaluada. Garantiza claridad en el rango semiabierto `[window_start, window_end)`. |
+| `started_at` | `TIMESTAMPTZ` | Marca temporal UTC de inicio de la corrida. Utilizada para calcular tiempos de ejecución y detectar ejecuciones colgadas. |
+| `finished_at` | `TIMESTAMPTZ` | Marca temporal UTC de finalización. `NULL` mientras la corrida esté en curso; su presencia valida la culminación. |
+| `status` | `VARCHAR(20)` | Estado final de la corrida (`RUNNING`, `COMPLETED`, `FAILED`, `SKIPPED`). Permite a la API responder inmediatamente sobre la salud del pipeline. |
+| `checkpoint_phase` | `VARCHAR(50)` | Última fase técnica alcanzada (`INIT`, `EXTRACTION`, `TRANSFORMATION`, `LOADING`, `FINALIZED`). Vital para saber exactamente en qué paso falló la corrida sin inspeccionar logs crudos. |
+| `records_extracted` | `INTEGER` | Cantidad total de eventos crudos leídos y deduplicados desde `telemetry_events`. Permite validar el volumen de ingesta. |
+| `records_loaded` | `INTEGER` | Cantidad de tuplas de negocio `(office, programme_id, week_start)` efectivamente persistidas o actualizadas en la tabla analítica. |
+| `error_details` | `TEXT` | Traza de error completa o mensaje de excepción en caso de falla. Permite diagnósticos inmediatos sin acceso directo al contenedor. |
+| `execution_context` | `JSONB` | Metadatos contextuales (versión del código, ID de usuario ejecutor, latencia de base de datos, memoria utilizada). |
+
