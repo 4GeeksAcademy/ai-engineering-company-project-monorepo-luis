@@ -1,7 +1,7 @@
 # Diseño del Pipeline de Desempeño de Negocio (Business Performance Data Pipeline)
 
 > **Documento de Diseño Arquitectónico — Hito 1**  
-> **Estado:** En progreso (Etapas 1, 2 y 3 completadas)  
+> **Estado:** En progreso (Etapas 1, 2, 3 y 4 completadas)  
 > **Destino en Monorepo:** `data/pipelines/PIPELINE_DESIGN.md`  
 > **Contexto Organizacional:** Nexova Inc. — División de Operaciones, Logística y Capacitación (L&D)
 
@@ -424,4 +424,256 @@ CREATE INDEX idx_pipeline_logs_status_window
 | `records_loaded` | `INTEGER` | Cantidad de tuplas de negocio `(office, programme_id, week_start)` efectivamente persistidas o actualizadas en la tabla analítica. |
 | `error_details` | `TEXT` | Traza de error completa o mensaje de excepción en caso de falla. Permite diagnósticos inmediatos sin acceso directo al contenedor. |
 | `execution_context` | `JSONB` | Metadatos contextuales (versión del código, ID de usuario ejecutor, latencia de base de datos, memoria utilizada). |
+
+---
+
+## 5. Mapeo de Orquestación con Prefect
+
+### 5.1. Flow Principal y Tasks Concretas
+
+La orquestación del proceso analítico se estructura bajo el framework **Prefect 3.x**, encapsulando la lógica en `data/pipelines/business_performance_flow.py`.
+
+#### Flow Principal: `weekly_business_performance_pipeline`
+- **Firma Conceptual:**
+  ```python
+  @flow(
+      name="weekly-business-performance-pipeline",
+      description="Orquestador semanal de KPIs de desempeño de inventario por oficina y programa para Nexova",
+      log_prints=True,
+      timeout_seconds=1800,
+  )
+  def weekly_business_performance_pipeline(
+      target_week_start: Optional[date] = None,
+      trigger_mode: str = "scheduled",
+      include_buffer_week: bool = True,
+  ) -> PipelineRunSummary:
+      ...
+  ```
+- **Responsabilidad:** Gestionar el ciclo de vida de la corrida: inicializar el registro de log con `run_id`, coordinar la ejecución secuencial de las tasks, gobernar los bloqueos distribuidos y estampar el estado final (`Completed` o `Failed`).
+
+#### Las Tres Tasks Concretas Obligatorias:
+
+```mermaid
+flowchart LR
+    F["Flow: weekly_business_performance_pipeline"]
+    F --> T1["Task 1: extract_telemetry_events<br/>(Filtros temporales, deduplicación de origen)"]
+    T1 --> T2["Task 2: transform_weekly_kpis<br/>(Agrupación por grano, cómputo de KPIs y validación de divisas)"]
+    T2 --> T3["Task 3: load_reporting_metrics<br/>(Atomic UPSERT en PostgreSQL y log de auditoría)"]
+```
+
+1. **Task 1: `extract_telemetry_events`**
+   - **Decorador:** `@task(name="extract-telemetry-events", retries=3, retry_delay_seconds=30)`
+   - **Entrada:** `window_start: date`, `window_end: date`, `db_connector: SqlAlchemyConnector`.
+   - **Operación:** Conexión de solo lectura a Supabase PostgreSQL. Ejecución de consulta SQL indexada sobre `public.telemetry_events` filtrando por el cuarteto de eventos de inventario. Deduplica eventos por `COALESCE(tags->>'eventId', id::text)`.
+   - **Salida:** `list[RawTelemetryEventRow]` (lista inmutable tipada en memoria).
+
+2. **Task 2: `transform_weekly_kpis`**
+   - **Decorador:** `@task(name="transform-weekly-kpis")`
+   - **Entrada:** `raw_events: list[RawTelemetryEventRow]`, `window_start: date`.
+   - **Operación:**
+     - Normaliza las marcas de tiempo a la semana ISO UTC (`week_start`).
+     - Agrupa los registros por la tupla dimensional `(office, programme_id, week_start)`.
+     - Suma aditiva de `total_material_cost` para `inbound_order_created` aplicando la regla:
+       $$\text{costo} = \text{total\_cost} \text{ if present else } (\text{unit\_cost} \times \text{quantity})$$
+     - Conteo discreto de `kits_delivered_count` (`outbound_order_created`).
+     - Conteo discreto de `shortage_events_count` (`stock_threshold_triggered`).
+     - Conteo discreto de `cost_variance_events_count` (`kit_cost_variance_detected`).
+     - Validación de coherencia estricta de divisa (`EUR` para Valencia, `USD` para Miami).
+   - **Salida:** `list[WeeklyPerformanceAggregate]` (dataset de agregados validado).
+
+3. **Task 3: `load_reporting_metrics`**
+   - **Decorador:** `@task(name="load-reporting-metrics", retries=3, retry_delay_seconds=30)`
+   - **Entrada:** `aggregates: list[WeeklyPerformanceAggregate]`, `run_id: UUID`, `db_connector: SqlAlchemyConnector`.
+   - **Operación:** Abre una transacción aislada en PostgreSQL. Ejecuta el `INSERT INTO reporting.weekly_office_program_performance ... ON CONFLICT (office, programme_id, week_start) DO UPDATE`. Registra el número de registros cargados.
+   - **Salida:** `LoadResult(records_loaded=len(aggregates), status="SUCCESS")`.
+
+---
+
+### 5.2. Semántica de Estados de Prefect y Políticas de Reintento
+
+El pipeline mapea de forma explícita los estados fundamentales del orquestador:
+
+| Estado Prefect | Significado Operativo | Política de Monitoreo y Reintentos |
+| :--- | :--- | :--- |
+| `Scheduled` | El pipeline está encolado en el worker/runner esperando su franja horaria (lunes 05:00 UTC). | Si permanece en este estado > 15 minutos, se dispara alerta de "Worker no disponible / Agente no responde". |
+| `Running` | El flow se encuentra ejecutando tasks activas. | Se monitorea el *heartbeat*. Si excede el timeout configurado (1.800 s), el supervisor aborta la ejecución para liberar bloqueos. |
+| `Completed` | Todas las tasks completaron con éxito. La base analítica `reporting` está actualizada y consistente. | Se actualiza `reporting.pipeline_execution_logs` a `status = 'COMPLETED'` con métricas de volumen. Notificación de éxito en canal de auditoría. |
+| `Failed` | Una de las tasks críticas agotó sus 3 reintentos o capturó un fallo irrecuperable. | Se captura la excepción, se vuelca el stacktrace en `error_details` dentro del log de auditoría con `status = 'FAILED'`, y se remite alerta crítica (PagerDuty / Slack) a soporte. |
+
+---
+
+### 5.3. Gestión de Configuración y Credenciales con Prefect Blocks
+
+Para cumplir con las políticas de seguridad de Nexova y no exponer secretos en repositorios o archivos de configuración:
+
+- **SqlAlchemyConnector Block (`supabase-reporting-db`):**
+  - Almacena de forma centralizada y cifrada la cadena de conexión de producción a Supabase PostgreSQL:
+    `postgresql+psycopg://reporting_worker:*****@db.xxx.supabase.co:5432/postgres?sslmode=require`
+  - Controla el pool de conexiones (`pool_size=5`, `max_overflow=10`, `pool_recycle=3600`).
+  - Permite la rotación periódica de credenciales desde el panel de Prefect Cloud/Server sin modificar ninguna línea de código del monorepo.
+- **Secret Block (`slack-ops-webhook`):**
+  - Clave segura para el envío de notificaciones automáticas ante fallas de pipeline hacia el canal de monitoreo de operaciones.
+- **Secret Block (`reporting-encryption-key`):**
+  - Firma para la validación de tokens de servicio entre el backend FastAPI y los triggers de Prefect.
+- **Regla Estricta:** No se insertan cadenas de conexión, contraseñas ni URLs con credenciales en ningún documento, archivo `.env` o código fuente.
+
+---
+
+## 6. Diseño de Endpoints en `services/reporting/` (Solo Diseño de API)
+
+### 6.1. Principio de Separación Arquitectónica
+- Los endpoints de `services/reporting/` son **interfaces de servicio delgadas**: no ejecutan lógica de transformación ni tareas ETL en memoria de la API web.
+- **Consultas (Lectura):** Acceden exclusivamente a las tablas optimizadas `reporting.weekly_office_program_performance` y `reporting.pipeline_execution_logs`.
+- **Comandos (Disparo):** El trigger manual delega de forma asíncrona la ejecución al runtime de Prefect mediante el cliente formal de Prefect (`prefect.deployments.run_deployment`), respondiendo de inmediato un código HTTP 202 con el identificador de la corrida.
+- **Aislamiento Total:** Completamente separados de `services/telemetry/routers/telemetry.py` y de `GET /telemetry/report`.
+
+---
+
+### 6.2. Especificación de Endpoints
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Stakeholder as Laura / Elena (Dashboard UI)
+    participant API as services/reporting/
+    participant DB as reporting schema (Postgres)
+    participant Orchestrator as data/pipelines/ (Prefect)
+
+    Note over Stakeholder,API: 1. Consulta de Métricas de Negocio
+    Stakeholder->>API: GET /reporting/kpis/weekly?week_start=2026-11-16
+    API->>DB: SELECT * FROM reporting.weekly_office_program_performance WHERE week_start = ...
+    DB-->>API: Filas consolidadas por oficina y programa
+    API-->>Stakeholder: 200 OK (JSON con KPIs y monedas separadas EUR/USD)
+
+    Note over Stakeholder,API: 2. Consulta de Estado de Salud
+    Stakeholder->>API: GET /reporting/status
+    API->>DB: SELECT * FROM reporting.pipeline_execution_logs ORDER BY started_at DESC LIMIT 1
+    DB-->>API: Último log de ejecución
+    API-->>Stakeholder: 200 OK (Status, última corrida, registros procesados)
+
+    Note over Stakeholder,API: 3. Disparo Manual / Reproceso
+    Stakeholder->>API: POST /reporting/pipeline/trigger {"target_week_start": "2026-11-16"}
+    API->>Orchestrator: Disparo asíncrono de flow Prefect
+    Orchestrator-->>API: run_id registrado
+    API-->>Stakeholder: 202 Accepted {"run_id": "...", "status": "SCHEDULED"}
+```
+
+#### Endpoint 1: Consulta de Estado de la Última Corrida
+- **Ruta y Método:** `GET /reporting/status`
+- **Función que Invoca:** `data.pipelines.queries.get_latest_pipeline_run_status()`
+- **Fuente de Datos:** Lectura directa de `reporting.pipeline_execution_logs`.
+- **Respuesta (JSON 200 OK):**
+  ```json
+  {
+    "run_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "flow_name": "weekly-business-performance-pipeline",
+    "status": "COMPLETED",
+    "trigger_mode": "scheduled",
+    "window_start": "2026-11-16",
+    "window_end": "2026-11-23",
+    "started_at": "2026-11-23T05:00:01.120Z",
+    "finished_at": "2026-11-23T05:01:45.340Z",
+    "duration_seconds": 104.22,
+    "records_extracted": 1450,
+    "records_loaded": 8,
+    "error_details": null
+  }
+  ```
+
+#### Endpoint 2: Disparo Manual del Pipeline
+- **Ruta y Método:** `POST /reporting/pipeline/trigger`
+- **Función que Invoca:** `data.pipelines.orchestrator.trigger_pipeline_run(target_week_start, trigger_mode="manual")`
+- **Cuerpo de Solicitud (JSON):**
+  ```json
+  {
+    "target_week_start": "2026-11-16",
+    "reprocess_buffer_week": false,
+    "reason": "Auditoría manual solicitada por Gerencia L&D"
+  }
+  ```
+- **Respuesta (JSON 202 Accepted):**
+  ```json
+  {
+    "run_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "status": "SCHEDULED",
+    "target_week_start": "2026-11-16",
+    "message": "Pipeline de desempeño programado exitosamente para ejecución asíncrona."
+  }
+  ```
+
+#### Endpoint 3: Consulta de KPIs para el Dashboard de Negocio
+- **Ruta y Método:** `GET /reporting/kpis/weekly`
+- **Función que Invoca:** `data.pipelines.queries.get_weekly_performance_kpis(week_start, office, programme_id)`
+- **Parámetros de Consulta (Query Params):**
+  - `week_start` (opcional, formato `YYYY-MM-DD`): Filtra por semana específica. Por defecto devuelve la última semana procesada.
+  - `office` (opcional, enum `valencia`, `miami`): Filtra por sede.
+  - `programme_id` (opcional, string): Filtra por programa específico.
+- **Respuesta (JSON 200 OK):**
+  ```json
+  {
+    "week_start": "2026-11-16",
+    "offices": [
+      {
+        "office": "valencia",
+        "currency": "EUR",
+        "total_material_cost": 14520.50,
+        "total_kits_delivered": 180,
+        "total_shortages": 2,
+        "total_cost_variances": 1,
+        "programmes": [
+          {
+            "programme_id": "ai-engineering-core",
+            "material_cost": 8900.00,
+            "kits_delivered": 110,
+            "shortage_events": 1,
+            "cost_variance_events": 0
+          },
+          {
+            "programme_id": "data-pipeline-specialization",
+            "material_cost": 5620.50,
+            "kits_delivered": 70,
+            "shortage_events": 1,
+            "cost_variance_events": 1
+          }
+        ]
+      },
+      {
+        "office": "miami",
+        "currency": "USD",
+        "total_material_cost": 18240.00,
+        "total_kits_delivered": 140,
+        "total_shortages": 0,
+        "total_cost_variances": 3,
+        "programmes": [
+          {
+            "programme_id": "ai-engineering-core",
+            "material_cost": 18240.00,
+            "kits_delivered": 140,
+            "shortage_events": 0,
+            "cost_variance_events": 3
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "computed_at": "2026-11-23T05:01:45.340Z",
+      "run_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+    }
+  }
+  ```
+
+---
+
+### 6.3. Tabla Comparativa de Separación de Responsabilidades
+
+| Criterio | Reporte Técnico Existente (`GET /telemetry/report`) | Reporte de Desempeño de Negocio (`GET /reporting/kpis/weekly`) |
+| :--- | :--- | :--- |
+| **Audiencia** | Equipo de Ingeniería de Software, DevOps y SRE. | Laura (CEO), Elena (Gerente de L&D) y directores de sede. |
+| **Pregunta que Responde** | "¿El sistema está operando con estabilidad, sin errores 500 y con baja latencia?" | "¿Cuánto gastamos en material formativo y cuántos kits entregamos en Valencia vs. Miami esta semana?" |
+| **Unidad Temporal** | En tiempo real o ventana deslizante continua (últimas 24 horas). | Ventana semanal cerrada calendario ISO (lunes 00:00 UTC a domingo 23:59 UTC). |
+| **Granularidad** | Evento individual, tipo de error técnico, percentiles de latencia ($p50, p95, p99$). | Fila única por sede (`office`), programa formativo (`programme_id`) y semana (`week_start`). |
+| **Métricas Clave** | Errores de API, rechazos de esquema, fallos de autenticación, tiempos de respuesta HTTP. | Inversión en material (`total_material_cost`), kits entregados, escasez de stock y variaciones de precio. |
+| **Tratamiento de Divisas** | Ignorado / No aplicable. | Segregación estricta (`EUR` para Valencia, `USD` para Miami) sin conversiones arbitrarias. |
+| **Módulo de Código** | `services/telemetry/` | `services/reporting/` (lecturas) y `data/pipelines/` (ETL orquestado). |
+
 
