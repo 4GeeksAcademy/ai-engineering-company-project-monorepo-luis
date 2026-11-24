@@ -1,7 +1,7 @@
 # Diseño del Pipeline de Desempeño de Negocio (Business Performance Data Pipeline)
 
 > **Documento de Diseño Arquitectónico — Hito 1**  
-> **Estado:** En progreso (Etapa 1: Estado Actual, Brecha de Negocio y Propósito)  
+> **Estado:** En progreso (Etapas 1 y 2 completadas)  
 > **Destino en Monorepo:** `data/pipelines/PIPELINE_DESIGN.md`  
 > **Contexto Organizacional:** Nexova Inc. — División de Operaciones, Logística y Capacitación (L&D)
 
@@ -82,3 +82,192 @@ Para el cálculo del KPI de costo de material, el payload en `tags` debe contene
 - **Regla de Extracción Aditiva:**
   $$\text{Costo de Línea} = \begin{cases} \text{tags}\to\text{'total\_cost'} & \text{si existe y no es nulo} \\ (\text{tags}\to\text{'unit\_cost'}) \times (\text{tags}\to\text{'quantity'}) & \text{en caso contrario} \end{cases}$$
   Cualquier enriquecimiento futuro de este payload se gestiona bajo el principio de **extensión aditiva** (campos opcionales compatibles hacia atrás), sin romper el contrato del colector ni modificar el reporte técnico.
+
+---
+
+## 3. Arquitectura del Pipeline y Modelo de Datos (ETL)
+
+### 3.1. Fuentes de Extracción y Formato de Datos
+- **Fuente Principal:** Tabla PostgreSQL `public.telemetry_events` (alojada en Supabase).
+- **Criterio de Extracción Temporal:** Filtrado indexado por partición semanal:
+  $$\text{timestamp} \ge \text{week\_start} \quad \text{AND} \quad \text{timestamp} < \text{week\_start} + 7\,\text{días}$$
+  donde `week_start` representa el lunes a las 00:00:00 UTC de la semana a procesar.
+- **Filtro Taxonómico de Eventos:**
+  ```sql
+  event_type IN (
+      'inbound_order_created',
+      'outbound_order_created',
+      'stock_threshold_triggered',
+      'kit_cost_variance_detected'
+  )
+  ```
+- **Envelope y Extracción de Dimensiones:**
+  Los atributos analíticos se leen directamente del campo semiestructurado `tags` (JSONB):
+  - `office`: Cadena (`valencia` o `miami`).
+  - `programme_id`: Identificador del programa (e.g. `ml-ops-track`).
+  - `currency`: Validación estricta (`EUR` si `valencia`, `USD` si `miami`).
+  - Valores de métricas (`unit_cost`, `total_cost`, `quantity`).
+- **Análisis de Tablas de Dominio Adicionales (Trade-off de Desacoplamiento):**
+  Se evalúa si es necesario unir (*JOIN*) con tablas del sistema transaccional de inventario (`items`, `orders`, `suppliers`).
+  - **Decisión Arquitectónica:** **No se consultan tablas de dominio transaccionales en este pipeline.**
+  - **Justificación:** Los eventos de telemetría de Nexova fueron diseñados como "eventos enriquecidos autocontenidos" (*self-contained fat events*). Incluyen `office`, `programme_id`, `product_category`, `currency` y `costs`. Consultar la base de datos operacional transaccional (SQLite `inventory.db`) crearía un acoplamiento indeseado de infraestructura, riesgo de bloqueo transaccional (*table locks*) y degradación de rendimiento de la API en horas de operación. La telemetría ofrece una fuente inmutable desacoplada óptima para la analítica.
+
+---
+
+### 3.2. Diagrama de Flujo de Datos (Arquitectura ETL)
+
+```mermaid
+flowchart TD
+    subgraph S1["1. Origen de Datos (Solo Lectura)"]
+        TE[("telemetry_events<br/>(Supabase PostgreSQL)")<br/>• timestamp (TIMESTAMPTZ)<br/>• event_type (VARCHAR)<br/>• tags (JSONB)]
+    end
+
+    subgraph S2["2. Pipeline Orquestado (data/pipelines/)"]
+        direction TB
+        E["Task: extract_telemetry_events<br/>Filtro: [week_start, week_end)<br/>Eventos de inventario requeridos"]
+        T["Task: transform_weekly_kpis<br/>• Normalizar semana ISO (lunes 00:00 UTC)<br/>• Agrupar por (office, programme_id, week_start)<br/>• Sumar total_material_cost<br/>• Contar kits_delivered_count<br/>• Contar shortage_events_count<br/>• Contar cost_variance_events_count<br/>• Preservar currency nativa"]
+        L["Task: load_reporting_metrics<br/>UPSERT transaccional idempotente en lote"]
+        
+        E -->|Dataset crudo validado| T
+        T -->|Filas agregadas por grano| L
+    end
+
+    subgraph S3["3. Capa de Persistencia Analítica (reporting)"]
+        DEST[("reporting.weekly_office_program_performance<br/>Clave única: (office, programme_id, week_start)<br/>• total_material_cost<br/>• kits_delivered_count<br/>• shortage_events_count<br/>• cost_variance_events_count<br/>• currency / computed_at / run_id")]
+        AUDIT[("reporting.pipeline_execution_logs<br/>Trazabilidad de corridas y auditoría")]
+    end
+
+    subgraph S4["4. Capa de Servicios y Exposición (services/reporting/)"]
+        EP1["GET /reporting/status<br/>(Última corrida / salud)"]
+        EP2["POST /reporting/pipeline/trigger<br/>(Disparo manual / reproceso)"]
+        EP3["GET /reporting/kpis/weekly<br/>(Dashboard Laura & Elena)"]
+    end
+
+    TE -->|Lectura SQL indexada| E
+    L -->|ON CONFLICT DO UPDATE| DEST
+    L -.->|Log de ejecución / métricas| AUDIT
+    DEST -->|Consultas de agregados sin ETL| EP3
+    AUDIT -->|Consulta de estado| EP1
+    EP2 -->|Invoca ejecución en| E
+```
+
+---
+
+### 3.3. Esquema y Modelo de Destino (`reporting.weekly_office_program_performance`)
+
+Para garantizar aislamiento físico y de permisos, los datos de desempeño residirán en un esquema PostgreSQL dedicado denominado `reporting`.
+
+#### Definición DDL Formal:
+```sql
+CREATE SCHEMA IF NOT EXISTS reporting;
+
+CREATE TABLE reporting.weekly_office_program_performance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    office VARCHAR(20) NOT NULL,
+    programme_id VARCHAR(100) NOT NULL,
+    week_start DATE NOT NULL,
+    total_material_cost NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+    kits_delivered_count INTEGER NOT NULL DEFAULT 0,
+    shortage_events_count INTEGER NOT NULL DEFAULT 0,
+    cost_variance_events_count INTEGER NOT NULL DEFAULT 0,
+    currency VARCHAR(3) NOT NULL,
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    run_id UUID NOT NULL,
+
+    -- Restricciones de Dominio y Consistencia
+    CONSTRAINT chk_office CHECK (office IN ('valencia', 'miami')),
+    CONSTRAINT chk_currency CHECK (
+        (office = 'valencia' AND currency = 'EUR') OR
+        (office = 'miami' AND currency = 'USD')
+    ),
+    CONSTRAINT chk_non_negative_cost CHECK (total_material_cost >= 0),
+    CONSTRAINT chk_non_negative_counts CHECK (
+        kits_delivered_count >= 0 AND
+        shortage_events_count >= 0 AND
+        cost_variance_events_count >= 0
+    ),
+
+    -- Clave Natural de Unicidad (Garantía de Grano)
+    CONSTRAINT uq_weekly_office_programme UNIQUE (office, programme_id, week_start)
+);
+
+-- Índices Analíticos para Consumo del Dashboard
+CREATE INDEX idx_weekly_perf_query 
+    ON reporting.weekly_office_program_performance (week_start DESC, office, programme_id);
+
+CREATE INDEX idx_weekly_perf_run 
+    ON reporting.weekly_office_program_performance (run_id);
+```
+
+#### Diccionario de Datos:
+- `id`: Clave subrogada única de registro.
+- `office`: Oficina física responsable (`valencia` o `miami`).
+- `programme_id`: Identificador de programa formativo asignado.
+- `week_start`: Fecha de inicio de la semana ISO (siempre lunes, UTC).
+- `total_material_cost`: Inversión total en compras (`inbound_order_created`) en la moneda de la sede.
+- `kits_delivered_count`: Volumen de entregas a participantes (`outbound_order_created`).
+- `shortage_events_count`: Incidentes de caída bajo stock mínimo (`stock_threshold_triggered`).
+- `cost_variance_events_count`: Anomalías de costo detectadas (`kit_cost_variance_detected`).
+- `currency`: Moneda obligatoria según sede (`EUR` o `USD`).
+- `computed_at`: Marca temporal exacta del cálculo analítico.
+- `run_id`: Identificador de la corrida del pipeline orquestador para auditoría completa.
+
+---
+
+### 3.4. Estrategia de Actualizaciones, Deduplicación y UPSERT
+
+En procesamiento de datos analíticos, la ejecución semanal puede coincidir con reprocesamientos manuales o actualizaciones retroactivas.
+
+#### Mecanismo de Actualización Idempotente (UPSERT):
+En lugar de fallar por violación de clave primaria o insertar registros duplicados, la carga utiliza la cláusula `ON CONFLICT` de PostgreSQL sobre la restricción natural única `(office, programme_id, week_start)`:
+
+```sql
+INSERT INTO reporting.weekly_office_program_performance (
+    office,
+    programme_id,
+    week_start,
+    total_material_cost,
+    kits_delivered_count,
+    shortage_events_count,
+    cost_variance_events_count,
+    currency,
+    computed_at,
+    run_id
+) VALUES (
+    :office,
+    :programme_id,
+    :week_start,
+    :total_material_cost,
+    :kits_delivered_count,
+    :shortage_events_count,
+    :cost_variance_events_count,
+    :currency,
+    clock_timestamp(),
+    :run_id
+)
+ON CONFLICT (office, programme_id, week_start)
+DO UPDATE SET
+    total_material_cost = EXCLUDED.total_material_cost,
+    kits_delivered_count = EXCLUDED.kits_delivered_count,
+    shortage_events_count = EXCLUDED.shortage_events_count,
+    cost_variance_events_count = EXCLUDED.cost_variance_events_count,
+    currency = EXCLUDED.currency,
+    computed_at = EXCLUDED.computed_at,
+    run_id = EXCLUDED.run_id;
+```
+
+#### Análisis de Trade-Offs de la Estrategia de Carga:
+| Estrategia | Ventajas | Desventajas | Decisión |
+| :--- | :--- | :--- | :--- |
+| **Append-Only (Sin restricción)** | Inserción ultra rápida sin comprobación de índices. | Produce duplicados de negocio en reintentos o reprocesos; falsea totales en sumas. | **Descartada**. Inviable para KPIs auditables. |
+| **Delete Partition + Insert (`DELETE WHERE week_start = :w`)** | Garantiza que no queden programas huérfanos que hayan desaparecido. | Crea una ventana temporal de lectura vacía (*dirty read*) si el dashboard consulta en medio de la transacción; bloqueo más agresivo. | **Descartada** para la carga normal por fila/lote. |
+| **Atomic UPSERT (`ON CONFLICT DO UPDATE`)** | **Idempotencia total**, lecturas concurrentes sin ventanas vacías, actualiza métricas y preserva el `run_id` más reciente de forma atómica. | Requiere mantener un índice de unicidad y un mínimo sobrecosto de resolución de conflictos. | **Seleccionada**. Máxima resiliencia y consistencia para consultas en vivo. |
+
+---
+
+### 3.5. Aislamiento Modular: `services/reporting/`
+
+Para mantener la separación arquitectónica exigida por Nexova:
+- El módulo de ingeniería y observabilidad técnica permanece confinado en `services/telemetry/`.
+- El nuevo consumo de analítica de negocio se establece en `services/reporting/`.
+- La orquestación y transformación residen exclusivamente en `data/pipelines/`. Los servicios en `services/reporting/` únicamente consultan la tabla `reporting.weekly_office_program_performance` y la tabla de logs de ejecución, actuando como capa de servicio ligera sin lógica ETL acoplada.
