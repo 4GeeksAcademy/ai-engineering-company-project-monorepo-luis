@@ -137,6 +137,62 @@ uv run --locked --project services\api python -m pytest services\api\tests\test_
 ```
 75 focused telemetry and security tests passed. Frontend remains completely unchanged.
 
+## Application Telemetry — Technical Report (`GET /telemetry/report`)
+
+Provides an operational and technical metrics pipeline in Python/Pandas exposed via `GET /telemetry/report` for engineering analysis (no business/conversion KPIs).
+
+### Architecture and Pipeline Design
+- **Separation of Concerns:** Data aggregation logic is completely isolated in `services/telemetry/analysis.py`. The endpoint handler in `services/api/routers/telemetry.py` only handles date resolution, caching, and response serialization.
+- **Strict Query Order:**
+  `cargar (SQL) -> refinar (Pandas) -> convertir tipos -> agrupar -> agregar -> servir`
+- **SQL Push-Down:** Boundary filters (`timestamp >= start_date AND timestamp < end_date` in UTC) and `event_type` filters (`=` or `IN (...)`) are performed strictly in SQL. Only required columns (`timestamp`, `event_type`, `level`, `tags`, `value`) are loaded into memory.
+- **Pandas Vectorization:** Aggregations (`groupby`, `size`, `sum`, `mean`) use vectorized operations without procedural loops. Timestamps are converted via `pd.to_datetime(..., utc=True)` before grouping.
+- **In-Memory Cache (60s TTL):** Reuses `services/api/response_cache.py` (`TTLResponseCache`) with thread-safe `RLock`. Cache keys are normalized to ISO UTC date ranges.
+- **Privacy & Safety:** Zero PII, secrets, `userId`, `sessionId`, or raw payloads. Zero division-by-zero errors (handled as `null`). Returns clean JSON-serializable primitives (no `NaN` or `Infinity`).
+
+### Technical Metrics Catalog
+1. **`events_per_day`**: Volume of events grouped by UTC date and `event_type` (`count`). Answers what operational signals the system receives and trends over time.
+2. **`error_rate_by_type`**: Error occurrences (`level == 'error'` or canonical failure types), total attempts, and ratio (`rate`). Answers error distribution across event types.
+3. **`latency_by_route_group`**: Mean API duration in milliseconds (`mean_duration_ms`) grouped by UTC date and `route_group` for `api_latency_recorded` events. Answers performance per service route.
+4. **`auth_failure_rate`**: Daily access failure ratio: `login_failed / (login_failed + login_succeeded)`. Query executes via single SQL `IN ('auth_login_failed', 'auth_login_succeeded')`.
+
+### Endpoint Contract
+- **Method & Route:** `GET /telemetry/report`
+- **Query Parameters:**
+  - `start_date` (optional): ISO 8601 with timezone (e.g. `2026-11-16T00:00:00Z`).
+  - `end_date` (optional): ISO 8601 with timezone.
+  - **Defaults:** If omitted, defaults to the last 7 days UTC window ending at `now`.
+  - **Validation:** Both dates must be provided for custom ranges; invalid ISO strings, naive datetimes without timezone, or inverted ranges (`start_date >= end_date`) return HTTP 400.
+- **Response Format (HTTP 200):**
+  ```json
+  {
+    "period": {
+      "from": "2026-11-16T18:00:00Z",
+      "to": "2026-11-23T18:00:00Z"
+    },
+    "metrics": {
+      "events_per_day": [{"date": "2026-11-20", "event_type": "inventory_item_viewed", "count": 12}],
+      "error_rate_by_type": [{"event_type": "api_request_failed", "errors": 2, "total": 8, "rate": 0.25}],
+      "latency_by_route_group": [{"date": "2026-11-20", "route_group": "inventory_read", "mean_duration_ms": 115.4}],
+      "auth_failure_rate": [{"date": "2026-11-20", "failures": 1, "successes": 9, "total": 10, "failure_rate": 0.1}]
+    }
+  }
+  ```
+
+### Verification and Test Suite
+Run the full telemetry test suite:
+```powershell
+uv run --locked --project services\api python -m pytest services\api\tests\test_telemetry_report.py services\api\tests\test_telemetry_api.py services\api\tests\test_telemetry_storage.py services\api\tests\test_telemetry_mapping.py -q
+```
+84 passing tests covering boundary conditions, midnight crossing, cache hit/miss/expiry, zero-division, and privacy.
+
+For live Supabase verification:
+```powershell
+uv run --locked --project services\api python -m services.telemetry.verify_report
+```
+Requires `SUPABASE_DB_URL` configured in `services/api/.env` and at least 20 events in `telemetry_events`.
+
+
 Centralized FastAPI backend service for Nexova operations and incident analysis.
 
 ## Backend serialization audit
