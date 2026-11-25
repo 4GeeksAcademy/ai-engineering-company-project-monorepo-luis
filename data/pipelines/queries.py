@@ -1,6 +1,7 @@
 """Data extraction and analytical query helpers for the business performance pipeline.
 
 Queries telemetry_events in read-only mode and performs deduplication by eventId.
+Queries reporting tables for business stakeholders (Laura & Elena).
 Adheres strictly to the architectural contract in data/pipelines/PIPELINE_DESIGN.md.
 """
 
@@ -12,10 +13,11 @@ from datetime import date, datetime, time, timezone
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import Engine, select, text
+from sqlalchemy import Engine, desc, func, select, text
 
+from data.pipelines.db import get_reporting_engine
+from data.pipelines.models import weekly_office_program_performance_table
 from services.api.telemetry_storage import (
-    get_telemetry_database_url,
     get_telemetry_engine,
     telemetry_events_table,
 )
@@ -169,7 +171,6 @@ def transform_events_to_weekly_kpis(
         entry = aggregates[grain_key]
 
         if event_type == "inbound_order_created":
-            # Priority: total_cost if present and positive, otherwise unit_cost * quantity
             total_cost_prop = tags.get("total_cost")
             if total_cost_prop is not None:
                 try:
@@ -196,7 +197,6 @@ def transform_events_to_weekly_kpis(
         elif event_type == "kit_cost_variance_detected":
             entry["cost_variance_events_count"] += 1
 
-    # Round costs and return sorted list
     result_list: list[dict[str, Any]] = []
     for item in aggregates.values():
         item["total_material_cost"] = round(item["total_material_cost"], 2)
@@ -209,3 +209,59 @@ def transform_events_to_weekly_kpis(
         len(result_list),
     )
     return result_list
+
+
+def get_weekly_kpis_for_reporting(
+    week_start: Optional[date] = None,
+    office: Optional[str] = None,
+    programme_id: Optional[str] = None,
+    engine: Optional[Engine] = None,
+) -> tuple[Optional[date], list[dict[str, Any]]]:
+    """Query reporting.weekly_office_program_performance for the requested or latest week.
+
+    Returns (effective_week_start, list_of_entry_dicts).
+    """
+    target_engine = engine or get_reporting_engine()
+
+    with target_engine.connect() as conn:
+        effective_week = week_start
+
+        # If no week_start was requested, query for the latest computed week
+        if effective_week is None:
+            max_week_query = select(func.max(weekly_office_program_performance_table.c.week_start))
+            effective_week = conn.execute(max_week_query).scalar_one_or_none()
+
+        if effective_week is None:
+            return None, []
+
+        query = select(weekly_office_program_performance_table).where(
+            weekly_office_program_performance_table.c.week_start == effective_week
+        )
+
+        if office:
+            query = query.where(weekly_office_program_performance_table.c.office == office.lower())
+        if programme_id:
+            query = query.where(weekly_office_program_performance_table.c.programme_id == programme_id)
+
+        query = query.order_by(
+            weekly_office_program_performance_table.c.office.asc(),
+            weekly_office_program_performance_table.c.programme_id.asc(),
+        )
+
+        rows = conn.execute(query).mappings().all()
+
+        entries: list[dict[str, Any]] = []
+        for r in rows:
+            entries.append(
+                {
+                    "office": r["office"],
+                    "programme_id": r["programme_id"],
+                    "total_material_cost": float(r["total_material_cost"]),
+                    "kits_delivered_count": int(r["kits_delivered_count"]),
+                    "shortage_events_count": int(r["shortage_events_count"]),
+                    "cost_variance_events_count": int(r["cost_variance_events_count"]),
+                    "currency": r["currency"],
+                }
+            )
+
+        return effective_week, entries

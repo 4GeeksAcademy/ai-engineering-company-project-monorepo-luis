@@ -23,6 +23,7 @@ from services.api.routers.profiles import router as profiles_router
 from services.api.routers.suppliers import router as suppliers_router
 from services.api.routers.telemetry import router as telemetry_router
 from services.api.routers.users import router as users_router
+from services.reporting.router import router as reporting_router
 from services.api.security import load_jwt_settings
 from services.api.telemetry import load_telemetry_endpoint
 
@@ -82,6 +83,7 @@ app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(inventory_router)
 app.include_router(telemetry_router)
+app.include_router(reporting_router)
 
 
 @app.exception_handler(RequestValidationError)
