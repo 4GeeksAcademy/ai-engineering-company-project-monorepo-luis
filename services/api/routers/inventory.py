@@ -43,6 +43,7 @@ from services.api.schemas import (
 )
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
+DEFAULT_ERROR_RESPONSES = {500: {"model": DetailErrorResponse, "description": "Internal server error"}}
 PRODUCTS_CACHE_TTL_SECONDS = 15
 
 
@@ -59,6 +60,7 @@ def _products_cache_key(session: Session) -> tuple[str, Hashable]:
     response_model=List[AssetRead],
     status_code=status.HTTP_200_OK,
     summary="List all catalogued assets with calculated stock",
+    responses=DEFAULT_ERROR_RESPONSES,
 )
 def get_products(session: Session = Depends(get_db)) -> List[AssetRead]:
     """Retrieve all assets along with their derived stock per office."""
@@ -77,6 +79,7 @@ def get_products(session: Session = Depends(get_db)) -> List[AssetRead]:
     responses={
         400: {"model": DetailErrorResponse, "description": "SKU already exists."},
         401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
+        **DEFAULT_ERROR_RESPONSES,
     },
 )
 def post_product(
@@ -95,7 +98,7 @@ def post_product(
     response_model=AssetRead,
     status_code=status.HTTP_200_OK,
     summary="Retrieve an asset by ID with current stock",
-    responses={404: {"model": DetailErrorResponse, "description": "Asset not found."}},
+    responses={404: {"model": DetailErrorResponse, "description": "Asset not found."}, **DEFAULT_ERROR_RESPONSES},
 )
 def get_product_by_id(id: int, session: Session = Depends(get_db)) -> AssetRead:
     """Retrieve asset details and derived current stock. 404 if not found."""
@@ -110,6 +113,7 @@ def get_product_by_id(id: int, session: Session = Depends(get_db)) -> AssetRead:
     responses={
         401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
         404: {"model": DetailErrorResponse, "description": "Asset not found."},
+        **DEFAULT_ERROR_RESPONSES,
     },
 )
 def post_inbound_order(
@@ -158,6 +162,7 @@ def post_inbound_order(
         400: {"model": DetailErrorResponse, "description": "Insufficient stock for this asset and office."},
         401: {"model": DetailErrorResponse, "description": "Authentication required or invalid bearer token."},
         404: {"model": DetailErrorResponse, "description": "Asset not found."},
+        **DEFAULT_ERROR_RESPONSES,
     },
 )
 def post_outbound_order(
@@ -224,6 +229,7 @@ def reject_direct_stock_edit(
     response_model=List[OrderItemRead],
     status_code=status.HTTP_200_OK,
     summary="List all inbound and outbound inventory movements",
+    responses=DEFAULT_ERROR_RESPONSES,
 )
 def get_orders(session: Session = Depends(get_db)) -> List[OrderItemRead]:
     """Retrieve all inventory movements with parent asset details without N+1 queries."""
